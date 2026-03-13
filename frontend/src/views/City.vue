@@ -101,13 +101,9 @@ const cityImages = {
   '大理': '/images/cities/dali.jpg',
   '丽江': '/images/cities/lijiang.jpg',
 }
-  '九寨沟': 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=1200',
-  '大理': 'https://images.unsplash.com/photo-1580870069867-74c57ee1bb07?w=1200',
-  '丽江': 'https://images.unsplash.com/photo-1529143694754-56f8e0156f33?w=1200',
-}
 
 const cityImage = computed(() => {
-  return cityImages[cityName.value] || 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=1200'
+  return cityImages[cityName.value] || '/images/cities/beijing.jpg'
 })
 
 // City-specific images for scenic spots

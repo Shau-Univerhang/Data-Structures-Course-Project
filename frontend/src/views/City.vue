@@ -73,30 +73,34 @@ const route = useRoute()
 const cityName = ref('')
 const spots = ref([])
 const selectedCategory = ref('全部')
-const defaultImage = 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=400'
+const defaultImage = '/images/cities/beijing.jpg'
 
 const categories = ['全部', '历史古迹', '风景名胜', '地标建筑', '博物展览', '休闲娱乐', '美食']
 
-// City header images - correct images for each city
+// 使用本地图片
 const cityImages = {
-  '北京': 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=1200',
-  '上海': 'https://images.unsplash.com/photo-1474181487882-5abf3f0ba6c2?w=1200',
-  '西安': 'https://images.unsplash.com/photo-1724458589661-a2f42eb58aca?w=1200',
-  '成都': 'https://images.unsplash.com/photo-1622613744987-0e3527fae518?w=1200',
-  '杭州': 'https://images.unsplash.com/photo-1697730047280-01082430a28a?w=1200',
-  '重庆': 'https://images.unsplash.com/photo-1567014688543-cc4abffb061a?w=1200',
-  '青岛': 'https://images.unsplash.com/photo-1718085875432-98c61c603b54?w=1200',
-  '广州': 'https://images.unsplash.com/photo-1559035871-4b9dcf31885c?w=1200',
-  '苏州': 'https://images.unsplash.com/photo-1521022741625-63f57c752f95?w=1200',
-  '厦门': 'https://images.unsplash.com/photo-1660531141240-d5fb7a955822?w=1200',
-  '南京': 'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?w=1200',
-  '武汉': 'https://images.unsplash.com/photo-1596496050827-8299e0220de1?w=1200',
-  '长沙': 'https://images.unsplash.com/photo-1585351363283-95e3d5041053?w=1200',
-  '深圳': 'https://images.unsplash.com/photo-1558539320-1c71c5c5d8e8?w=1200',
-  '三亚': 'https://images.unsplash.com/photo-1580821810645-11a8fd7c9f37?w=1200',
-  '桂林': 'https://images.unsplash.com/photo-1548919973-5cef591cdbc9?w=1200',
-  '张家界': 'https://images.unsplash.com/photo-1565060169194-19fabf63012f?w=1200',
-  '黄山': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200',
+  '北京': '/images/cities/beijing.jpg',
+  '上海': '/images/cities/shanghai.jpg',
+  '西安': '/images/cities/xian.jpg',
+  '成都': '/images/cities/chengdu.jpg',
+  '杭州': '/images/cities/hangzhou.jpg',
+  '重庆': '/images/cities/chongqing.jpg',
+  '青岛': '/images/cities/qingdao.jpg',
+  '广州': '/images/cities/guangzhou.jpg',
+  '苏州': '/images/cities/suzhou.jpg',
+  '厦门': '/images/cities/xiamen.jpg',
+  '南京': '/images/cities/nanjing.jpg',
+  '武汉': '/images/cities/wuhan.jpg',
+  '长沙': '/images/cities/changsha.jpg',
+  '深圳': '/images/cities/shenzhen.jpg',
+  '三亚': '/images/cities/sanya.jpg',
+  '桂林': '/images/cities/guilin.jpg',
+  '张家界': '/images/cities/zhangjiajie.jpg',
+  '黄山': '/images/cities/huangshan.jpg',
+  '九寨沟': '/images/cities/jiuzhaigou.jpg',
+  '大理': '/images/cities/dali.jpg',
+  '丽江': '/images/cities/lijiang.jpg',
+}
   '九寨沟': 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=1200',
   '大理': 'https://images.unsplash.com/photo-1580870069867-74c57ee1bb07?w=1200',
   '丽江': 'https://images.unsplash.com/photo-1529143694754-56f8e0156f33?w=1200',

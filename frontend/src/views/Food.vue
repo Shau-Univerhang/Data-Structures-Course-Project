@@ -154,7 +154,7 @@ const router = useRouter()
 // 城市列表
 const cities = ['全部', '北京', '上海', '成都', '重庆', '杭州', '西安', '广州', '苏州', '厦门']
 const cuisines = ['全部', '川菜', '火锅', '烧烤', '小吃', '粤菜', '湘菜', '西餐', '日料']
-const defaultImage = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400'
+const defaultImage = '/images/foods/bbq.jpg'
 
 // 状态
 const selectedCity = ref('全部')

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮游世界 - 启动入口</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 48px;
+            background: linear-gradient(135deg, #00D4FF, #7B2CBF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 18px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 40px;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 20px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00D4FF, #7B2CBF);
+            border: none;
+            color: #fff;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 50px rgba(0, 212, 255, 0.6);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            color: #00D4FF;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+        
+        .status {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            max-width: 500px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .online {
+            color: #00FF00;
+        }
+        
+        .offline {
+            color: #FF4444;
+        }
+        
+        .tip {
+            margin-top: 30px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🌍</div>
+        <h1>邮游世界</h1>
+        <p class="subtitle">个性化智能旅游推荐系统</p>
+        
+        <div class="buttons">
+            <a href="http://localhost:5173" class="btn btn-primary" target="_blank">
+                🚀 打开应用
+            </a>
+            <a href="http://localhost:8000/docs" class="btn btn-secondary" target="_blank">
+                📚 API文档
+            </a>
+        </div>
+        
+        <div class="status">
+            <div class="status-item">
+                <span>🌐 前端服务 (localhost:5173)</span>
+                <span id="frontend-status" class="offline">检测中...</span>
+            </div>
+            <div class="status-item">
+                <span>⚙️ 后端服务 (localhost:8000)</span>
+                <span id="backend-status" class="offline">检测中...</span>
+            </div>
+        </div>
+        
+        <p class="tip">如果服务未启动，请双击根目录的 启动.bat</p>
+    </div>
+    
+    <script>
+        // 检测前端
+        fetch('http://localhost:5173', {method: 'HEAD', mode: 'no-cors'})
+            .then(() => {
+                document.getElementById('frontend-status').textContent = '✅ 在线';
+                document.getElementById('frontend-status').className = 'online';
+            })
+            .catch(() => {
+                document.getElementById('frontend-status').textContent = '❌ 未启动';
+            });
+        
+        // 检测后端
+        fetch('http://localhost:8000/', {method: 'GET', mode: 'no-cors'})
+            .then(() => {
+                document.getElementById('backend-status').textContent = '✅ 在线';
+                document.getElementById('backend-status').className = 'online';
+            })
+            .catch(() => {
+                document.getElementById('backend-status').textContent = '❌ 未启动';
+            });
+    </script>
+</body>
+</html>

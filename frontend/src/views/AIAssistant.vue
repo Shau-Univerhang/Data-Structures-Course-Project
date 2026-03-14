@@ -260,6 +260,8 @@ ${data.content ? `摘要：${(data.content.summary || '').slice(0, 100)}...` : '
 
 // 根据解析结果创建行程
 const createTripFromItinerary = async (itinerary) => {
+  const userId = localStorage.getItem('userId') || 1
+
   try {
     const response = await fetch('http://localhost:8000/api/trips', {
       method: 'POST',
@@ -269,21 +271,26 @@ const createTripFromItinerary = async (itinerary) => {
         destination: itinerary.destination,
         total_days: itinerary.days || 3,
         travel_preferences: itinerary.preferences || [],
-        user_id: 1
+        user_id: parseInt(userId)
       })
     })
-    
+
     const trip = await response.json()
-    
+
     if (trip.id) {
-      messages.value.push({ 
-        role: 'assistant', 
+      messages.value.push({
+        role: 'assistant',
         content: `🎉 行程创建成功！
 
 我已经为你创建了「${itinerary.title || itinerary.destination}」行程，包含${itinerary.days || 3}天的安排。
 
+📋 行程信息：
+• 目的地：${itinerary.destination}
+• 天数：${itinerary.days}天
+${itinerary.spots && itinerary.spots.length > 0 ? `• 包含景点：${itinerary.spots.join('、')}` : ''}
+
 你可以：
-• 查看行程详情
+• [查看行程详情](/trip?id=${trip.id})
 • 添加更多景点
 • 生成详细攻略
 

@@ -61,14 +61,43 @@
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-content">
         <h2>写日记</h2>
-        <input 
-          type="text" 
-          class="tech-input" 
+
+        <!-- 模板选择 -->
+        <div class="template-section">
+          <p class="template-label">选择模板：</p>
+          <div class="template-buttons">
+            <button
+              class="template-btn"
+              :class="{ active: selectedTemplate === 'travel' }"
+              @click="selectTemplate('travel')"
+            >
+              🏃 行程攻略
+            </button>
+            <button
+              class="template-btn"
+              :class="{ active: selectedTemplate === 'food' }"
+              @click="selectTemplate('food')"
+            >
+              🍜 美食记录
+            </button>
+            <button
+              class="template-btn"
+              :class="{ active: selectedTemplate === 'photo' }"
+              @click="selectTemplate('photo')"
+            >
+              📸 摄影大片
+            </button>
+          </div>
+        </div>
+
+        <input
+          type="text"
+          class="tech-input"
           placeholder="日记标题"
           v-model="newDiary.title"
         />
-        <textarea 
-          class="tech-input diary-textarea" 
+        <textarea
+          class="tech-input diary-textarea"
           placeholder="记录你的旅行..."
           v-model="newDiary.content"
         ></textarea>
@@ -92,6 +121,89 @@ const searchQuery = ref('')
 const showCreateModal = ref(false)
 const diaries = ref([])
 const currentUserId = ref(null)
+const selectedTemplate = ref('')
+
+// 日记模板
+const diaryTemplates = {
+  travel: `【行程概览】
+📅 出行日期：
+👥 出行人数：
+💰 预算：
+
+【每日行程】
+📍 Day 1 ：
+• 上午：
+• 中午：
+• 下午：
+• 晚上：
+
+📍 Day 2 ：
+
+📍 Day 3 ：
+
+【推荐指数】⭐⭐⭐⭐⭐
+
+【实用贴士】
+✓
+✓
+✓
+
+【总体感受】
+`,
+  food: `【美食清单】
+🍜 推荐菜品：
+• 1.
+• 2.
+• 3.
+
+【餐厅信息】
+📍 店名：
+📍 地址：
+💰 人均：
+
+【必吃推荐】⭐⭐⭐⭐⭐
+
+【美食亮点】
+• 口味：
+• 环境：
+• 服务：
+
+【总评】
+`,
+  photo: `【拍摄地点】
+📍 位置：
+📅 拍摄时间：
+
+【器材参数】
+📷 相机：
+🔭 镜头：
+⚙️ 参数：
+
+【拍摄亮点】
+• 光线：
+• 构图：
+• 色彩：
+
+【后期处理】
+• 调色：
+• 滤镜：
+
+【推荐指数】⭐⭐⭐⭐⭐
+
+【拍摄建议】
+`
+}
+
+// 选择模板
+const selectTemplate = (template) => {
+  if (selectedTemplate.value === template) {
+    selectedTemplate.value = ''
+    newDiary.value.content = ''
+  } else {
+    selectedTemplate.value = template
+    newDiary.value.content = diaryTemplates[template]
+  }
+}
 
 onMounted(() => {
   // 检查登录状态
@@ -314,6 +426,43 @@ const createDiary = () => {
   justify-content: center;
   z-index: 1000;
   padding: 20px;
+}
+
+.template-section {
+  margin-bottom: 15px;
+}
+
+.template-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+}
+
+.template-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.template-btn {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.template-btn:hover {
+  background: rgba(0, 212, 255, 0.1);
+}
+
+.template-btn.active {
+  background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+  border-color: transparent;
+  color: #fff;
 }
 
 .modal-content {

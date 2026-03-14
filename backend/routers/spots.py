@@ -61,6 +61,30 @@ class RestaurantResponse(BaseModel):
 
 # 路由实现
 
+@router.get("/", response_model=SpotListResponse)
+def list_spots(
+    city: Optional[str] = Query(None, description="城市筛选"),
+    category: Optional[str] = Query(None, description="类别筛选"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """获取景点列表"""
+    query = db.query(ScenicSpot)
+    
+    if city:
+        query = query.filter(ScenicSpot.city == city)
+    
+    if category:
+        query = query.filter(ScenicSpot.category == category)
+    
+    total = query.count()
+    offset = (page - 1) * page_size
+    spots = query.offset(offset).limit(page_size).all()
+    
+    return {"total": total, "spots": spots}
+
+
 @router.get("/search", response_model=SpotListResponse)
 def search_spots(
     q: Optional[str] = Query(None, description="搜索关键词"),

@@ -8,6 +8,10 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import sys
 import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -37,7 +41,7 @@ app.mount("/images", StaticFiles(directory=images_dir), name="images")
 app.include_router(spots.router, prefix="/api/spots", tags=["景点"])
 app.include_router(trips.router, prefix="/api/trips", tags=["行程"])
 app.include_router(route.router, prefix="/api/route", tags=["路线"])
-app.include_router(diary.router, prefix="/api/diary", tags=["日记"])
+app.include_router(diary.router, prefix="/api/diaries", tags=["日记"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(xiaohongshu.router, prefix="/api/xiaohongshu", tags=["小红书"])
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])

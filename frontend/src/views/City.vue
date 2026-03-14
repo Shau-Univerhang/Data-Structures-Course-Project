@@ -77,58 +77,97 @@ const defaultImage = '/images/cities/beijing.jpg'
 
 const categories = ['全部', '历史古迹', '风景名胜', '地标建筑', '博物展览', '休闲娱乐', '美食']
 
-// 使用本地图片
+// 使用本地图片 - 城市对应
 const cityImages = {
   '北京': '/images/cities/beijing.jpg',
   '上海': '/images/cities/shanghai.jpg',
   '西安': '/images/cities/xian.jpg',
   '成都': '/images/cities/chengdu.jpg',
-  '杭州': '/images/cities/hangzhou.jpg',
+  '杭州': '/images/cities/suzhou.jpg',
   '重庆': '/images/cities/chongqing.jpg',
   '青岛': '/images/cities/qingdao.jpg',
   '广州': '/images/cities/guangzhou.jpg',
   '苏州': '/images/cities/suzhou.jpg',
   '厦门': '/images/cities/xiamen.jpg',
-  '南京': '/images/cities/nanjing.jpg',
+  '南京': '/images/cities/wuhan.jpg',
   '武汉': '/images/cities/wuhan.jpg',
-  '长沙': '/images/cities/changsha.jpg',
-  '深圳': '/images/cities/shenzhen.jpg',
-  '三亚': '/images/cities/sanya.jpg',
+  '长沙': '/images/cities/chongqing.jpg',
+  '深圳': '/images/cities/shanghai.jpg',
+  '三亚': '/images/cities/guilin.jpg',
   '桂林': '/images/cities/guilin.jpg',
-  '张家界': '/images/cities/zhangjiajie.jpg',
+  '张家界': '/images/cities/jiuzhaigou.jpg',
   '黄山': '/images/cities/huangshan.jpg',
   '九寨沟': '/images/cities/jiuzhaigou.jpg',
   '大理': '/images/cities/dali.jpg',
-  '丽江': '/images/cities/lijiang.jpg',
+  '丽江': '/images/cities/dali.jpg',
 }
 
 const cityImage = computed(() => {
   return cityImages[cityName.value] || '/images/cities/beijing.jpg'
 })
 
-// City-specific images for scenic spots
+// 北京景点图片映射 - 使用本地真实图片
+const beijingSpotImages = {
+  '故宫': '/images/spots/beijing-gugong.jpg',
+  '故宫博物院': '/images/spots/beijing-gugong.jpg',
+  '长城': '/images/spots/beijing-changcheng.jpg',
+  '八达岭长城': '/images/spots/beijing-changcheng.jpg',
+  '天坛': '/images/spots/beijing-tiantan.jpg',
+  '天坛公园': '/images/spots/beijing-tiantan.jpg',
+  '天安门': '/images/spots/beijing-tiananmen.jpg',
+  '天安门广场': '/images/spots/beijing-tiananmen.jpg',
+  '颐和园': '/images/spots/beijing-yiheyuan.jpg',
+  '鸟巢': '/images/spots/beijing-niaokong.jpg',
+  '国家体育场': '/images/spots/beijing-niaokong.jpg',
+}
+
+// 上海景点图片映射
+const shanghaiSpotImages = {
+  '东方明珠': '/images/spots/shanghai-dongfangmingzhu.jpg',
+  '外滩': '/images/spots/shanghai-waitan.jpg',
+}
+
+// 西安景点图片映射
+const xianSpotImages = {
+  '兵马俑': '/images/spots/xian-bingmayong.jpg',
+  '大雁塔': '/images/spots/xian-dayanta.jpg',
+}
+
+// 成都景点图片映射
+const chengduSpotImages = {
+  '锦里': '/images/spots/chengdu-jinli.jpg',
+  '宽窄巷子': '/images/spots/chengdu-kuanzhai.jpg',
+}
+
+// 其他城市景点映射
 const citySpotImages = {
-  '北京': 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=800',
-  '上海': 'https://images.unsplash.com/photo-1474181487882-5abf3f0ba6c2?w=800',
-  '西安': 'https://images.unsplash.com/photo-1724458589661-a2f42eb58aca?w=800',
-  '成都': 'https://images.unsplash.com/photo-1622613744987-0e3527fae518?w=800',
-  '杭州': 'https://images.unsplash.com/photo-1697730047280-01082430a28a?w=800',
-  '重庆': 'https://images.unsplash.com/photo-1567014688543-cc4abffb061a?w=800',
-  '青岛': 'https://images.unsplash.com/photo-1718085875432-98c61c603b54?w=800',
-  '广州': 'https://images.unsplash.com/photo-1559035871-4b9dcf31885c?w=800',
-  '苏州': 'https://images.unsplash.com/photo-1521022741625-63f57c752f95?w=800',
-  '厦门': 'https://images.unsplash.com/photo-1660531141240-d5fb7a955822?w=800',
-  '南京': 'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?w=800',
-  '武汉': 'https://images.unsplash.com/photo-1596496050827-8299e0220de1?w=800',
-  '长沙': 'https://images.unsplash.com/photo-1585351363283-95e3d5041053?w=800',
-  '深圳': 'https://images.unsplash.com/photo-1558539320-1c71c5c5d8e8?w=800',
-  '三亚': 'https://images.unsplash.com/photo-1580821810645-11a8fd7c9f37?w=800',
-  '桂林': 'https://images.unsplash.com/photo-1548919973-5cef591cdbc9?w=800',
-  '张家界': 'https://images.unsplash.com/photo-1565060169194-19fabf63012f?w=800',
-  '黄山': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800',
-  '九寨沟': 'https://images.unsplash.com/photo-1574169208507-84376144848b?w=800',
-  '大理': 'https://images.unsplash.com/photo-1580870069867-74c57ee1bb07?w=800',
-  '丽江': 'https://images.unsplash.com/photo-1529143694754-56f8e0156f33?w=800',
+  '北京': beijingSpotImages,
+  '上海': shanghaiSpotImages,
+  '西安': xianSpotImages,
+  '成都': chengduSpotImages,
+  '重庆': { '洪崖洞': '/images/spots/chongqing-hongyadong.jpg' },
+  '大理': { '洱海': '/images/spots/dali-erhai.jpg' },
+  '广州': { '小蛮腰': '/images/spots/guangzhou-canton-tower.jpg', '广州塔': '/images/spots/guangzhou-canton-tower.jpg' },
+  '黄山': { '光明顶': '/images/spots/huangshan-guangmingding.jpg' },
+  '九寨沟': { '五彩池': '/images/spots/jiuzhaigou-wucaichi.jpg' },
+  '青岛': { '栈桥': '/images/spots/qingdao-zhanqiao.jpg' },
+  '苏州': { '拙政园': '/images/spots/suzhou-zhuozhengyuan.jpg' },
+  '武汉': { '黄鹤楼': '/images/spots/wuhan-huanghelou.jpg' },
+  '厦门': { '鼓浪屿': '/images/spots/xiamen-gulangyu.jpg' },
+}
+
+// 获取景点对应的图片
+const getSpotImage = (spotName, city) => {
+  const cityImagesMap = citySpotImages[city]
+  if (cityImagesMap) {
+    for (const [key, value] of Object.entries(cityImagesMap)) {
+      if (spotName.includes(key)) {
+        return value
+      }
+    }
+  }
+  // 如果没有特定映射，使用城市默认图片
+  return cityImages[city] || defaultImage
 }
 
 const spotCount = computed(() => spots.value.length)
@@ -150,22 +189,25 @@ const loadSpots = async () => {
     if (data.spots) {
       spots.value = data.spots.map(s => ({
         ...s,
-        // Use city-specific image if API doesn't provide unique image
-        image: (s.images && s.images.length > 0) ? s.images[0] : (citySpotImages[cityName.value] || defaultImage)
+        // 使用本地景点图片映射
+        image: (s.images && s.images.length > 0) ? s.images[0] : getSpotImage(s.name, cityName.value)
       }))
     } else if (Array.isArray(data)) {
       spots.value = data.map(s => ({
         ...s,
-        image: (s.images && s.images.length > 0) ? s.images[0] : (citySpotImages[cityName.value] || defaultImage)
+        image: (s.images && s.images.length > 0) ? s.images[0] : getSpotImage(s.name, cityName.value)
       }))
     }
   } catch (error) {
     console.error('加载失败:', error)
-    // 模拟数据
+    // 模拟数据 - 带真实本地图片
     spots.value = [
-      { id: 1, name: '故宫博物院', rating: 4.9, category: '历史古迹', description: '世界上现存规模最大的木质结构古建筑', tags: ['必玩景点', '历史文化'] },
-      { id: 2, name: '天坛公园', rating: 4.9, category: '历史古迹', description: '明清两代帝王祭祀场所', tags: ['古建绝美'] },
-      { id: 3, name: '颐和园', rating: 4.9, category: '风景名胜', description: '清代皇家园林', tags: ['皇家园林'] },
+      { id: 1, name: '故宫博物院', rating: 4.9, category: '历史古迹', description: '世界上现存规模最大的木质结构古建筑', tags: ['必玩景点', '历史文化'], image: '/images/spots/beijing-gugong.jpg' },
+      { id: 2, name: '天坛公园', rating: 4.9, category: '历史古迹', description: '明清两代帝王祭祀场所', tags: ['古建绝美'], image: '/images/spots/beijing-tiantan.jpg' },
+      { id: 3, name: '颐和园', rating: 4.9, category: '风景名胜', description: '清代皇家园林', tags: ['皇家园林'], image: '/images/spots/beijing-yiheyuan.jpg' },
+      { id: 4, name: '八达岭长城', rating: 4.8, category: '历史古迹', description: '万里长城的重要组成部分', tags: ['必玩景点'], image: '/images/spots/beijing-changcheng.jpg' },
+      { id: 5, name: '天安门广场', rating: 4.7, category: '历史古迹', description: '世界上最大的城市广场', tags: ['标志性建筑'], image: '/images/spots/beijing-tiananmen.jpg' },
+      { id: 6, name: '国家体育场', rating: 4.8, category: '地标建筑', description: '又称鸟巢', tags: ['现代建筑'], image: '/images/spots/beijing-niaokong.jpg' },
     ]
   }
 }

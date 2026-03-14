@@ -89,6 +89,7 @@
 <script setup>
 import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { marked } from 'marked'
 
 const router = useRouter()
 
@@ -99,6 +100,12 @@ const showImportModal = ref(false)
 const showFoodModal = ref(false)
 const importLink = ref('')
 const chatSection = ref(null)
+
+// 配置marked渲染Markdown
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
 
 // 快捷操作
 const quickAction = (action) => {
@@ -288,10 +295,11 @@ const createTripFromItinerary = async (itinerary) => {
   }
 }
 
-// 格式化消息
+// 格式化消息 - 支持Markdown渲染
 const formatMessage = (content) => {
   if (!content) return ''
-  return content.replace(/\n/g, '<br>')
+  // 使用marked渲染Markdown
+  return marked(content)
 }
 
 // 滚动到底部
@@ -501,6 +509,43 @@ const goBack = () => router.back()
   padding: 14px 18px;
   font-size: 15px;
   line-height: 1.6;
+}
+
+/* Markdown样式 */
+.message-content :deep(h1),
+.message-content :deep(h2),
+.message-content :deep(h3) {
+  margin: 10px 0 5px;
+  color: #00d4ff;
+}
+
+.message-content :deep(p) {
+  margin: 8px 0;
+}
+
+.message-content :deep(ul),
+.message-content :deep(ol) {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message-content :deep(li) {
+  margin: 4px 0;
+}
+
+.message-content :deep(code) {
+  background: rgba(0, 212, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.message-content :deep(strong) {
+  color: #00d4ff;
+}
+
+.message-content :deep(a) {
+  color: #7b2cbf;
 }
 
 .message.user .message-content {

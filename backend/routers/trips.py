@@ -62,7 +62,7 @@ class DailyScheduleResponse(BaseModel):
 
 # 路由实现
 
-@router.post("/create", response_model=TripResponse)
+@router.post("/", response_model=TripResponse)
 def create_trip(
     request: CreateTripRequest,
     user_id: int = Query(1, description="用户ID"),  # 简化：默认用户
@@ -85,7 +85,7 @@ def create_trip(
     return trip
 
 
-@router.get("/list")
+@router.get("/", response_model=List[TripResponse])
 def list_trips(
     user_id: int = Query(1, description="用户ID"),
     status: Optional[str] = Query(None, description="状态筛选"),

@@ -15,9 +15,11 @@ from models.database import get_db, ScenicSpot, Trip, TripDailySchedule
 
 router = APIRouter()
 
-# MiniMax API配置 - 使用正确的配置
-MINIMAX_API_KEY = "sk-cp-eENF_3JXbnNR0MFbfGZJqpW6Yxq-W6Qt_9YjNoI5EFCL63wekVwj0y3z1OJdugX17zIGqN51KDheUiJCp3MnrC_LJlAuOpgah92L-r4YEED2Y7h31-tTtPc"
-MINIMAX_API_BASE = "https://api.minimaxi.com/anthropic"
+import os
+
+# MiniMax API配置 - 使用环境变量保护密钥
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
+MINIMAX_API_BASE = os.getenv("MINIMAX_API_BASE", "https://api.minimax.chat")
 
 
 # Pydantic模型
@@ -40,7 +42,7 @@ class XiaohongshuParseRequest(BaseModel):
 
 def call_minimax(prompt: str, temperature: float = 0.7) -> str:
     """调用MiniMax M2.5 API"""
-    url = f"{MINIMAX_API_BASE}/v1/messages"
+    url = f"{MINIMAX_API_BASE}/v1/text/chatcompletion_v2"
     
     headers = {
         "Authorization": f"Bearer {MINIMAX_API_KEY}",
@@ -49,9 +51,7 @@ def call_minimax(prompt: str, temperature: float = 0.7) -> str:
     
     data = {
         "model": "MiniMax-M2.5",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
+        "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 1024,
         "temperature": temperature
     }
@@ -67,10 +67,14 @@ def call_minimax(prompt: str, temperature: float = 0.7) -> str:
                 return f"API错误: {result['base_resp'].get('status_msg', '未知错误')}"
         
         # 提取回复内容
-        if 'content' in result and len(result['content']) > 0:
-            for item in result['content']:
-                if item.get('type') == 'text':
-                    return item.get('text', '')
+        if result.get('choices') and len(result['choices']) > 0:
+            content = result['choices'][0]['message'].get('content', '')
+            if content:
+                # 尝试修复编码
+                try:
+                    return content.encode('latin1').decode('utf-8')
+                except:
+                    return content
         
         return str(result)
     except Exception as e:

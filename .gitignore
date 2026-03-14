@@ -1,19 +1,23 @@
-# Dependencies
-node_modules/
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+venv/
+ENV/
+.env
+!.env.example
 
-# Build
+# Node
+node_modules/
 dist/
-build/
-*.egg-info/
+npm-debug.log*
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
-*.swo
 
 # OS
 .DS_Store
@@ -22,11 +26,10 @@ Thumbs.db
 # Logs
 *.log
 
-# Environment
-.env
-.env.local
-
-# Database
+# 数据库
 *.db
 *.sqlite
 *.sqlite3
+
+# 图片
+images/

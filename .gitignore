@@ -13,6 +13,7 @@ ENV/
 node_modules/
 dist/
 npm-debug.log*
+.vite/
 
 # IDE
 .idea/
@@ -26,10 +27,7 @@ Thumbs.db
 # Logs
 *.log
 
-# 数据库
-*.db
-*.sqlite
-*.sqlite3
-
-# 图片
-images/
+# 数据库 (保留 travel.db 用于项目)
+# *.db
+# *.sqlite
+# *.sqlite3

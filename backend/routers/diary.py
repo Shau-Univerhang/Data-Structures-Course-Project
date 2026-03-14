@@ -23,6 +23,8 @@ class CreateDiaryRequest(BaseModel):
     images: List[str] = []
     videos: List[str] = []
     compress: bool = True
+    diary_type: Optional[str] = "travel"
+    is_public: Optional[bool] = False
 
 
 class DiaryResponse(BaseModel):
@@ -77,6 +79,33 @@ def create_diary(
     db.refresh(diary)
     
     return diary
+
+
+@router.get("/public", response_model=List[dict])
+def get_public_diaries(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=20),
+    db: Session = Depends(get_db)
+):
+    """获取公开的精选日记（用于展示）"""
+    diaries = db.query(TravelDiary).filter(
+        TravelDiary.status == 'published',
+        TravelDiary.is_public == True
+    ).order_by(TravelDiary.avg_rating.desc(), TravelDiary.view_count.desc()).offset((page-1)*page_size).limit(page_size).all()
+    
+    result = []
+    for diary in diaries:
+        user = db.query(User).filter(User.id == diary.user_id).first()
+        result.append({
+            "id": diary.id,
+            "title": diary.title,
+            "cover": diary.images[0] if diary.images else None,
+            "author": user.username if user else "匿名用户",
+            "likes": diary.avg_rating * 100,
+            "rating": round(diary.avg_rating, 1) if diary.avg_rating else 0
+        })
+    
+    return result
 
 
 @router.get("/", response_model=List[DiaryResponse])

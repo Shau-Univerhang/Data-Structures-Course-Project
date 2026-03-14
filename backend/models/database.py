@@ -200,6 +200,8 @@ class TravelDiary(Base):
     content = Column(Text)  # 日记内容
     content_compressed = Column(BLOB)  # 压缩后的内容
     compression_algorithm = Column(String(20))  # 压缩算法
+    diary_type = Column(String(20), default='travel')  # 日记类型: travel/food/photo/notes
+    is_public = Column(Boolean, default=False)  # 是否公开
     images = Column(JSON)  # 图片列表
     videos = Column(JSON)  # 视频列表
     view_count = Column(Integer, default=0)  # 浏览量

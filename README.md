@@ -51,6 +51,55 @@
 | 模糊查找 | 支持拼音首字母、通配符 |
 | Gzip | 无损压缩 |
 
+## 图片资源获取
+
+### Unsplash API 图片爬取
+
+本项目使用 Unsplash Official API 获取城市和美食的高清图片。
+
+#### 1. 获取 API Key
+
+1. 访问 [Unsplash Developers](https://unsplash.com/developers)
+2. 注册/登录账号
+3. 点击 "Your Apps" → "New Application"
+4. 填写基本信息并同意条款
+5. 获取 **Access Key**
+
+#### 2. 使用图片下载脚本
+
+```bash
+# 安装依赖（如需要）
+pip install requests
+
+# 运行脚本
+python unsplash_downloader.py --key YOUR_ACCESS_KEY
+
+# 参数说明
+# --key     Unsplash API Access Key (必填)
+# --type    下载类型: city / food / all (默认: all)
+# --output  输出目录 (默认: ./downloads)
+# --count   每个关键字下载数量 (默认: 1)
+
+# 示例
+python unsplash_downloader.py --key abc123xyz --type city
+```
+
+#### 3. 图片命名规范
+
+- 城市图片：`cities/城市名拼音.jpg` (如 beijing.jpg, shanghai.jpg)
+- 美食图片：`foods/美食名拼音.jpg` (如 beijing-duck.jpg)
+
+#### 4. 在项目中使用
+
+下载的图片放入 `frontend/public/images/` 目录，前端代码通过相对路径引用：
+
+```javascript
+const destinations = [
+  { name: '北京', image: '/images/cities/beijing.jpg' },
+  // ...
+]
+```
+
 ## 数据规模
 
 - 景区数量: ≥200个
@@ -73,6 +122,7 @@
 │   │   └── router/
 │   └── package.json
 ├── images/           # 图片资源
+├── unsplash_downloader.py  # Unsplash图片下载脚本
 └── README.md
 ```
 

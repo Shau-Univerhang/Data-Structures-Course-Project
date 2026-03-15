@@ -167,34 +167,34 @@ const newReview = ref('')
 // 美食数据
 const foods = ref([
   // 北京
-  { id: 1, name: '北京烤鸭', city: '北京', cuisine_type: '京菜', rating: 4.9, price_range: '¥80-150', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', is_featured: true, tags: ['必吃', '招牌'], description: '北京最著名的传统名菜，皮脆肉嫩', reviews: [{user: '游客1', rating: 5, content: '非常好吃！', date: '2024-01-15'}] },
-  { id: 2, name: '涮羊肉', city: '北京', cuisine_type: '火锅', rating: 4.7, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', is_featured: false, tags: ['特色'], description: '老北京传统铜锅涮肉' },
-  { id: 3, name: '炸酱面', city: '北京', cuisine_type: '小吃', rating: 4.5, price_range: '¥20-40', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', tags: ['特色'], description: '老北京特色面食' },
+  { id: 1, name: '北京烤鸭', city: '北京', cuisine_type: '京菜', rating: 4.9, price_range: '¥80-150', image: 'https://images.unsplash.com/photo-1455853828816-0c301a011711?w=400', is_featured: true, tags: ['必吃', '招牌'], description: '北京最著名的传统名菜，皮脆肉嫩', reviews: [{user: '游客1', rating: 5, content: '非常好吃！', date: '2024-01-15'}] },
+  { id: 2, name: '涮羊肉', city: '北京', cuisine_type: '火锅', rating: 4.7, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400', is_featured: false, tags: ['特色'], description: '老北京传统铜锅涮肉' },
+  { id: 3, name: '炸酱面', city: '北京', cuisine_type: '小吃', rating: 4.5, price_range: '¥20-40', image: 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=400', tags: ['特色'], description: '老北京特色面食' },
   // 上海
-  { id: 4, name: '本帮红烧肉', city: '上海', cuisine_type: '本帮菜', rating: 4.8, price_range: '¥50-80', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', is_featured: true, tags: ['必吃'], description: '上海经典本帮菜，肥而不腻' },
-  { id: 5, name: '小笼包', city: '上海', cuisine_type: '小吃', rating: 4.9, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', is_featured: true, tags: ['必吃', '特色'], description: '上海传统小吃，汤汁鲜美' },
+  { id: 4, name: '本帮红烧肉', city: '上海', cuisine_type: '本帮菜', rating: 4.8, price_range: '¥50-80', image: 'https://images.unsplash.com/photo-1561998338-13ad7883b20f?w=400', is_featured: true, tags: ['必吃'], description: '上海经典本帮菜，肥而不腻' },
+  { id: 5, name: '小笼包', city: '上海', cuisine_type: '小吃', rating: 4.9, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400', is_featured: true, tags: ['必吃', '特色'], description: '上海传统小吃，汤汁鲜美' },
   { id: 6, name: '生煎包', city: '上海', cuisine_type: '小吃', rating: 4.6, price_range: '¥10-25', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', tags: ['特色'], description: '上海特色早餐' },
   // 成都
   { id: 7, name: '麻辣火锅', city: '成都', cuisine_type: '火锅', rating: 4.9, price_range: '¥70-120', image: 'https://images.unsplash.com/photo-1587895929328-6226a77f5c0f?w=400', is_featured: true, tags: ['必吃', '辣'], description: '成都特色麻辣火锅' },
-  { id: 8, name: '麻婆豆腐', city: '成都', cuisine_type: '川菜', rating: 4.7, price_range: '¥25-45', image: 'https://images.unsplash.com/photo-1587895929328-6226a77f5c0f?w=400', tags: ['经典'], description: '川菜经典代表' },
-  { id: 9, name: '龙抄手', city: '成都', cuisine_type: '小吃', rating: 4.5, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', tags: ['特色'], description: '成都传统小吃' },
+  { id: 8, name: '麻婆豆腐', city: '成都', cuisine_type: '川菜', rating: 4.7, price_range: '¥25-45', image: 'https://images.unsplash.com/photo-1589375276064-1c834fb9e68e?w=400', tags: ['经典'], description: '川菜经典代表' },
+  { id: 9, name: '龙抄手', city: '成都', cuisine_type: '小吃', rating: 4.5, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1567212722416-8096a5b9e60c?w=400', tags: ['特色'], description: '成都传统小吃' },
   // 重庆
-  { id: 10, name: '重庆火锅', city: '重庆', cuisine_type: '火锅', rating: 4.9, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1587895929328-6226a77f5c0f?w=400', is_featured: true, tags: ['必吃', '辣'], description: '正宗重庆麻辣火锅' },
-  { id: 11, name: '小面', city: '重庆', cuisine_type: '小吃', rating: 4.6, price_range: '¥10-20', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', tags: ['特色'], description: '重庆特色小面' },
+  { id: 10, name: '重庆火锅', city: '重庆', cuisine_type: '火锅', rating: 4.9, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1574660319981-1c30d8319e0e?w=400', is_featured: true, tags: ['必吃', '辣'], description: '正宗重庆麻辣火锅' },
+  { id: 11, name: '小面', city: '重庆', cuisine_type: '小吃', rating: 4.6, price_range: '¥10-20', image: 'https://images.unsplash.com/photo-1564651022779-3a7f29cd1c2e?w=400', tags: ['特色'], description: '重庆特色小面' },
   // 杭州
-  { id: 12, name: '西湖醋鱼', city: '杭州', cuisine_type: '浙菜', rating: 4.7, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', is_featured: true, tags: ['必吃'], description: '杭州名菜' },
-  { id: 13, name: '东坡肉', city: '杭州', cuisine_type: '浙菜', rating: 4.8, price_range: '¥40-70', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', tags: ['经典'], description: '杭州传统名菜' },
+  { id: 12, name: '西湖醋鱼', city: '杭州', cuisine_type: '浙菜', rating: 4.7, price_range: '¥60-100', image: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400', is_featured: true, tags: ['必吃'], description: '杭州名菜' },
+  { id: 13, name: '东坡肉', city: '杭州', cuisine_type: '浙菜', rating: 4.8, price_range: '¥40-70', image: 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=400', tags: ['经典'], description: '杭州传统名菜' },
   // 西安
-  { id: 14, name: '肉夹馍', city: '西安', cuisine_type: '小吃', rating: 4.8, price_range: '¥10-20', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', is_featured: true, tags: ['必吃', '特色'], description: '西安经典小吃' },
-  { id: 15, name: '羊肉泡馍', city: '西安', cuisine_type: '西北菜', rating: 4.6, price_range: '¥25-45', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', tags: ['特色'], description: '西安传统美食' },
+  { id: 14, name: '肉夹馍', city: '西安', cuisine_type: '小吃', rating: 4.8, price_range: '¥10-20', image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400', is_featured: true, tags: ['必吃', '特色'], description: '西安经典小吃' },
+  { id: 15, name: '羊肉泡馍', city: '西安', cuisine_type: '西北菜', rating: 4.6, price_range: '¥25-45', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', tags: ['特色'], description: '西安传统美食' },
   // 广州
-  { id: 16, name: '早茶', city: '广州', cuisine_type: '粤菜', rating: 4.9, price_range: '¥40-80', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', is_featured: true, tags: ['必吃', '特色'], description: '广州特色早茶文化' },
-  { id: 17, name: '烧腊', city: '广州', cuisine_type: '粤菜', rating: 4.7, price_range: '¥30-60', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', tags: ['特色'], description: '广州经典烧腊' },
+  { id: 16, name: '早茶', city: '广州', cuisine_type: '粤菜', rating: 4.9, price_range: '¥40-80', image: 'https://images.unsplash.com/photo-1455853828816-0c301a011711?w=400', is_featured: true, tags: ['必吃', '特色'], description: '广州特色早茶文化' },
+  { id: 17, name: '烧腊', city: '广州', cuisine_type: '粤菜', rating: 4.7, price_range: '¥30-60', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', tags: ['特色'], description: '广州经典烧腊' },
   // 苏州
-  { id: 18, name: '松鼠桂鱼', city: '苏州', cuisine_type: '苏菜', rating: 4.8, price_range: '¥80-150', image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400', is_featured: true, tags: ['必吃'], description: '苏州名菜' },
+  { id: 18, name: '松鼠桂鱼', city: '苏州', cuisine_type: '苏菜', rating: 4.8, price_range: '¥80-150', image: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?w=400', is_featured: true, tags: ['必吃'], description: '苏州名菜' },
   // 厦门
-  { id: 19, name: '沙茶面', city: '厦门', cuisine_type: '闽南菜', rating: 4.6, price_range: '¥20-40', image: 'https://images.unsplash.com/photo-1563245372-f21724e3856f?w=400', tags: ['特色'], description: '厦门特色小吃' },
-  { id: 20, name: '土笋冻', city: '厦门', cuisine_type: '闽南菜', rating: 4.4, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400', tags: ['特色'], description: '厦门特色凉菜' },
+  { id: 19, name: '沙茶面', city: '厦门', cuisine_type: '闽南菜', rating: 4.6, price_range: '¥20-40', image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400', tags: ['特色'], description: '厦门特色小吃' },
+  { id: 20, name: '土笋冻', city: '厦门', cuisine_type: '闽南菜', rating: 4.4, price_range: '¥15-30', image: 'https://images.unsplash.com/photo-1569058242567-93de6f36f8eb?w=400', tags: ['特色'], description: '厦门特色凉菜' },
 ])
 
 // 筛选

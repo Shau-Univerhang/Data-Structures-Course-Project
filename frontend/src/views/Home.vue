@@ -61,11 +61,7 @@
     <!-- 热门目的地 -->
     <section class="destinations-section">
       <h2 class="section-title">热门目的地</h2>
-      <div
-        class="immersive-carousel"
-        @mouseenter="onCarouselHover"
-        @mouseleave="onCarouselLeave"
-      >
+      <div class="immersive-carousel">
         <!-- 沉浸式背景 -->
         <div class="carousel-bg" :style="bgStyle"></div>
 
@@ -76,6 +72,7 @@
             :key="dest.name + dest.image"
             :style="getCardStyle(index)"
             @mouseenter="onCardHover(index)"
+            @mouseleave="onCardLeave"
             @click="goToCity(dest.name)"
           >
             <div class="card-image">
@@ -87,7 +84,7 @@
           </div>
         </div>
 
-        <button class="nav-btn prev" @click="prevSlide">
+        <button class="nav-btn prev" @click="prevSlide" @mouseenter.stop>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -98,7 +95,7 @@
           </svg>
         </button>
 
-        <button class="nav-btn next" @click="nextSlide">
+        <button class="nav-btn next" @click="nextSlide" @mouseenter.stop>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -239,16 +236,34 @@ const onCardHover = (index) => {
     activeIndex.value = index;
     resetProgress();
   }
+  pauseProgress();
+};
+
+const onCardLeave = () => {
+  resumeProgress();
 };
 
 const onCarouselHover = () => {
   isHovering.value = true;
-  stopAutoPlay();
+  resumeProgress();
 };
 
 const onCarouselLeave = () => {
   isHovering.value = false;
-  startAutoPlay();
+  resumeProgress();
+};
+
+const pauseProgress = () => {
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+};
+
+const resumeProgress = () => {
+  if (!progressTimer) {
+    startProgress();
+  }
 };
 
 // ==================== 自动播放 ====================
@@ -793,6 +808,7 @@ const features = [
   position: relative;
   height: 500px;
   margin-top: 40px;
+  z-index: 100;
 }
 
 .carousel-bg {
@@ -811,6 +827,7 @@ const features = [
   position: relative;
   height: 450px;
   width: 100%;
+  z-index: 10;
 }
 
 /* Destination Card - 堆叠式布局 */
@@ -893,7 +910,8 @@ const features = [
   justify-content: center;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  z-index: 20;
+  z-index: 200;
+  pointer-events: auto;
 }
 
 .nav-btn.prev {

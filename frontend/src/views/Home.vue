@@ -57,35 +57,57 @@
     </section>
 
     <!-- 热门目的地 -->
-    <section class="destinations-section">
+    <section class="destinations-section" ref="sectionRef">
       <h2 class="section-title">热门目的地</h2>
-      <div class="carousel-container" @mouseenter="stopAutoPlay" @mouseleave="startAutoPlay">
-        <button class="carousel-btn prev" @click="prevSlide">❮</button>
-        <div class="carousel-viewport">
-          <div class="carousel-track" :style="{ transform: 'translateX(' + slideOffset + 'px)' }">
-            <div 
-              class="dest-card" 
-              v-for="dest in destinations" 
-              :key="dest.name + dest.image"
-              @click="goToCity(dest.name)"
-            >
-              <div class="dest-img" :style="{backgroundImage: 'url(' + dest.image + ')'}"></div>
-              <div class="dest-info">
-                <h3>{{ dest.name }}</h3>
-              </div>
+      <div class="immersive-carousel" @mouseenter="stopAutoPlay" @mouseleave="startAutoPlay">
+        <button class="nav-btn prev" @click="prevSlide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        
+        <div class="cards-container">
+          <div 
+            class="destination-card" 
+            v-for="(dest, index) in destinations" 
+            :key="dest.name + dest.image"
+            :class="{ 
+              'is-active': index === currentSlide,
+              'is-prev': index === prevIndex,
+              'is-prev-2': index === prevIndex2,
+              'is-next': index === nextIndex,
+              'is-next-2': index === nextIndex2
+            }"
+            @click="goToCity(dest.name)"
+          >
+            <div class="card-image">
+              <img :src="dest.image" :alt="dest.name" />
+            </div>
+            <div class="card-overlay">
+              <h3 class="card-title">{{ dest.name }}</h3>
             </div>
           </div>
         </div>
-        <button class="carousel-btn next" @click="nextSlide">❯</button>
+        
+        <button class="nav-btn next" @click="nextSlide">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
-      <div class="carousel-dots">
-        <span 
+      
+      <div class="progress-bar" :key="currentSlide">
+        <div 
+          class="progress-track"
           v-for="(dot, index) in dots" 
-          :key="index" 
-          class="dot"
-          :class="{ active: currentSlide === index }"
+          :key="index"
           @click="goToSlide(index)"
-        ></span>
+        >
+          <div 
+            class="progress-fill"
+            :class="{ active: currentSlide === index }"
+          ></div>
+        </div>
       </div>
     </section>
 
@@ -110,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -121,6 +143,36 @@ const cardWidth = 216
 const cardGap = 30
 const cardsPerSlide = 5
 let autoPlayInterval = null
+
+const prevIndex = computed(() => {
+  return (currentSlide.value - 1 + destinations.value.length) % destinations.value.length
+})
+
+const prevIndex2 = computed(() => {
+  return (currentSlide.value - 2 + destinations.value.length) % destinations.value.length
+})
+
+const nextIndex = computed(() => {
+  return (currentSlide.value + 1) % destinations.value.length
+})
+
+const nextIndex2 = computed(() => {
+  return (currentSlide.value + 2) % destinations.value.length
+})
+
+const currentBgImage = computed(() => {
+  if (destinations.value[currentSlide.value]) {
+    return `url(${destinations.value[currentSlide.value].image})`
+  }
+  return ''
+})
+
+const sectionRef = ref(null)
+watch(currentSlide, () => {
+  if (sectionRef.value) {
+    sectionRef.value.style.setProperty('--bg-blur', currentBgImage.value)
+  }
+})
 
 const slideOffset = computed(() => {
   return -currentSlide.value * (cardWidth + cardGap) * cardsPerSlide
@@ -151,7 +203,7 @@ const startAutoPlay = () => {
   stopAutoPlay()
   autoPlayInterval = setInterval(() => {
     nextSlide()
-  }, 4000)
+  }, 5000)
 }
 
 const stopAutoPlay = () => {
@@ -622,99 +674,230 @@ const goToCity = (city) => {
 /* Destinations */
 .destinations-section {
   padding: 80px 50px;
+  position: relative;
+  min-height: 700px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* Carousel styles */
-.carousel-container {
+.destinations-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0a0a1a 0%, #0f1923 50%, #0a0a1a 100%);
+  background-size: cover;
+  background-position: center;
+  filter: blur(30px);
+  transform: scale(1.2);
+  z-index: 0;
+  transition: background 0.8s ease;
+}
+
+.destinations-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Immersive Carousel */
+.immersive-carousel {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
   position: relative;
+  height: 500px;
+  margin-top: 40px;
+  perspective: 1500px;
 }
 
-.carousel-viewport {
-  overflow: hidden;
-  width: calc(5 * 216px + 4 * 30px);
-  margin: 0 auto;
-}
-
-.carousel-track {
+.cards-container {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
   gap: 30px;
-  transition: transform 0.5s ease;
 }
 
-.carousel-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  font-size: 24px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+/* Destination Card - 3D Stacking */
+.destination-card {
+  position: absolute;
+  width: 270px;
+  height: 360px;
+  border-radius: 24px;
+  overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Active (center) card - 3:4 ratio */
+.destination-card.is-active {
+  width: 300px;
+  height: 400px;
+  transform: translateX(0) scale(1) translateZ(50px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 60px rgba(102, 126, 234, 0.3);
   z-index: 10;
 }
 
-.carousel-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+/* Previous cards */
+.destination-card.is-prev {
+  transform: translateX(-180px) scale(0.85) translateZ(-30px);
+  opacity: 0.5;
+  z-index: 5;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.destination-card.is-prev-2 {
+  transform: translateX(-340px) scale(0.7) translateZ(-60px);
+  opacity: 0.2;
+  z-index: 3;
+}
+
+/* Next cards */
+.destination-card.is-next {
+  transform: translateX(180px) scale(0.85) translateZ(-30px);
+  opacity: 0.5;
+  z-index: 5;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.destination-card.is-next-2 {
+  transform: translateX(340px) scale(0.7) translateZ(-60px);
+  opacity: 0.2;
+  z-index: 3;
+}
+
+/* Card Image */
+.card-image {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.destination-card:hover .card-image img {
   transform: scale(1.1);
 }
 
-.carousel-dots {
+/* Card Overlay */
+.card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  padding: 24px;
+}
+
+.card-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.destination-card.is-active .card-title {
+  animation: titleFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes titleFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.destination-card:hover .card-title {
+  transform: translateY(-5px);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Navigation Buttons */
+.nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.nav-btn.prev { left: 5%; }
+.nav-btn.next { right: 5%; }
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%) scale(1.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.nav-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Progress Bar */
+.progress-bar {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 8px;
+  margin-top: 50px;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
+.progress-track {
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
   cursor: pointer;
-  transition: all 0.3s;
-}
-
-.dot.active {
-  background: #667eea;
-  transform: scale(1.3);
-}
-
-.dest-card {
-  flex-shrink: 0;
-  width: 216px;
-  border-radius: 16px;
   overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
 }
 
-.dest-card:hover {
-  transform: scale(1.05);
+.progress-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 2px;
+  transition: width 0s;
 }
 
-.dest-img {
-  height: 120px;
-  background-size: cover;
-  background-position: center;
+.progress-fill.active {
+  width: 100%;
+  animation: progressFill 5s linear forwards;
 }
 
-.dest-info {
-  padding: 15px;
-  background: rgba(20, 20, 40, 0.9);
-}
-
-.dest-info h3 {
-  font-size: 18px;
-  margin-bottom: 5px;
-}
-
-.dest-info p {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+@keyframes progressFill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
 }
 
 /* Footer */

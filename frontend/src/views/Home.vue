@@ -10,7 +10,9 @@
         <a href="javascript:void(0)" class="nav-item" @click="goTrips">行程</a>
         <a href="javascript:void(0)" class="nav-item" @click="goDiary">日记</a>
         <a href="javascript:void(0)" class="nav-item" @click="goAI">AI助手</a>
-        <a href="javascript:void(0)" class="nav-item" @click="goProfile">我的</a>
+        <a href="javascript:void(0)" class="nav-item" @click="goProfile"
+          >我的</a
+        >
       </div>
     </nav>
 
@@ -27,7 +29,7 @@
           <span class="title-line gradient">你的专属旅行</span>
         </h1>
         <p class="hero-desc">
-          基于MiniMax大模型 × 自研算法<br>
+          基于MiniMax大模型 × 自研算法<br />
           打造个性化旅游体验
         </p>
         <div class="hero-actions">
@@ -57,27 +59,23 @@
     </section>
 
     <!-- 热门目的地 -->
-    <section class="destinations-section" ref="sectionRef">
+    <section class="destinations-section">
       <h2 class="section-title">热门目的地</h2>
-      <div class="immersive-carousel" @mouseenter="stopAutoPlay" @mouseleave="startAutoPlay">
-        <button class="nav-btn prev" @click="prevSlide">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        
+      <div
+        class="immersive-carousel"
+        @mouseenter="onCarouselHover"
+        @mouseleave="onCarouselLeave"
+      >
+        <!-- 沉浸式背景 -->
+        <div class="carousel-bg" :style="bgStyle"></div>
+
         <div class="cards-container">
-          <div 
-            class="destination-card" 
-            v-for="(dest, index) in destinations" 
+          <div
+            class="destination-card"
+            v-for="(dest, index) in destinations"
             :key="dest.name + dest.image"
-            :class="{ 
-              'is-active': index === currentSlide,
-              'is-prev': index === prevIndex,
-              'is-prev-2': index === prevIndex2,
-              'is-next': index === nextIndex,
-              'is-next-2': index === nextIndex2
-            }"
+            :style="getCardStyle(index)"
+            @mouseenter="onCardHover(index)"
             @click="goToCity(dest.name)"
           >
             <div class="card-image">
@@ -88,24 +86,42 @@
             </div>
           </div>
         </div>
-        
+
+        <button class="nav-btn prev" @click="prevSlide">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+
         <button class="nav-btn next" @click="nextSlide">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       </div>
-      
-      <div class="progress-bar" :key="currentSlide">
-        <div 
+
+      <!-- 动态进度条 -->
+      <div class="progress-bar">
+        <div
           class="progress-track"
-          v-for="(dot, index) in dots" 
+          v-for="(dest, index) in destinations"
           :key="index"
           @click="goToSlide(index)"
         >
-          <div 
+          <div
             class="progress-fill"
-            :class="{ active: currentSlide === index }"
+            :class="{ active: activeIndex === index }"
+            :style="getProgressStyle(index)"
           ></div>
         </div>
       </div>
@@ -115,7 +131,12 @@
     <section class="features-section">
       <h2 class="section-title">核心功能</h2>
       <div class="features-grid">
-        <div class="feature-card" v-for="feature in features" :key="feature.id" @click="handleFeatureClick(feature)">
+        <div
+          class="feature-card"
+          v-for="feature in features"
+          :key="feature.id"
+          @click="handleFeatureClick(feature)"
+        >
           <div class="feature-icon">{{ feature.icon }}</div>
           <h3 class="feature-title">{{ feature.title }}</h3>
           <p class="feature-desc">{{ feature.desc }}</p>
@@ -132,193 +153,262 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 
-const router = useRouter()
+const router = useRouter();
 
-// Carousel state
-const currentSlide = ref(0)
-const cardWidth = 216
-const cardGap = 30
-const cardsPerSlide = 5
-let autoPlayInterval = null
+// ==================== 轮播核心状态 ====================
+const activeIndex = ref(0);
+const isHovering = ref(false);
+const progressKey = ref(0);
+let autoPlayTimer = null;
+let progressTimer = null;
+const progress = ref(0);
 
-const prevIndex = computed(() => {
-  return (currentSlide.value - 1 + destinations.value.length) % destinations.value.length
-})
+// ==================== 数据驱动布局算法 ====================
+const getCardStyle = (index) => {
+  const diff = index - activeIndex.value;
+  const translateX = diff * 120;
+  const scale = 1 - Math.abs(diff) * 0.15;
+  const zIndex = 100 - Math.abs(diff);
+  const opacity = Math.abs(diff) <= 1 ? 1 : 0.5;
 
-const prevIndex2 = computed(() => {
-  return (currentSlide.value - 2 + destinations.value.length) % destinations.value.length
-})
+  return {
+    transform: `translateX(${translateX}px) scale(${scale})`,
+    zIndex: zIndex,
+    opacity: opacity,
+  };
+};
 
-const nextIndex = computed(() => {
-  return (currentSlide.value + 1) % destinations.value.length
-})
+// ==================== 沉浸式背景 ====================
+const bgStyle = computed(() => {
+  const currentDest = destinations.value[activeIndex.value];
+  if (!currentDest) return {};
+  return {
+    backgroundImage: `url(${currentDest.image})`,
+    filter: "blur(20px) brightness(0.5)",
+  };
+});
 
-const nextIndex2 = computed(() => {
-  return (currentSlide.value + 2) % destinations.value.length
-})
+// ==================== 进度条逻辑 ====================
+const getProgressStyle = (index) => {
+  if (index !== activeIndex.value) return {};
+  return {
+    width: `${progress.value}%`,
+  };
+};
 
-const currentBgImage = computed(() => {
-  if (destinations.value[currentSlide.value]) {
-    return `url(${destinations.value[currentSlide.value].image})`
-  }
-  return ''
-})
+const startProgress = () => {
+  progress.value = 0;
+  if (progressTimer) clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    progress.value += 2;
+    if (progress.value >= 100) {
+      progress.value = 0;
+    }
+  }, 100);
+};
 
-const sectionRef = ref(null)
-watch(currentSlide, () => {
-  if (sectionRef.value) {
-    sectionRef.value.style.setProperty('--bg-blur', currentBgImage.value)
-  }
-})
+const resetProgress = () => {
+  progressKey.value++;
+  startProgress();
+};
 
-const slideOffset = computed(() => {
-  return -currentSlide.value * (cardWidth + cardGap) * cardsPerSlide
-})
-
-const totalSlides = computed(() => {
-  return Math.max(1, Math.ceil(destinations.value.length / cardsPerSlide))
-})
-
-const dots = computed(() => {
-  return Array.from({ length: totalSlides.value }, (_, i) => i)
-})
-
+// ==================== 轮播导航 ====================
 const nextSlide = () => {
-  currentSlide.value = currentSlide.value >= totalSlides.value - 1 ? 0 : currentSlide.value + 1
-}
+  activeIndex.value = (activeIndex.value + 1) % destinations.value.length;
+  resetProgress();
+};
 
 const prevSlide = () => {
-  currentSlide.value = currentSlide.value <= 0 ? totalSlides.value - 1 : currentSlide.value - 1
-}
+  activeIndex.value =
+    (activeIndex.value - 1 + destinations.value.length) %
+    destinations.value.length;
+  resetProgress();
+};
 
 const goToSlide = (index) => {
-  currentSlide.value = index
-}
+  activeIndex.value = index;
+  resetProgress();
+};
 
-// Auto play
+// ==================== 悬停交互 ====================
+const onCardHover = (index) => {
+  if (activeIndex.value !== index) {
+    activeIndex.value = index;
+    resetProgress();
+  }
+};
+
+const onCarouselHover = () => {
+  isHovering.value = true;
+  stopAutoPlay();
+};
+
+const onCarouselLeave = () => {
+  isHovering.value = false;
+  startAutoPlay();
+};
+
+// ==================== 自动播放 ====================
 const startAutoPlay = () => {
-  stopAutoPlay()
-  autoPlayInterval = setInterval(() => {
-    nextSlide()
-  }, 5000)
-}
+  stopAutoPlay();
+  startProgress();
+  autoPlayTimer = setInterval(() => {
+    nextSlide();
+  }, 5000);
+};
 
 const stopAutoPlay = () => {
-  if (autoPlayInterval) {
-    clearInterval(autoPlayInterval)
-    autoPlayInterval = null
+  if (autoPlayTimer) {
+    clearInterval(autoPlayTimer);
+    autoPlayTimer = null;
   }
-}
+  if (progressTimer) {
+    clearInterval(progressTimer);
+    progressTimer = null;
+  }
+};
 
 onMounted(() => {
-  startAutoPlay()
-})
+  startAutoPlay();
+});
 
 onUnmounted(() => {
-  stopAutoPlay()
-})
-
-const stats = [
-  { value: '205+', label: '热门景点' },
-  { value: '50+', label: '特色美食' },
-  { value: '210+', label: '道路数据' },
-  { value: '20+', label: '城市覆盖' },
-]
-
-const features = [
-  { id: 1, icon: '🤖', title: 'AI智能规划', desc: 'MiniMax大模型生成个性化行程', tag: 'TopK算法', action: 'ai' },
-  { id: 2, icon: '🗺️', title: '最短路径', desc: 'Dijkstra + TSP智能路线优化', tag: 'O((V+E)logV)', action: 'route' },
-  { id: 3, icon: '📍', title: '景点推荐', desc: '部分排序算法精准推荐', tag: 'Top10', action: 'spots' },
-  { id: 4, icon: '📝', title: '旅游日记', desc: '无损压缩存储，全文检索', tag: 'Gzip', action: 'diary' },
-  { id: 5, icon: '🍜', title: '美食推荐', desc: '基于偏好的智能推荐', tag: '模糊匹配', action: 'food' },
-  { id: 6, icon: '🖼️', title: '3D地图', desc: '高德地图集成可视化', tag: 'AMap', action: 'map' },
-]
+  stopAutoPlay();
+});
 
 const destinations = ref([
-  { name: '北京', image: '/images/cities/beijing.jpg' },
-  { name: '上海', image: '/images/cities/shanghai.jpg' },
-  { name: '西安', image: '/images/cities/xian.jpg' },
-  { name: '成都', image: '/images/cities/chengdu.jpg' },
-  { name: '杭州', image: '/images/cities/hangzhou.jpg' },
-  { name: '重庆', image: '/images/cities/chongqing.jpg' },
-  { name: '青岛', image: '/images/cities/qingdao.jpg' },
-  { name: '广州', image: '/images/cities/guangzhou.jpg' },
-  { name: '苏州', image: '/images/cities/suzhou.jpg' },
-  { name: '厦门', image: '/images/cities/xiamen.jpg' },
-  { name: '南京', image: '/images/cities/nanjing.jpg' },
-  { name: '武汉', image: '/images/cities/wuhan.jpg' },
-  { name: '长沙', image: '/images/cities/changsha.jpg' },
-  { name: '深圳', image: '/images/cities/shenzhen.jpg' },
-  { name: '三亚', image: '/images/cities/sanya.jpg' },
-  { name: '桂林', image: '/images/cities/guilin.jpg' },
-  { name: '张家界', image: '/images/cities/zhangjiajie.jpg' },
-  { name: '黄山', image: '/images/cities/huangshan.jpg' },
-  { name: '九寨沟', image: '/images/cities/jiuzhaigou.jpg' },
-  { name: '大理', image: '/images/cities/dali.jpg' },
-  { name: '丽江', image: '/images/cities/lijiang.jpg' },
-])
+  { name: "北京", image: "/images/cities/beijing.jpg" },
+  { name: "上海", image: "/images/cities/shanghai.jpg" },
+  { name: "西安", image: "/images/cities/xian.jpg" },
+  { name: "成都", image: "/images/cities/chengdu.jpg" },
+  { name: "杭州", image: "/images/cities/hangzhou.jpg" },
+  { name: "重庆", image: "/images/cities/chongqing.jpg" },
+  { name: "青岛", image: "/images/cities/qingdao.jpg" },
+  { name: "广州", image: "/images/cities/guangzhou.jpg" },
+  { name: "苏州", image: "/images/cities/suzhou.jpg" },
+  { name: "厦门", image: "/images/cities/xiamen.jpg" },
+  { name: "南京", image: "/images/cities/nanjing.jpg" },
+  { name: "武汉", image: "/images/cities/wuhan.jpg" },
+  { name: "长沙", image: "/images/cities/changsha.jpg" },
+  { name: "深圳", image: "/images/cities/shenzhen.jpg" },
+  { name: "三亚", image: "/images/cities/sanya.jpg" },
+  { name: "桂林", image: "/images/cities/guilin.jpg" },
+  { name: "张家界", image: "/images/cities/zhangjiajie.jpg" },
+  { name: "黄山", image: "/images/cities/huangshan.jpg" },
+  { name: "九寨沟", image: "/images/cities/jiuzhaigou.jpg" },
+  { name: "大理", image: "/images/cities/dali.jpg" },
+  { name: "丽江", image: "/images/cities/lijiang.jpg" },
+]);
 
-// 导航功能
-const goHome = () => router.push('/')
-const goTrips = () => router.push('/trips')
-const goDiary = () => router.push('/diary')
-const goAI = () => router.push('/ai')
+// ==================== 导航功能 ====================
+const goHome = () => router.push("/");
+const goTrips = () => router.push("/trips");
+const goDiary = () => router.push("/diary");
+const goAI = () => router.push("/ai");
 
-// 检查是否登录
 const checkLogin = () => {
-  const userId = localStorage.getItem('userId')
+  const userId = localStorage.getItem("userId");
   if (!userId) {
-    router.push('/login')
-    return false
+    router.push("/login");
+    return false;
   }
-  return true
-}
+  return true;
+};
 
 const goProfile = () => {
-  if (!checkLogin()) return
-  router.push('/profile')
-}
+  if (!checkLogin()) return;
+  router.push("/profile");
+};
 
 const startPlan = () => {
-  if (!checkLogin()) return
-  router.push('/create-trip')
-}
+  if (!checkLogin()) return;
+  router.push("/create-trip");
+};
 
-// 功能卡片点击
 const handleFeatureClick = (feature) => {
-  if (!checkLogin()) return
-  
-  switch(feature.action) {
-    case 'ai':
-      router.push('/ai')
-      break
-    case 'diary':
-      router.push('/diary')
-      break
-    case 'spots':
-      router.push('/spot-recommend')
-      break
-    case 'route':
-      router.push('/route/demo')
-      break
-    case 'food':
-      router.push('/food')
-      break
-    case 'map':
-      router.push('/map')
-      break
-    default:
-      router.push('/create-trip')
-  }
-}
+  if (!checkLogin()) return;
 
-// 城市点击 - 进入城市景点页面
+  switch (feature.action) {
+    case "ai":
+      router.push("/ai");
+      break;
+    case "diary":
+      router.push("/diary");
+      break;
+    case "spots":
+      router.push("/spot-recommend");
+      break;
+    case "route":
+      router.push("/route/demo");
+      break;
+    case "food":
+      router.push("/food");
+      break;
+    case "map":
+      router.push("/map");
+      break;
+    default:
+      router.push("/create-trip");
+  }
+};
+
 const goToCity = (city) => {
-  router.push({ path: '/city', query: { name: city } })
-}
+  router.push({ path: "/city", query: { name: city } });
+};
+
+const features = [
+  {
+    id: 1,
+    icon: "🤖",
+    title: "AI智能规划",
+    desc: "MiniMax大模型生成个性化行程",
+    tag: "TopK算法",
+    action: "ai",
+  },
+  {
+    id: 2,
+    icon: "🗺️",
+    title: "最短路径",
+    desc: "Dijkstra + TSP智能路线优化",
+    tag: "O((V+E)logV)",
+    action: "route",
+  },
+  {
+    id: 3,
+    icon: "📍",
+    title: "景点推荐",
+    desc: "部分排序算法精准推荐",
+    tag: "Top10",
+    action: "spots",
+  },
+  {
+    id: 4,
+    icon: "📝",
+    title: "旅游日记",
+    desc: "无损压缩存储，全文检索",
+    tag: "Gzip",
+    action: "diary",
+  },
+  {
+    id: 5,
+    icon: "🍜",
+    title: "美食推荐",
+    desc: "基于偏好的智能推荐",
+    tag: "模糊匹配",
+    action: "food",
+  },
+  {
+    id: 6,
+    icon: "🖼️",
+    title: "3D地图",
+    desc: "高德地图集成可视化",
+    tag: "AMap",
+    action: "map",
+  },
+];
 </script>
 
 <style scoped>
@@ -401,18 +491,31 @@ const goToCity = (city) => {
 .stars {
   position: absolute;
   inset: 0;
-  background-image: 
-    radial-gradient(2px 2px at 20px 30px, #fff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), rgba(0,0,0,0)),
-    radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
-    radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), rgba(0,0,0,0));
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #fff, rgba(0, 0, 0, 0)),
+    radial-gradient(
+      2px 2px at 40px 70px,
+      rgba(255, 255, 255, 0.8),
+      rgba(0, 0, 0, 0)
+    ),
+    radial-gradient(1px 1px at 90px 40px, #fff, rgba(0, 0, 0, 0)),
+    radial-gradient(
+      2px 2px at 130px 80px,
+      rgba(255, 255, 255, 0.6),
+      rgba(0, 0, 0, 0)
+    );
   background-size: 200px 200px;
   animation: twinkle 5s infinite;
 }
 
 @keyframes twinkle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .glow-orb {
@@ -530,7 +633,7 @@ const goToCity = (city) => {
   height: 280px;
   border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #00d4ff, #1a1a2e);
-  box-shadow: 
+  box-shadow:
     inset -30px -30px 60px rgba(0, 0, 0, 0.5),
     0 0 60px rgba(0, 212, 255, 0.5);
 }
@@ -682,24 +785,6 @@ const goToCity = (city) => {
   overflow: hidden;
 }
 
-.destinations-section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, #0a0a1a 0%, #0f1923 50%, #0a0a1a 100%);
-  background-size: cover;
-  background-position: center;
-  filter: blur(30px);
-  transform: scale(1.2);
-  z-index: 0;
-  transition: background 0.8s ease;
-}
-
-.destinations-section > * {
-  position: relative;
-  z-index: 1;
-}
-
 /* Immersive Carousel */
 .immersive-carousel {
   display: flex;
@@ -708,18 +793,27 @@ const goToCity = (city) => {
   position: relative;
   height: 500px;
   margin-top: 40px;
-  perspective: 1500px;
+}
+
+.carousel-bg {
+  position: absolute;
+  inset: -50%;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+  transition: all 0.8s ease;
 }
 
 .cards-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-style: preserve-3d;
-  gap: 30px;
+  position: relative;
+  height: 450px;
+  width: 100%;
 }
 
-/* Destination Card - 3D Stacking */
+/* Destination Card - 堆叠式布局 */
 .destination-card {
   position: absolute;
   width: 270px;
@@ -727,45 +821,8 @@ const goToCity = (city) => {
   border-radius: 24px;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-}
-
-/* Active (center) card - 3:4 ratio */
-.destination-card.is-active {
-  width: 300px;
-  height: 400px;
-  transform: translateX(0) scale(1) translateZ(50px);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 60px rgba(102, 126, 234, 0.3);
-  z-index: 10;
-}
-
-/* Previous cards */
-.destination-card.is-prev {
-  transform: translateX(-180px) scale(0.85) translateZ(-30px);
-  opacity: 0.5;
-  z-index: 5;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.destination-card.is-prev-2 {
-  transform: translateX(-340px) scale(0.7) translateZ(-60px);
-  opacity: 0.2;
-  z-index: 3;
-}
-
-/* Next cards */
-.destination-card.is-next {
-  transform: translateX(180px) scale(0.85) translateZ(-30px);
-  opacity: 0.5;
-  z-index: 5;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.destination-card.is-next-2 {
-  transform: translateX(340px) scale(0.7) translateZ(-60px);
-  opacity: 0.2;
-  z-index: 3;
 }
 
 /* Card Image */
@@ -779,52 +836,44 @@ const goToCity = (city) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .destination-card:hover .card-image img {
   transform: scale(1.1);
 }
 
-/* Card Overlay */
+/* Card Overlay - 3:4 底部渐变蒙层 */
 .card-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 40%;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 100%);
+  height: 50%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.3) 60%,
+    transparent 100%
+  );
   display: flex;
   align-items: flex-end;
   padding: 24px;
 }
 
 .card-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: white;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.destination-card.is-active .card-title {
-  animation: titleFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes titleFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .destination-card:hover .card-title {
   transform: translateY(-5px);
-  text-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 0 2px 10px rgba(0, 0, 0, 0.5);
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.5),
+    0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 /* Navigation Buttons */
@@ -847,8 +896,12 @@ const goToCity = (city) => {
   z-index: 20;
 }
 
-.nav-btn.prev { left: 5%; }
-.nav-btn.next { right: 5%; }
+.nav-btn.prev {
+  left: 5%;
+}
+.nav-btn.next {
+  right: 5%;
+}
 
 .nav-btn:hover {
   background: rgba(255, 255, 255, 0.2);
@@ -861,43 +914,37 @@ const goToCity = (city) => {
   height: 24px;
 }
 
-/* Progress Bar */
+/* Progress Bar - 动态进度条 */
 .progress-bar {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-top: 50px;
+  gap: 12px;
+  margin-top: 40px;
 }
 
 .progress-track {
-  width: 40px;
-  height: 4px;
+  width: 50px;
+  height: 3px;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
   cursor: pointer;
   overflow: hidden;
+  position: relative;
 }
 
 .progress-fill {
-  width: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
   height: 100%;
+  width: 0;
   background: linear-gradient(90deg, #667eea, #764ba2);
   border-radius: 2px;
-  transition: width 0s;
+  transition: none;
 }
 
 .progress-fill.active {
   width: 100%;
-  animation: progressFill 5s linear forwards;
-}
-
-@keyframes progressFill {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
 }
 
 /* Footer */

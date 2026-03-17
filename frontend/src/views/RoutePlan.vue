@@ -7,10 +7,9 @@
     </header>
 
     <main class="page-content">
-      <!-- 地图区域 -->
-      <div class="map-container">
-        <div id="amap-container" ref="mapContainer" class="map-area"></div>
-        
+      <!-- 地图区域 - 使用 AmapContainer 组件 -->
+      <div class="map-wrapper">
+        <AmapContainer ref="amapRef" />
       </div>
 
       <!-- 添加景点按钮 -->
@@ -111,58 +110,47 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import AmapContainer from '../components/AmapContainer.vue'
 
 const router = useRouter()
 
+// 地图组件引用
+const amapRef = ref(null)
+
 // 状态
-const mapContainer = ref(null)
 const waypoints = ref([])
 const routeInfo = ref({ distance: 0, duration: '' })
 const transportType = ref('driving')
 const showAddSpotModal = ref(false)
 const searchKeyword = ref('')
 const searchResults = ref([])
-const AMap = ref(null)
-const map = ref(null)
 
-// 初始化地图
-onMounted(async () => {
-  await initMap()
-})
+// 监听途经点变化，自动更新地图标记和路线
+watch(() => waypoints.value, (newWaypoints) => {
+  if (newWaypoints.length >= 2) {
+    updateMapMarkers()
+    recalculateRoute()
+  }
+}, { deep: true })
 
-// 初始化高德地图
-const initMap = async () => {
-  // 动态加载高德地图JS API
-  if (!window.AMap) {
-    await loadAMapScript()
+// 更新地图标记
+const updateMapMarkers = () => {
+  if (!amapRef.value || waypoints.value.length < 2) return
+  
+  // 设置起点（第一个景点）
+  const start = waypoints.value[0]
+  if (start.location) {
+    amapRef.value.setStart(start.location.lng, start.location.lat)
   }
   
-  AMap.value = window.AMap
-  
-  // 初始化地图
-  map.value = new AMap.value.Map('amap-container', {
-    zoom: 12,
-    center: [116.397428, 39.90923], // 默认北京
-    mapStyle: 'amap://styles/dark', // 暗色主题
-  })
-  
-  // 添加地图控件
-  map.value.addControl(new AMap.value.Scale())
-  map.value.addControl(new AMap.value.ToolBar({ position: 'RT' }))
-}
-
-// 加载高德地图脚本
-const loadAMapScript = () => {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = 'https://webapi.amap.com/maps?v=2.0&key=YOUR_AMAP_KEY' // 需要替换为真实的Key
-    script.onload = resolve
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
+  // 设置终点（最后一个景点）
+  const end = waypoints.value[waypoints.value.length - 1]
+  if (end.location) {
+    amapRef.value.setEnd(end.location.lng, end.location.lat)
+  }
 }
 
 // 搜索景点
@@ -193,36 +181,25 @@ const addWaypoint = (spot) => {
   showAddSpotModal.value = false
   searchKeyword.value = ''
   searchResults.value = []
-  
-  // 在地图上添加标记
-  addMarkerToMap(spot)
-  
-  // 重新计算路线
-  recalculateRoute()
 }
 
 // 移除途经点
 const removeWaypoint = (index) => {
   waypoints.value.splice(index, 1)
-  recalculateRoute()
-}
-
-// 在地图上添加标记
-const addMarkerToMap = (spot) => {
-  if (!map.value || !spot.location_lat || !spot.location_lng) return
   
-  const marker = new AMap.value.Marker({
-    position: [spot.location_lng, spot.location_lat],
-    title: spot.name,
-  })
-  
-  map.value.add(marker)
-  map.value.setFitView()
+  // 如果剩余景点少于2个，清除地图
+  if (waypoints.value.length < 2) {
+    amapRef.value?.clearAll()
+    routeInfo.value = { distance: 0, duration: '' }
+  }
 }
 
 // 重新计算路线
 const recalculateRoute = async () => {
   if (waypoints.value.length < 2) return
+  
+  // 先更新地图标记
+  updateMapMarkers()
   
   try {
     const response = await axios.post('http://localhost:8000/api/route/plan', {
@@ -237,12 +214,13 @@ const recalculateRoute = async () => {
         distance: (response.data.distance / 1000).toFixed(1),
         duration: Math.round(response.data.time / 60) + '分钟'
       }
-      
-      // 绘制路线
-      if (response.data.path) {
-        drawRoute(response.data.path)
-      }
     }
+    
+    // 调用地图组件的路线规划
+    setTimeout(() => {
+      amapRef.value?.planRoute()
+    }, 500)
+    
   } catch (error) {
     console.error('路线规划失败:', error)
     // 使用模拟数据
@@ -250,33 +228,46 @@ const recalculateRoute = async () => {
       distance: (Math.random() * 50 + 10).toFixed(1),
       duration: Math.round(Math.random() * 60 + 30) + '分钟'
     }
+    // 仍然调用地图规划显示路线
+    setTimeout(() => {
+      amapRef.value?.planRoute()
+    }, 500)
   }
-}
-
-// 绘制路线
-const drawRoute = (path) => {
-  if (!map.value || !path || path.length === 0) return
-  
-  const line = new AMap.value.Polyline({
-    path: path.map(p => [p.lng, p.lat]),
-    strokeColor: '#00D4FF',
-    strokeWeight: 5,
-    strokeOpacity: 0.8
-  })
-  
-  map.value.add(line)
-  map.value.setFitView()
 }
 
 // 开始导航
 const startNavigation = () => {
-  alert('导航功能需要配置高德地图Key，请在控制台查看路线信息')
-  console.log('路线:', waypoints.value)
+  if (waypoints.value.length < 2) {
+    alert('请至少添加两个景点')
+    return
+  }
+  
+  // 构建高德地图导航URL
+  const start = waypoints.value[0]
+  const end = waypoints.value[waypoints.value.length - 1]
+  
+  // 使用高德地图URI API进行导航
+  const url = `https://uri.amap.com/navigation?from=${start.location.lng},${start.location.lat},${encodeURIComponent(start.name)}&to=${end.location.lng},${end.location.lat},${encodeURIComponent(end.name)}&mode=car&policy=1`
+  
+  window.open(url, '_blank')
 }
 
 // 分享路线
 const shareRoute = () => {
-  alert('分享功能开发中')
+  if (waypoints.value.length < 2) {
+    alert('请至少添加两个景点后再分享')
+    return
+  }
+  
+  const routeText = waypoints.value.map((spot, index) => `${index + 1}. ${spot.name}`).join(' → ')
+  const shareText = `我的旅游路线：${routeText}\n总距离：${routeInfo.value.distance}km，预计时间：${routeInfo.value.duration}`
+  
+  // 复制到剪贴板
+  navigator.clipboard.writeText(shareText).then(() => {
+    alert('路线信息已复制到剪贴板！')
+  }).catch(() => {
+    alert(shareText)
+  })
 }
 
 // 返回
@@ -298,14 +289,32 @@ const goBack = () => router.back()
   background: rgba(10, 10, 26, 0.9);
 }
 
-.map-container {
-  height: 300px;
-  background: #1a1a2e;
+.back-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
 }
 
-.map-area {
+.page-title {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.action-btn {
+  background: rgba(0, 212, 255, 0.2);
+  border: 1px solid #00D4FF;
+  color: #00D4FF;
+  padding: 6px 16px;
+  border-radius: 15px;
+  cursor: pointer;
+}
+
+/* 地图容器 */
+.map-wrapper {
+  height: 400px;
   width: 100%;
-  height: 100%;
 }
 
 .add-spot-bar {
@@ -320,6 +329,15 @@ const goBack = () => router.back()
   padding: 12px 24px;
   border-radius: 25px;
   cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tech-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .route-info {
@@ -330,10 +348,54 @@ const goBack = () => router.back()
   display: flex;
   gap: 20px;
   justify-content: space-around;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-icon {
+  font-size: 24px;
+}
+
+.info-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #00D4FF;
+}
+
+.transport-select {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid #00D4FF;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
 .spots-section {
   padding: 15px 20px;
+}
+
+.section-title {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #ccc;
 }
 
 .spots-list {
@@ -354,12 +416,47 @@ const goBack = () => router.back()
 .spot-number {
   width: 30px;
   height: 30px;
-  background: #00D4FF;
+  background: linear-gradient(135deg, #00D4FF, #7b2cbf);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
+  font-size: 14px;
+}
+
+.spot-info {
+  flex: 1;
+}
+
+.spot-info h4 {
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.spot-info p {
+  font-size: 12px;
+  color: #888;
+}
+
+.delete-btn {
+  background: rgba(245, 108, 108, 0.2);
+  border: none;
+  color: #f56c6c;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-spots {
+  text-align: center;
+  padding: 40px;
+  color: #666;
 }
 
 .nav-bar {
@@ -369,6 +466,7 @@ const goBack = () => router.back()
 .nav-btn {
   width: 100%;
   justify-content: center;
+  font-size: 16px;
 }
 
 .modal-overlay {
@@ -389,6 +487,26 @@ const goBack = () => router.back()
   max-width: 400px;
 }
 
+.modal-content h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.tech-input {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.tech-input:focus {
+  outline: none;
+  border-color: #00D4FF;
+}
+
 .search-results {
   max-height: 200px;
   overflow-y: auto;
@@ -396,12 +514,39 @@ const goBack = () => router.back()
 }
 
 .search-result-item {
-  padding: 10px;
+  padding: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .search-result-item:hover {
   background: rgba(0, 212, 255, 0.1);
+}
+
+.result-name {
+  font-size: 14px;
+}
+
+.result-city {
+  font-size: 12px;
+  color: #888;
+}
+
+.close-modal {
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.close-modal:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>

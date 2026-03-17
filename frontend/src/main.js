@@ -23,9 +23,11 @@ import Register from './views/Register.vue'
 import Setting from './views/Setting.vue'
 import Photos from './views/Photos.vue'
 import Collection from './views/Collection.vue'
+import AmapExample from './components/AmapExample.vue'
 
 // 路由配置
 const routes = [
+  { path: '/map-test', name: 'MapTest', component: AmapExample },
   { path: '/', name: 'Home', component: Home },
   { path: '/login', name: 'Login', component: Login },
   { path: '/register', name: 'Register', component: Register },

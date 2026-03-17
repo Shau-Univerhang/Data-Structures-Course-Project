@@ -1,5 +1,55 @@
 # 更新日志
 
+## 2026-03-17
+
+### 轮播组件重构
+
+1. **高级堆叠式（Stacked）布局**
+   - 数据驱动偏移算法：根据 activeIndex 动态计算每个卡片的 translateX、scale、zIndex、opacity
+   - 位移：translateX = diff * 120px（产生重叠感）
+   - 缩放：scale = 1 - Math.abs(diff) * 0.15
+   - 层级：zIndex = 100 - Math.abs(diff)
+   - 透明度：非中心卡片 opacity = 0.5
+
+2. **悬停即切换（Hover-to-Swap）**
+   - 鼠标悬停卡片时立即切换到该卡片
+   - 平滑过渡动画，active 卡片保持在容器水平居中
+
+3. **动态进度条**
+   - 底部线性进度指示器，与卡片数量同步
+   - 自动播放：每 5 秒切换，进度条从 0% 匀速增长到 100%
+   - 交互联动：鼠标悬停在卡片上时进度条暂停，离开后继续
+
+4. **视觉与动效**
+   - 贝塞尔曲线：transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)
+   - 沉浸式背景：背景图与 activeIndex 同步，添加 blur(20px) brightness(0.5)
+   - 卡片保持 3:4 纵横比，底部渐变蒙层
+
+### 图片资源重构
+
+1. **爬虫脚本（scripts/scrapers/）**
+   - spots_scrape_baidu.py - 百度景点图片爬虫
+   - foods_scrape_xiachufang.py - 下厨房美食图片爬虫
+   - cities_unsplash_downloader.py - Unsplash 城市图片下载器
+
+2. **景点图片目录重构**
+   - 从扁平结构改为按城市分类：images/spots/{city}/{city}_{spot}.jpg
+   - 更新了 16 个城市的景点图片
+
+3. **前端优化**
+   - 更新 City.vue 景点图片映射
+   - 更新 SpotRecommend.vue 景点图片映射
+
+4. **后端优化**
+   - 更新 spots.py API 图片映射逻辑
+   - 添加 SPOT_IMAGES 和 CITY_IMAGES 映射表
+
+5. **清理冗余文件**
+   - 删除旧版扁平结构图片
+   - 删除废弃脚本（scrape_mafengwo.py, download_all_images.py 等）
+   - 删除 下载图片.bat
+
+---
 ## 2026-03-14
 
 ### 功能优化

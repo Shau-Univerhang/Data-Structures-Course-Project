@@ -108,35 +108,134 @@ const cityImage = computed(() => {
 
 // 北京景点图片映射 - 使用本地真实图片
 const beijingSpotImages = {
-  '故宫': '/images/spots/beijing-gugong.jpg',
-  '故宫博物院': '/images/spots/beijing-gugong.jpg',
-  '长城': '/images/spots/beijing-changcheng.jpg',
-  '八达岭长城': '/images/spots/beijing-changcheng.jpg',
-  '天坛': '/images/spots/beijing-tiantan.jpg',
-  '天坛公园': '/images/spots/beijing-tiantan.jpg',
-  '天安门': '/images/spots/beijing-tiananmen.jpg',
-  '天安门广场': '/images/spots/beijing-tiananmen.jpg',
-  '颐和园': '/images/spots/beijing-yiheyuan.jpg',
-  '鸟巢': '/images/spots/beijing-niaokong.jpg',
-  '国家体育场': '/images/spots/beijing-niaokong.jpg',
+  '故宫': '/images/spots/beijing/beijing_gugong_bowuyuan.jpg',
+  '故宫博物院': '/images/spots/beijing/beijing_gugong_bowuyuan.jpg',
+  '长城': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
+  '八达岭': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
+  '天坛': '/images/spots/beijing/beijing_tiantan_gongyuan.jpg',
+  '天坛公园': '/images/spots/beijing/beijing_tiantan_gongyuan.jpg',
+  '天安门': '/images/spots/beijing/beijing_tiananmen_guangchang.jpg',
+  '天安门广场': '/images/spots/beijing/beijing_tiananmen_guangchang.jpg',
+  '颐和园': '/images/spots/beijing/beijing_yiheyuan.jpg',
+  '圆明园': '/images/spots/beijing/beijing_yuanmingyuan.jpg',
+  '北海公园': '/images/spots/beijing/beijing_beihai_gongyuan.jpg',
+  '恭王府': '/images/spots/beijing/beijing_gongwangfu.jpg',
+  '景山公园': '/images/spots/beijing/beijing_jingshan_gongyuan.jpg',
+  '南锣鼓巷': '/images/spots/beijing/beijing_nanluoguxiang.jpg',
+  '鸟巢': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
+  '国家体育场': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
 }
 
 // 上海景点图片映射
 const shanghaiSpotImages = {
-  '东方明珠': '/images/spots/shanghai-dongfangmingzhu.jpg',
-  '外滩': '/images/spots/shanghai-waitan.jpg',
+  '东方明珠': '/images/spots/shanghai/shanghai_dongfang_mingzhu.jpg',
+  '外滩': '/images/spots/shanghai/shanghai_waitan.jpg',
+  '豫园': '/images/spots/shanghai/shanghai_yuyuan.jpg',
+  '田子坊': '/images/spots/shanghai/shanghai_tianzifang.jpg',
+  '武康路': '/images/spots/shanghai/shanghai_wukanglu.jpg',
+  '南京路': '/images/spots/shanghai/shanghai_nanjinglu_buxingjie.jpg',
+  '上海博物馆': '/images/spots/shanghai/shanghai_shanghai_bowuguan.jpg',
+  '金山寺': '/images/spots/shanghai/shanghai_jingansi.jpg',
 }
 
 // 西安景点图片映射
 const xianSpotImages = {
-  '兵马俑': '/images/spots/xian-bingmayong.jpg',
-  '大雁塔': '/images/spots/xian-dayanta.jpg',
+  '兵马俑': '/images/spots/xian/xian_bingmayong.jpg',
+  '大雁塔': '/images/spots/xian/xian_dayanta.jpg',
+  '古城墙': '/images/spots/xian/xian_xian_chengqiang.jpg',
+  '城墙': '/images/spots/xian/xian_xian_chengqiang.jpg',
+  '华清宫': '/images/spots/xian/xian_huaqinggong.jpg',
+  '大唐芙蓉园': '/images/spots/xian/xian_datang_furongyuan.jpg',
+  '回民街': '/images/spots/xian/xian_huiminjie.jpg',
 }
 
 // 成都景点图片映射
 const chengduSpotImages = {
-  '锦里': '/images/spots/chengdu-jinli.jpg',
-  '宽窄巷子': '/images/spots/chengdu-kuanzhai.jpg',
+  '宽窄巷子': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '锦里': '/images/spots/chengdu/chengdu_chunxilu.jpg',
+  '熊猫': '/images/spots/chengdu/chengdu_xiongmao_jidi.jpg',
+  '大熊猫': '/images/spots/chengdu/chengdu_xiongmao_jidi.jpg',
+}
+
+// 重庆景点图片映射
+const chongqingSpotImages = {
+  '洪崖洞': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '解放碑': '/images/spots/chongqing/chongqing_jiefangbei.jpg',
+  '磁器口': '/images/spots/chongqing/chongqing_ciqikou.jpg',
+}
+
+// 大理景点图片映射
+const daliSpotImages = {
+  '洱海': '/images/spots/dali/dali_erhai.jpg',
+  '大理古城': '/images/spots/dali/dali_dali_ancient_city.jpg',
+}
+
+// 桂林景点图片映射
+const guilinSpotImages = {
+  '漓江': '/images/spots/guilin/guilin_lijiang.jpg',
+  '象鼻山': '/images/spots/guilin/guilin_xiangbishan.jpg',
+}
+
+// 杭州景点图片映射
+const hangzhouSpotImages = {
+  '西湖': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '灵隐寺': '/images/spots/hangzhou/hangzhou_lingyinsi.jpg',
+  '雷峰塔': '/images/spots/hangzhou/hangzhou_leifengta.jpg',
+}
+
+// 黄山景点图片映射
+const huangshanSpotImages = {
+  '黄山': '/images/spots/huangshan/huangshan_huangshan_scenery.jpg',
+  '光明顶': '/images/spots/huangshan/huangshan_huangshan_scenery.jpg',
+}
+
+// 九寨沟景点图片映射
+const jiuzhaigouSpotImages = {
+  '九寨沟': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
+  '五彩池': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
+}
+
+// 丽江景点图片映射
+const lijiangSpotImages = {
+  '丽江古城': '/images/spots/lijiang/lijiang_lijiang_gucheng.jpg',
+  '玉龙雪山': '/images/spots/lijiang/lijiang_yulong_xueshan.jpg',
+}
+
+// 凤凰景点图片映射
+const fenghuangSpotImages = {
+  '凤凰古城': '/images/spots/fenghuang/fenghuang_fenghuang_town.jpg',
+}
+
+// 广州景点图片映射
+const guangzhouSpotImages = {
+  '广州塔': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
+  '小蛮腰': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
+  '沙面': '/images/spots/guangzhou/guangzhou_shamian.jpg',
+  '陈家祠': '/images/spots/guangzhou/guangzhou_chenjiaci.jpg',
+}
+
+// 苏州景点图片映射
+const suzhouSpotImages = {
+  '拙政园': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '虎丘': '/images/spots/suzhou/suzhou_huqiu.jpg',
+}
+
+// 厦门景点图片映射
+const xiamenSpotImages = {
+  '鼓浪屿': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  '厦门大学': '/images/spots/xiamen/xiamen_xiamen_daxue.jpg',
+}
+
+// 三亚景点图片映射
+const sanyaSpotImages = {
+  '天涯海角': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
+  '亚龙湾': '/images/spots/sanya/sanya_yalongwan.jpg',
+}
+
+// 张家界景点图片映射
+const zhangjiajieSpotImages = {
+  '张家界': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
+  '武陵源': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
 }
 
 // 其他城市景点映射
@@ -145,15 +244,19 @@ const citySpotImages = {
   '上海': shanghaiSpotImages,
   '西安': xianSpotImages,
   '成都': chengduSpotImages,
-  '重庆': { '洪崖洞': '/images/spots/chongqing-hongyadong.jpg' },
-  '大理': { '洱海': '/images/spots/dali-erhai.jpg' },
-  '广州': { '小蛮腰': '/images/spots/guangzhou-canton-tower.jpg', '广州塔': '/images/spots/guangzhou-canton-tower.jpg' },
-  '黄山': { '光明顶': '/images/spots/huangshan-guangmingding.jpg' },
-  '九寨沟': { '五彩池': '/images/spots/jiuzhaigou-wucaichi.jpg' },
-  '青岛': { '栈桥': '/images/spots/qingdao-zhanqiao.jpg' },
-  '苏州': { '拙政园': '/images/spots/suzhou-zhuozhengyuan.jpg' },
-  '武汉': { '黄鹤楼': '/images/spots/wuhan-huanghelou.jpg' },
-  '厦门': { '鼓浪屿': '/images/spots/xiamen-gulangyu.jpg' },
+  '重庆': chongqingSpotImages,
+  '大理': daliSpotImages,
+  '桂林': guilinSpotImages,
+  '杭州': hangzhouSpotImages,
+  '黄山': huangshanSpotImages,
+  '九寨沟': jiuzhaigouSpotImages,
+  '丽江': lijiangSpotImages,
+  '凤凰': fenghuangSpotImages,
+  '广州': guangzhouSpotImages,
+  '苏州': suzhouSpotImages,
+  '厦门': xiamenSpotImages,
+  '三亚': sanyaSpotImages,
+  '张家界': zhangjiajieSpotImages,
 }
 
 // 获取景点对应的图片
@@ -202,12 +305,12 @@ const loadSpots = async () => {
     console.error('加载失败:', error)
     // 模拟数据 - 带真实本地图片
     spots.value = [
-      { id: 1, name: '故宫博物院', rating: 4.9, category: '历史古迹', description: '世界上现存规模最大的木质结构古建筑', tags: ['必玩景点', '历史文化'], image: '/images/spots/beijing-gugong.jpg' },
-      { id: 2, name: '天坛公园', rating: 4.9, category: '历史古迹', description: '明清两代帝王祭祀场所', tags: ['古建绝美'], image: '/images/spots/beijing-tiantan.jpg' },
-      { id: 3, name: '颐和园', rating: 4.9, category: '风景名胜', description: '清代皇家园林', tags: ['皇家园林'], image: '/images/spots/beijing-yiheyuan.jpg' },
-      { id: 4, name: '八达岭长城', rating: 4.8, category: '历史古迹', description: '万里长城的重要组成部分', tags: ['必玩景点'], image: '/images/spots/beijing-changcheng.jpg' },
-      { id: 5, name: '天安门广场', rating: 4.7, category: '历史古迹', description: '世界上最大的城市广场', tags: ['标志性建筑'], image: '/images/spots/beijing-tiananmen.jpg' },
-      { id: 6, name: '国家体育场', rating: 4.8, category: '地标建筑', description: '又称鸟巢', tags: ['现代建筑'], image: '/images/spots/beijing-niaokong.jpg' },
+      { id: 1, name: '故宫博物院', rating: 4.9, category: '历史古迹', description: '世界上现存规模最大的木质结构古建筑', tags: ['必玩景点', '历史文化'], image: '/images/spots/beijing/beijing_gugong_bowuyuan.jpg' },
+      { id: 2, name: '天坛公园', rating: 4.9, category: '历史古迹', description: '明清两代帝王祭祀场所', tags: ['古建绝美'], image: '/images/spots/beijing/beijing_tiantan_gongyuan.jpg' },
+      { id: 3, name: '颐和园', rating: 4.9, category: '风景名胜', description: '清代皇家园林', tags: ['皇家园林'], image: '/images/spots/beijing/beijing_yiheyuan.jpg' },
+      { id: 4, name: '八达岭长城', rating: 4.8, category: '历史古迹', description: '万里长城的重要组成部分', tags: ['必玩景点'], image: '/images/spots/beijing/beijing_badaling_changcheng.jpg' },
+      { id: 5, name: '天安门广场', rating: 4.7, category: '历史古迹', description: '世界上最大的城市广场', tags: ['标志性建筑'], image: '/images/spots/beijing/beijing_tiananmen_guangchang.jpg' },
+      { id: 6, name: '圆明园', rating: 4.7, category: '历史古迹', description: '清代皇家园林遗址', tags: ['历史遗址'], image: '/images/spots/beijing/beijing_yuanmingyuan.jpg' },
     ]
   }
 }

@@ -13,6 +13,110 @@ from algorithms.core import top_k_spots, top_k_restaurants, fuzzy_search_spots
 
 router = APIRouter()
 
+# 景点图片映射
+SPOT_IMAGES = {
+    # 北京
+    '故宫博物院': ['/images/spots/beijing/beijing_gugong_bowuyuan.jpg'],
+    '故宫': ['/images/spots/beijing/beijing_gugong_bowuyuan.jpg'],
+    '天坛公园': ['/images/spots/beijing/beijing_tiantan_gongyuan.jpg'],
+    '天坛': ['/images/spots/beijing/beijing_tiantan_gongyuan.jpg'],
+    '长城-八达岭': ['/images/spots/beijing/beijing_badaling_changcheng.jpg'],
+    '八达岭长城': ['/images/spots/beijing/beijing_badaling_changcheng.jpg'],
+    '颐和园': ['/images/spots/beijing/beijing_yiheyuan.jpg'],
+    '圆明园': ['/images/spots/beijing/beijing_yuanmingyuan.jpg'],
+    '天安门广场': ['/images/spots/beijing/beijing_tiananmen_guangchang.jpg'],
+    '天安门': ['/images/spots/beijing/beijing_tiananmen_guangchang.jpg'],
+    '北海公园': ['/images/spots/beijing/beijing_beihai_gongyuan.jpg'],
+    '恭王府': ['/images/spots/beijing/beijing_gongwangfu.jpg'],
+    '景山公园': ['/images/spots/beijing/beijing_jingshan_gongyuan.jpg'],
+    '南锣鼓巷': ['/images/spots/beijing/beijing_nanluoguxiang.jpg'],
+    # 上海
+    '外滩': ['/images/spots/shanghai/shanghai_waitan.jpg'],
+    '东方明珠': ['/images/spots/shanghai/shanghai_dongfang_mingzhu.jpg'],
+    '豫园': ['/images/spots/shanghai/shanghai_yuyuan.jpg'],
+    '田子坊': ['/images/spots/shanghai/shanghai_tianzifang.jpg'],
+    '武康路': ['/images/spots/shanghai/shanghai_wukanglu.jpg'],
+    '南京路': ['/images/spots/shanghai/shanghai_nanjinglu_buxingjie.jpg'],
+    # 西安
+    '秦始皇兵马俑': ['/images/spots/xian/xian_bingmayong.jpg'],
+    '兵马俑': ['/images/spots/xian/xian_bingmayong.jpg'],
+    '大雁塔': ['/images/spots/xian/xian_dayanta.jpg'],
+    '古城墙': ['/images/spots/xian/xian_xian_chengqiang.jpg'],
+    '西安城墙': ['/images/spots/xian/xian_xian_chengqiang.jpg'],
+    '华清宫': ['/images/spots/xian/xian_huaqinggong.jpg'],
+    '大唐芙蓉园': ['/images/spots/xian/xian_datang_furongyuan.jpg'],
+    '回民街': ['/images/spots/xian/xian_huiminjie.jpg'],
+    # 成都
+    '大熊猫繁育研究基地': ['/images/spots/chengdu/chengdu_xiongmao_jidi.jpg'],
+    '熊猫基地': ['/images/spots/chengdu/chengdu_xiongmao_jidi.jpg'],
+    '宽窄巷子': ['/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg'],
+    '锦里': ['/images/spots/chengdu/chengdu_chunxilu.jpg'],
+    # 杭州
+    '西湖': ['/images/spots/hangzhou/hangzhou_xihu.jpg'],
+    '灵隐寺': ['/images/spots/hangzhou/hangzhou_lingyinsi.jpg'],
+    '雷峰塔': ['/images/spots/hangzhou/hangzhou_leifengta.jpg'],
+    # 重庆
+    '洪崖洞': ['/images/spots/chongqing/chongqing_hongyadong.jpg'],
+    '解放碑': ['/images/spots/chongqing/chongqing_jiefangbei.jpg'],
+    '磁器口': ['/images/spots/chongqing/chongqing_ciqikou.jpg'],
+    # 其他城市
+    '洱海': ['/images/spots/dali/dali_erhai.jpg'],
+    '大理古城': ['/images/spots/dali/dali_dali_ancient_city.jpg'],
+    '漓江': ['/images/spots/guilin/guilin_lijiang.jpg'],
+    '象鼻山': ['/images/spots/guilin/guilin_xiangbishan.jpg'],
+    '黄山': ['/images/spots/huangshan/huangshan_huangshan_scenery.jpg'],
+    '九寨沟': ['/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg'],
+    '丽江古城': ['/images/spots/lijiang/lijiang_lijiang_gucheng.jpg'],
+    '玉龙雪山': ['/images/spots/lijiang/lijiang_yulong_xueshan.jpg'],
+    '广州塔': ['/images/spots/guangzhou/guangzhou_guangzhouta.jpg'],
+    '沙面': ['/images/spots/guangzhou/guangzhou_shamian.jpg'],
+    '陈家祠': ['/images/spots/guangzhou/guangzhou_chenjiaci.jpg'],
+    '拙政园': ['/images/spots/suzhou/suzhou_zhuozhengyuan.jpg'],
+    '虎丘': ['/images/spots/suzhou/suzhou_huqiu.jpg'],
+    '鼓浪屿': ['/images/spots/xiamen/xiamen_gulangyu.jpg'],
+    '厦门大学': ['/images/spots/xiamen/xiamen_xiamen_daxue.jpg'],
+    '天涯海角': ['/images/spots/sanya/sanya_tianyahaijiao.jpg'],
+    '亚龙湾': ['/images/spots/sanya/sanya_yalongwan.jpg'],
+    '张家界': ['/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg'],
+}
+
+# 城市默认图片
+CITY_IMAGES = {
+    '北京': '/images/cities/beijing.jpg',
+    '上海': '/images/cities/shanghai.jpg',
+    '西安': '/images/cities/xian.jpg',
+    '成都': '/images/cities/chengdu.jpg',
+    '杭州': '/images/cities/hangzhou.jpg',
+    '重庆': '/images/cities/chongqing.jpg',
+    '青岛': '/images/cities/qingdao.jpg',
+    '广州': '/images/cities/guangzhou.jpg',
+    '苏州': '/images/cities/suzhou.jpg',
+    '厦门': '/images/cities/xiamen.jpg',
+    '南京': '/images/cities/nanjing.jpg',
+    '武汉': '/images/cities/wuhan.jpg',
+    '长沙': '/images/cities/changsha.jpg',
+    '深圳': '/images/cities/shenzhen.jpg',
+    '三亚': '/images/cities/sanya.jpg',
+    '桂林': '/images/cities/guilin.jpg',
+    '张家界': '/images/cities/zhangjiajie.jpg',
+    '黄山': '/images/cities/huangshan.jpg',
+    '九寨沟': '/images/cities/jiuzhaigou.jpg',
+    '大理': '/images/cities/dali.jpg',
+    '丽江': '/images/cities/lijiang.jpg',
+}
+
+def get_spot_image(spot_name: str, city: str) -> list:
+    """获取景点图片"""
+    if spot_name in SPOT_IMAGES:
+        return SPOT_IMAGES[spot_name]
+    # 尝试部分匹配
+    for name, images in SPOT_IMAGES.items():
+        if name in spot_name or spot_name in name:
+            return images
+    # 返回城市默认图片
+    city_img = CITY_IMAGES.get(city, '/images/cities/beijing.jpg')
+    return [city_img]
+
 
 # Pydantic模型
 class SpotResponse(BaseModel):
@@ -133,6 +237,8 @@ def recommend_spots(
     # 转换为字典列表
     spots_data = []
     for s in spots:
+        # 获取景点图片 - 优先使用映射中的图片
+        spot_images = get_spot_image(s.name, s.city)
         spots_data.append({
             'id': s.id,
             'name': s.name,
@@ -148,7 +254,7 @@ def recommend_spots(
             'open_time': s.open_time,
             'ticket_price': s.ticket_price,
             'need_booking': s.need_booking,
-            'images': s.images or [],
+            'images': spot_images if spot_images else [],
             'tags': s.tags or []
         })
     
@@ -175,7 +281,27 @@ def get_spot(spot_id: int, db: Session = Depends(get_db)):
     spot = db.query(ScenicSpot).filter(ScenicSpot.id == spot_id).first()
     if not spot:
         return {"error": "景点不存在"}
-    return spot
+    
+    # 转换为字典并添加图片
+    spot_dict = {
+        'id': spot.id,
+        'name': spot.name,
+        'description': spot.description,
+        'location_lat': spot.location_lat,
+        'location_lng': spot.location_lng,
+        'address': spot.address,
+        'city': spot.city,
+        'category': spot.category,
+        'rating': spot.rating,
+        'heat_score': spot.heat_score,
+        'review_count': spot.review_count,
+        'open_time': spot.open_time,
+        'ticket_price': spot.ticket_price,
+        'need_booking': spot.need_booking,
+        'images': get_spot_image(spot.name, spot.city),
+        'tags': spot.tags or []
+    }
+    return spot_dict
 
 
 @router.get("/city/list")

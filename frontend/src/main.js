@@ -23,6 +23,7 @@ import Register from './views/Register.vue'
 import Setting from './views/Setting.vue'
 import Photos from './views/Photos.vue'
 import Collection from './views/Collection.vue'
+import Explore from './views/Explore.vue'
 import AmapExample from './components/AmapExample.vue'
 
 // 路由配置
@@ -42,6 +43,7 @@ const routes = [
   { path: '/ai', name: 'AIAssistant', component: AIAssistant },
   { path: '/profile', name: 'Profile', component: Profile },
   { path: '/food', name: 'Food', component: Food },
+  { path: '/explore', name: 'Explore', component: Explore },
   { path: '/setting', name: 'Setting', component: Setting },
   { path: '/photos', name: 'Photos', component: Photos },
   { path: '/collection', name: 'Collection', component: Collection },

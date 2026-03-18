@@ -1,117 +1,307 @@
 <template>
   <div class="trips-page">
-    <header class="page-header">
-      <button class="back-btn" @click="goBack">←</button>
-      <h1 class="page-title">我的行程</h1>
-      <button class="add-btn" @click="createTrip">+</button>
-    </header>
+    <!-- 导航栏 -->
+    <Navbar />
+    
+    <div class="page-content">
+      <header class="page-header">
+        <h1 class="page-title">我的行程</h1>
+        <button class="add-btn" @click="createTrip">+ 创建行程</button>
+      </header>
 
-    <section class="trips-list">
-      <div 
-        v-for="trip in trips" 
-        :key="trip.id"
-        class="trip-card"
-        @click="viewTrip(trip)"
-      >
-        <div class="trip-image" :style="{backgroundImage: `url(${trip.image})`}"></div>
-        <div class="trip-info">
-          <h3>{{ trip.title }}</h3>
-          <p>{{ trip.city }} · {{ trip.days }}天</p>
-          <div class="trip-meta">
-            <span class="spot-count">{{ trip.spotCount }}个景点</span>
-            <span class="trip-date">{{ trip.date }}</span>
+      <section class="trips-list" v-if="trips.length > 0">
+        <div 
+          v-for="trip in trips" 
+          :key="trip.id"
+          class="trip-card"
+        >
+          <div class="trip-content" @click="viewTrip(trip)">
+            <div class="trip-image" :style="{backgroundImage: trip.image ? `url(${trip.image})` : 'none'}">
+            <div v-if="!trip.image" class="no-image">📷</div>
           </div>
+            <div class="trip-info">
+              <h3>{{ trip.title }}</h3>
+              <p>{{ trip.city }} · {{ trip.days }}天</p>
+              <div class="trip-meta">
+                <span class="spot-count">{{ trip.spotCount }}个景点</span>
+                <span class="trip-date">{{ trip.date }}</span>
+              </div>
+            </div>
+            <div class="trip-status" :class="trip.status">{{ trip.statusText }}</div>
+          </div>
+          <button class="delete-btn" @click.stop="deleteTrip(trip)" title="删除行程">
+            <span>🗑️</span>
+          </button>
         </div>
-        <div class="trip-status" :class="trip.status">{{ trip.statusText }}</div>
-      </div>
-    </section>
+      </section>
 
-    <div v-if="trips.length === 0" class="empty-state">
-      <span class="empty-icon">🗺️</span>
-      <p>还没有行程</p>
-      <button class="create-btn" @click="createTrip">创建第一个行程</button>
+      <div v-if="trips.length === 0" class="empty-state">
+        <span class="empty-icon">🗺️</span>
+        <p>还没有行程</p>
+        <button class="create-btn" @click="createTrip">创建第一个行程</button>
+      </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>确认删除</h3>
+        </div>
+        <div class="modal-body">
+          <p>确定要删除行程 <strong>"{{ tripToDelete?.title }}"</strong> 吗？</p>
+          <p class="modal-tip">此操作不可恢复</p>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn cancel" @click="cancelDelete">取消</button>
+          <button class="modal-btn confirm" @click="confirmDelete">删除</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
 
-const trips = ref([
-  { id: 1, title: '北京三日游', city: '北京', days: 3, spotCount: 8, date: '2024-01-15', status: 'completed', statusText: '已完成', image: 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=400' },
-  { id: 2, title: '上海周末游', city: '上海', days: 2, spotCount: 5, date: '2024-02-20', status: 'published', statusText: '进行中', image: 'https://images.unsplash.com/photo-1474181487882-5abf3f0ba6c2?w=400' },
-])
+const trips = ref([])
+const showDeleteModal = ref(false)
+const tripToDelete = ref(null)
+const debugInfo = ref('')
 
-const goBack = () => router.back()
+// 从 localStorage 加载行程列表
+const loadTrips = () => {
+  const savedTripsStr = localStorage.getItem('savedTrips')
+  console.log('从 localStorage 读取的原始数据:', savedTripsStr)
+  
+  const savedTrips = JSON.parse(savedTripsStr || '[]')
+  
+  console.log('解析后的行程数据:', savedTrips)
+  console.log('行程数量:', savedTrips.length)
+  
+  // 转换数据格式以适配页面显示
+  trips.value = savedTrips.map((trip, index) => {
+    console.log(`处理第${index + 1}个行程:`, trip?.title, 'daySpots:', trip?.daySpots)
+    // 计算总景点数
+    let spotCount = trip.totalSpots || 0
+    if (!spotCount && trip.daySpots) {
+      spotCount = Object.values(trip.daySpots).reduce((sum, day) => sum + (day?.length || 0), 0)
+    }
+    
+    // 格式化日期
+    const createDate = new Date(trip.createTime)
+    const dateStr = `${createDate.getFullYear()}-${String(createDate.getMonth() + 1).padStart(2, '0')}-${String(createDate.getDate()).padStart(2, '0')}`
+    
+    // 获取第一张图片作为行程封面
+    let image = ''
+    // 按天数顺序获取第一天的景点
+    const daySpotsMap = trip.daySpots || {}
+    const firstDayKey = Object.keys(daySpotsMap).sort((a, b) => parseInt(a) - parseInt(b))[0]
+    if (firstDayKey && daySpotsMap[firstDayKey] && daySpotsMap[firstDayKey].length > 0) {
+      image = daySpotsMap[firstDayKey][0].image || ''
+    }
+    // 如果没有景点图片，使用城市默认图片
+    if (!image) {
+      image = getCityImage(trip.city)
+    }
+    
+    return {
+      id: trip.id,
+      title: trip.title || `${trip.city}${trip.days}日游`,
+      city: trip.city,
+      days: trip.days,
+      spotCount: spotCount,
+      date: dateStr,
+      status: 'planned',
+      statusText: '已规划',
+      image: image,
+      rawData: trip // 保存原始数据以便查看详情时使用
+    }
+  }).reverse() // 最新的排在前面
+}
+
+// 获取城市默认图片
+const getCityImage = (city) => {
+  const cityImages = {
+    '北京': '/images/cities/beijing.jpg',
+    '上海': '/images/cities/shanghai.jpg',
+    '西安': '/images/cities/xian.jpg',
+    '成都': '/images/cities/chengdu.jpg',
+    '杭州': '/images/cities/hangzhou.jpg',
+    '重庆': '/images/cities/chongqing.jpg',
+    '广州': '/images/cities/guangzhou.jpg',
+    '苏州': '/images/cities/suzhou.jpg',
+    '厦门': '/images/cities/xiamen.jpg',
+    '三亚': '/images/cities/sanya.jpg',
+    '青岛': '/images/cities/qingdao.jpg',
+    '南京': '/images/cities/nanjing.jpg',
+    '武汉': '/images/cities/wuhan.jpg',
+    '长沙': '/images/cities/changsha.jpg',
+    '深圳': '/images/cities/shenzhen.jpg',
+    '桂林': '/images/cities/guilin.jpg',
+    '张家界': '/images/cities/zhangjiajie.jpg',
+    '黄山': '/images/cities/huangshan.jpg',
+    '九寨沟': '/images/cities/jiuzhaigou.jpg',
+    '大理': '/images/cities/dali.jpg',
+    '丽江': '/images/cities/lijiang.jpg',
+  }
+  return cityImages[city] || '/images/cities/beijing.jpg'
+}
 
 const createTrip = () => router.push('/create-trip')
 
 const viewTrip = (trip) => {
-  router.push({ path: '/trip', query: { id: trip.id } })
+  // 将当前行程数据保存到 localStorage 以便 TripDetail 页面读取
+  localStorage.setItem('currentTrip', JSON.stringify(trip.rawData))
+  
+  router.push({ 
+    path: '/trip', 
+    query: { 
+      id: trip.id,
+      city: trip.city,
+      days: trip.days
+    } 
+  })
 }
+
+// 删除行程
+const deleteTrip = (trip) => {
+  tripToDelete.value = trip
+  showDeleteModal.value = true
+}
+
+// 取消删除
+const cancelDelete = () => {
+  showDeleteModal.value = false
+  tripToDelete.value = null
+}
+
+// 确认删除
+const confirmDelete = () => {
+  if (!tripToDelete.value) return
+  
+  // 从 localStorage 读取保存的行程
+  const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+  
+  // 过滤掉要删除的行程
+  const updatedTrips = savedTrips.filter(t => t.id !== tripToDelete.value.id)
+  
+  // 保存回 localStorage
+  localStorage.setItem('savedTrips', JSON.stringify(updatedTrips))
+  
+  // 如果删除的是当前行程，也清除 currentTrip
+  const currentTrip = JSON.parse(localStorage.getItem('currentTrip') || '{}')
+  if (currentTrip.id === tripToDelete.value.id) {
+    localStorage.removeItem('currentTrip')
+  }
+  
+  // 刷新列表
+  loadTrips()
+  
+  // 关闭弹窗
+  showDeleteModal.value = false
+  tripToDelete.value = null
+  
+  ElMessage.success('行程已删除')
+}
+
+// 初始化默认行程数据（如果没有数据）
+const initDefaultTrips = () => {
+  // 不再自动创建默认数据，让用户自己创建行程
+  console.log('等待用户创建行程')
+}
+
+// 页面加载时读取行程列表
+onMounted(() => {
+  // 检查 localStorage 是否可用
+  try {
+    localStorage.setItem('test', 'test')
+    localStorage.removeItem('test')
+    console.log('localStorage 可用')
+  } catch (e) {
+    console.error('localStorage 不可用:', e)
+  }
+  
+  // 初始化默认数据
+  initDefaultTrips()
+  
+  // 加载行程列表
+  loadTrips()
+})
 </script>
 
 <style scoped>
 .trips-page {
   min-height: 100vh;
-  background: #0a0a1a;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
   color: #fff;
+}
+
+.page-content {
+  padding-top: 80px;
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 20px;
-  background: rgba(10, 10, 26, 0.9);
+  padding: 20px 40px;
+  background: rgba(10, 10, 26, 0.5);
   backdrop-filter: blur(10px);
 }
 
-.back-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  background: transparent;
-  color: #fff;
-  font-size: 20px;
-  cursor: pointer;
+.page-title { 
+  font-size: 24px;
+  font-weight: 700;
 }
 
-.page-title { font-size: 18px; }
-
 .add-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  padding: 10px 20px;
+  border-radius: 25px;
   background: linear-gradient(135deg, #00d4ff, #7b2cbf);
   border: none;
   color: #fff;
-  font-size: 24px;
+  font-size: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
 }
 
 .trips-list {
-  padding: 20px;
+  padding: 20px 40px;
 }
 
 .trip-card {
   display: flex;
+  align-items: center;
   gap: 15px;
   background: rgba(20, 20, 40, 0.8);
   border: 1px solid rgba(0, 212, 255, 0.1);
   border-radius: 16px;
   padding: 15px;
   margin-bottom: 15px;
-  cursor: pointer;
   transition: all 0.3s;
 }
 
 .trip-card:hover {
   border-color: #00d4ff;
+  transform: translateY(-2px);
+}
+
+.trip-content {
+  flex: 1;
+  display: flex;
+  gap: 15px;
+  cursor: pointer;
 }
 
 .trip-image {
@@ -121,6 +311,15 @@ const viewTrip = (trip) => {
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
+  background-color: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-image {
+  font-size: 32px;
+  opacity: 0.5;
 }
 
 .trip-info {
@@ -147,14 +346,36 @@ const viewTrip = (trip) => {
   font-size: 12px;
 }
 
-.trip-status.completed {
+.trip-status.planned {
   background: rgba(0, 212, 255, 0.2);
   color: #00d4ff;
 }
 
-.trip-status.published {
+.trip-status.completed {
   background: rgba(123, 44, 191, 0.2);
   color: #7b2cbf;
+}
+
+.delete-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  border-radius: 10px;
+  color: #ff4757;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 71, 87, 0.2);
+  border-color: #ff4757;
+  transform: scale(1.05);
 }
 
 .empty-state {
@@ -181,5 +402,118 @@ const viewTrip = (trip) => {
   color: #fff;
   font-size: 15px;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+}
+
+/* 删除确认弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 20px 10px;
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.modal-body {
+  padding: 10px 20px 20px;
+}
+
+.modal-body p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+}
+
+.modal-body strong {
+  color: #00d4ff;
+}
+
+.modal-tip {
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(255, 71, 87, 0.8);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.modal-btn.cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.modal-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.modal-btn.confirm {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+  border: 1px solid rgba(255, 71, 87, 0.3);
+}
+
+.modal-btn.confirm:hover {
+  background: rgba(255, 71, 87, 0.3);
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    padding: 15px 20px;
+  }
+  
+  .trips-list {
+    padding: 15px 20px;
+  }
+  
+  .trip-content {
+    gap: 12px;
+  }
+  
+  .trip-image {
+    width: 80px;
+    height: 80px;
+  }
 }
 </style>

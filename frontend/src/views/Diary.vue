@@ -1,10 +1,7 @@
 <template>
   <div class="diary-page">
-    <header class="page-header">
-      <button class="back-btn" @click="goBack">←</button>
-      <h1 class="page-title">旅游日记</h1>
-      <div style="width: 36px;"></div>
-    </header>
+    <!-- 导航栏 -->
+    <Navbar />
 
     <main class="page-content">
       <!-- 快速创建模板区 -->
@@ -187,6 +184,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
 
@@ -402,10 +400,6 @@ const formatDate = (date) => {
   return date.split('T')[0]
 }
 
-const goBack = () => {
-  router.back()
-}
-
 const viewDiary = (diary) => {
   // 查看日记详情
 }
@@ -466,37 +460,8 @@ const createDiary = async () => {
   background: linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%);
 }
 
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 20px;
-  background: rgba(10, 10, 26, 0.9);
-  backdrop-filter: blur(10px);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.back-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.page-title {
-  font-size: 18px;
-  font-weight: 600;
-}
-
 .page-content {
-  padding: 20px;
-  padding-bottom: 100px;
+  padding: 80px 20px 100px;
 }
 
 .section-title {

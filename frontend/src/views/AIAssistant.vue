@@ -1,8 +1,10 @@
 <template>
   <div class="ai-page">
-    <!-- 顶部导航 -->
+    <!-- 导航栏 -->
+    <Navbar />
+
+    <!-- 顶部标题栏 -->
     <header class="page-header">
-      <button class="back-btn" @click="goBack">←</button>
       <div class="header-title">
         <span class="ai-icon">🤖</span>
         <span>AI旅行助手</span>
@@ -90,6 +92,7 @@
 import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
+import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
 

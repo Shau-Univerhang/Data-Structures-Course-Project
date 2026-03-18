@@ -39,17 +39,30 @@
           @click="goToSpot(spot)"
         >
           <div class="spot-image">
-            <img :src="spot.image || defaultImage" :alt="spot.name" />
-            <div class="spot-rating">
-              <span class="heart">♥</span>
-              <span>{{ spot.rating }}</span>
+            <img :src="spot.image || defaultImage" :alt="spot.name" loading="lazy" />
+            <div class="image-overlay"></div>
+            <div class="spot-badges">
+              <div class="badge rating-badge" v-if="spot.rating">
+                <span class="star">★</span>
+                <span>{{ spot.rating.toFixed(1) }}</span>
+              </div>
+              <div class="badge fav-badge" v-if="spot.collection_count">
+                <span class="heart">♥</span>
+                <span>{{ formatNumber(spot.collection_count) }}</span>
+              </div>
             </div>
           </div>
-          <div class="spot-info">
-            <h3>{{ spot.name }}</h3>
-            <p class="spot-desc">{{ spot.description?.slice(0, 30) }}...</p>
-            <div class="spot-tags">
-              <span v-for="tag in (spot.tags || []).slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+          <div class="spot-content">
+            <div class="spot-header">
+              <h3 class="spot-title">{{ spot.name }}</h3>
+              <span class="spot-category" v-if="spot.category">{{ spot.category }}</span>
+            </div>
+            <p class="spot-desc">{{ spot.description?.slice(0, 40) }}{{ spot.description?.length > 40 ? '...' : '' }}</p>
+            <div class="spot-footer">
+              <div class="spot-tags">
+                <span v-for="tag in (spot.tags || []).slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+              </div>
+              <div class="spot-arrow">→</div>
             </div>
           </div>
         </div>
@@ -77,7 +90,7 @@ const defaultImage = '/images/cities/beijing.jpg'
 
 const categories = ['全部', '历史古迹', '风景名胜', '地标建筑', '博物展览', '休闲娱乐', '美食']
 
-// 使用本地图片 - 城市对应
+// 城市默认图片
 const cityImages = {
   '北京': '/images/cities/beijing.jpg',
   '上海': '/images/cities/shanghai.jpg',
@@ -100,176 +113,223 @@ const cityImages = {
   '九寨沟': '/images/cities/jiuzhaigou.jpg',
   '大理': '/images/cities/dali.jpg',
   '丽江': '/images/cities/lijiang.jpg',
+  '凤凰': '/images/cities/fenghuang.jpg',
 }
 
 const cityImage = computed(() => {
   return cityImages[cityName.value] || '/images/cities/beijing.jpg'
 })
 
-// 北京景点图片映射 - 使用本地真实图片
-const beijingSpotImages = {
+// ==================== 景点图片智能映射（基于images/spots目录）====================
+
+// 所有景点图片映射表 - 关键词 -> 图片路径
+const spotImageMap = {
+  // 北京
   '故宫': '/images/spots/beijing/beijing_gugong_bowuyuan.jpg',
-  '故宫博物院': '/images/spots/beijing/beijing_gugong_bowuyuan.jpg',
+  '天坛': '/images/spots/beijing/beijing_tiantan_gongyuan.jpg',
   '长城': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
   '八达岭': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
-  '天坛': '/images/spots/beijing/beijing_tiantan_gongyuan.jpg',
-  '天坛公园': '/images/spots/beijing/beijing_tiantan_gongyuan.jpg',
-  '天安门': '/images/spots/beijing/beijing_tiananmen_guangchang.jpg',
-  '天安门广场': '/images/spots/beijing/beijing_tiananmen_guangchang.jpg',
   '颐和园': '/images/spots/beijing/beijing_yiheyuan.jpg',
   '圆明园': '/images/spots/beijing/beijing_yuanmingyuan.jpg',
-  '北海公园': '/images/spots/beijing/beijing_beihai_gongyuan.jpg',
+  '北海': '/images/spots/beijing/beijing_beihai_gongyuan.jpg',
   '恭王府': '/images/spots/beijing/beijing_gongwangfu.jpg',
-  '景山公园': '/images/spots/beijing/beijing_jingshan_gongyuan.jpg',
+  '景山': '/images/spots/beijing/beijing_jingshan_gongyuan.jpg',
   '南锣鼓巷': '/images/spots/beijing/beijing_nanluoguxiang.jpg',
-  '鸟巢': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
-  '国家体育场': '/images/spots/beijing/beijing_badaling_changcheng.jpg',
-}
-
-// 上海景点图片映射
-const shanghaiSpotImages = {
-  '东方明珠': '/images/spots/shanghai/shanghai_dongfang_mingzhu.jpg',
+  '天安门': '/images/spots/beijing/beijing_tiananmen_guangchang.jpg',
+  
+  // 上海
   '外滩': '/images/spots/shanghai/shanghai_waitan.jpg',
+  '东方明珠': '/images/spots/shanghai/shanghai_dongfang_mingzhu.jpg',
   '豫园': '/images/spots/shanghai/shanghai_yuyuan.jpg',
   '田子坊': '/images/spots/shanghai/shanghai_tianzifang.jpg',
   '武康路': '/images/spots/shanghai/shanghai_wukanglu.jpg',
   '南京路': '/images/spots/shanghai/shanghai_nanjinglu_buxingjie.jpg',
-  '上海博物馆': '/images/spots/shanghai/shanghai_shanghai_bowuguan.jpg',
-  '金山寺': '/images/spots/shanghai/shanghai_jingansi.jpg',
-}
-
-// 西安景点图片映射
-const xianSpotImages = {
+  '静安寺': '/images/spots/shanghai/shanghai_jingansi.jpg',
+  '召楼': '/images/spots/shanghai/shanghai_zhaolou_guzhen.jpg',
+  '迪士尼': '/images/spots/shanghai/shanghai_shanghai_dishini.jpg',
+  '博物馆': '/images/spots/shanghai/shanghai_shanghai_bowuguan.jpg',
+  
+  // 西安
   '兵马俑': '/images/spots/xian/xian_bingmayong.jpg',
+  '秦始皇': '/images/spots/xian/xian_bingmayong.jpg',
   '大雁塔': '/images/spots/xian/xian_dayanta.jpg',
-  '古城墙': '/images/spots/xian/xian_xian_chengqiang.jpg',
   '城墙': '/images/spots/xian/xian_xian_chengqiang.jpg',
-  '华清宫': '/images/spots/xian/xian_huaqinggong.jpg',
-  '大唐芙蓉园': '/images/spots/xian/xian_datang_furongyuan.jpg',
+  '华清': '/images/spots/xian/xian_huaqinggong.jpg',
+  '大唐': '/images/spots/xian/xian_datang_furongyuan.jpg',
   '回民街': '/images/spots/xian/xian_huiminjie.jpg',
-}
-
-// 成都景点图片映射
-const chengduSpotImages = {
+  '碑林': '/images/spots/xian/xian_xian_chengqiang.jpg',
+  '钟楼': '/images/spots/xian/xian_xian_chengqiang.jpg',
+  '鼓楼': '/images/spots/xian/xian_xian_chengqiang.jpg',
+  '小雁塔': '/images/spots/xian/xian_dayanta.jpg',
+  '历史博物馆': '/images/spots/xian/xian_datang_furongyuan.jpg',
+  '陕博': '/images/spots/xian/xian_datang_furongyuan.jpg',
+  '不夜城': '/images/spots/xian/xian_dayanta.jpg',
+  '永兴坊': '/images/spots/xian/xian_huiminjie.jpg',
+  '法门寺': '/images/spots/xian/xian_huaqinggong.jpg',
+  '终南山': '/images/spots/xian/xian_huaqinggong.jpg',
+  '翠华山': '/images/spots/xian/xian_huaqinggong.jpg',
+  '白鹿原': '/images/spots/xian/xian_huaqinggong.jpg',
+  '乾陵': '/images/spots/xian/xian_bingmayong.jpg',
+  
+  // 成都
   '宽窄巷子': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
   '锦里': '/images/spots/chengdu/chengdu_chunxilu.jpg',
   '熊猫': '/images/spots/chengdu/chengdu_xiongmao_jidi.jpg',
-  '大熊猫': '/images/spots/chengdu/chengdu_xiongmao_jidi.jpg',
-}
-
-// 重庆景点图片映射
-const chongqingSpotImages = {
+  '春熙路': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '太古里': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  'IFS': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '天府广场': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '人民公园': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '武侯祠': '/images/spots/chengdu/chengdu_chunxilu.jpg',
+  '杜甫草堂': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '青羊宫': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  '文殊院': '/images/spots/chengdu/chengdu_kuanzhai_xiangzi.jpg',
+  
+  // 重庆
   '洪崖洞': '/images/spots/chongqing/chongqing_hongyadong.jpg',
   '解放碑': '/images/spots/chongqing/chongqing_jiefangbei.jpg',
   '磁器口': '/images/spots/chongqing/chongqing_ciqikou.jpg',
-}
-
-// 大理景点图片映射
-const daliSpotImages = {
+  '长江': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '索道': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '朝天门': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '南山': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '武隆': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '大足': '/images/spots/chongqing/chongqing_ciqikou.jpg',
+  '李子坝': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '鹅岭': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  '十八梯': '/images/spots/chongqing/chongqing_hongyadong.jpg',
+  
+  // 大理
   '洱海': '/images/spots/dali/dali_erhai.jpg',
   '大理古城': '/images/spots/dali/dali_dali_ancient_city.jpg',
-}
-
-// 桂林景点图片映射
-const guilinSpotImages = {
+  '双廊': '/images/spots/dali/dali_erhai.jpg',
+  '喜洲': '/images/spots/dali/dali_dali_ancient_city.jpg',
+  '苍山': '/images/spots/dali/dali_erhai.jpg',
+  '崇圣寺': '/images/spots/dali/dali_dali_ancient_city.jpg',
+  '三塔': '/images/spots/dali/dali_dali_ancient_city.jpg',
+  
+  // 桂林
   '漓江': '/images/spots/guilin/guilin_lijiang.jpg',
   '象鼻山': '/images/spots/guilin/guilin_xiangbishan.jpg',
-}
-
-// 杭州景点图片映射
-const hangzhouSpotImages = {
+  '阳朔': '/images/spots/guilin/guilin_lijiang.jpg',
+  '遇龙河': '/images/spots/guilin/guilin_lijiang.jpg',
+  '十里画廊': '/images/spots/guilin/guilin_lijiang.jpg',
+  '兴坪': '/images/spots/guilin/guilin_lijiang.jpg',
+  '七星岩': '/images/spots/guilin/guilin_xiangbishan.jpg',
+  '芦笛岩': '/images/spots/guilin/guilin_xiangbishan.jpg',
+  
+  // 杭州
   '西湖': '/images/spots/hangzhou/hangzhou_xihu.jpg',
   '灵隐寺': '/images/spots/hangzhou/hangzhou_lingyinsi.jpg',
   '雷峰塔': '/images/spots/hangzhou/hangzhou_leifengta.jpg',
-}
-
-// 黄山景点图片映射
-const huangshanSpotImages = {
+  '断桥': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '苏堤': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '三潭': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '宋城': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '西溪': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '河坊街': '/images/spots/hangzhou/hangzhou_lingyinsi.jpg',
+  '龙井': '/images/spots/hangzhou/hangzhou_lingyinsi.jpg',
+  '千岛湖': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '湘湖': '/images/spots/hangzhou/hangzhou_xihu.jpg',
+  '六和塔': '/images/spots/hangzhou/hangzhou_leifengta.jpg',
+  
+  // 黄山
   '黄山': '/images/spots/huangshan/huangshan_huangshan_scenery.jpg',
   '光明顶': '/images/spots/huangshan/huangshan_huangshan_scenery.jpg',
-}
-
-// 九寨沟景点图片映射
-const jiuzhaigouSpotImages = {
+  '迎客松': '/images/spots/huangshan/huangshan_huangshan_scenery.jpg',
+  
+  // 九寨沟
   '九寨沟': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
   '五彩池': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
-}
-
-// 丽江景点图片映射
-const lijiangSpotImages = {
+  '珍珠滩': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
+  '诺日朗': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
+  '树正': '/images/spots/jiuzhaigou/jiuzhaigou_jiuzhaigou_valley.jpg',
+  
+  // 丽江
   '丽江古城': '/images/spots/lijiang/lijiang_lijiang_gucheng.jpg',
   '玉龙雪山': '/images/spots/lijiang/lijiang_yulong_xueshan.jpg',
-}
-
-// 凤凰景点图片映射
-const fenghuangSpotImages = {
+  '泸沽湖': '/images/spots/lijiang/lijiang_lijiang_gucheng.jpg',
+  '束河': '/images/spots/lijiang/lijiang_lijiang_gucheng.jpg',
+  '拉市海': '/images/spots/lijiang/lijiang_lijiang_gucheng.jpg',
+  
+  // 凤凰
   '凤凰古城': '/images/spots/fenghuang/fenghuang_fenghuang_town.jpg',
-}
-
-// 广州景点图片映射
-const guangzhouSpotImages = {
+  '凤凰': '/images/spots/fenghuang/fenghuang_fenghuang_town.jpg',
+  
+  // 广州
   '广州塔': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
   '小蛮腰': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
   '沙面': '/images/spots/guangzhou/guangzhou_shamian.jpg',
   '陈家祠': '/images/spots/guangzhou/guangzhou_chenjiaci.jpg',
-}
-
-// 苏州景点图片映射
-const suzhouSpotImages = {
+  '珠江': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
+  '白云山': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
+  '北京路': '/images/spots/guangzhou/guangzhou_guangzhouta.jpg',
+  '上下九': '/images/spots/guangzhou/guangzhou_shamian.jpg',
+  
+  // 苏州
   '拙政园': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
   '虎丘': '/images/spots/suzhou/suzhou_huqiu.jpg',
-}
-
-// 厦门景点图片映射
-const xiamenSpotImages = {
+  '留园': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '狮子林': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '网师园': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '平江路': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '山塘街': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '周庄': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '同里': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '甪直': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '金鸡湖': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '太湖': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  '阳澄湖': '/images/spots/suzhou/suzhou_zhuozhengyuan.jpg',
+  
+  // 厦门
   '鼓浪屿': '/images/spots/xiamen/xiamen_gulangyu.jpg',
   '厦门大学': '/images/spots/xiamen/xiamen_xiamen_daxue.jpg',
-}
-
-// 三亚景点图片映射
-const sanyaSpotImages = {
+  '南普陀': '/images/spots/xiamen/xiamen_xiamen_daxue.jpg',
+  '环岛路': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  '曾厝垵': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  '沙坡尾': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  '中山路': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  '五缘湾': '/images/spots/xiamen/xiamen_gulangyu.jpg',
+  
+  // 三亚
   '天涯海角': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
   '亚龙湾': '/images/spots/sanya/sanya_yalongwan.jpg',
-}
-
-// 张家界景点图片映射
-const zhangjiajieSpotImages = {
+  '三亚湾': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
+  '大东海': '/images/spots/sanya/sanya_yalongwan.jpg',
+  '海棠湾': '/images/spots/sanya/sanya_yalongwan.jpg',
+  '蜈支洲岛': '/images/spots/sanya/sanya_yalongwan.jpg',
+  '南山': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
+  '鹿回头': '/images/spots/sanya/sanya_yalongwan.jpg',
+  '天涯镇': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
+  '后海': '/images/spots/sanya/sanya_yalongwan.jpg',
+  '免税店': '/images/spots/sanya/sanya_yalongwan.jpg',
+  
+  // 张家界
   '张家界': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
   '武陵源': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
+  '天门山': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
+  '玻璃桥': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
+  '黄龙洞': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
+  '宝峰湖': '/images/spots/zhangjiajie/zhangjiajie_zhangjiajie_forest.jpg',
 }
 
-// 其他城市景点映射
-const citySpotImages = {
-  '北京': beijingSpotImages,
-  '上海': shanghaiSpotImages,
-  '西安': xianSpotImages,
-  '成都': chengduSpotImages,
-  '重庆': chongqingSpotImages,
-  '大理': daliSpotImages,
-  '桂林': guilinSpotImages,
-  '杭州': hangzhouSpotImages,
-  '黄山': huangshanSpotImages,
-  '九寨沟': jiuzhaigouSpotImages,
-  '丽江': lijiangSpotImages,
-  '凤凰': fenghuangSpotImages,
-  '广州': guangzhouSpotImages,
-  '苏州': suzhouSpotImages,
-  '厦门': xiamenSpotImages,
-  '三亚': sanyaSpotImages,
-  '张家界': zhangjiajieSpotImages,
-}
-
-// 获取景点对应的图片
+// 获取景点图片
 const getSpotImage = (spotName, city) => {
-  const cityImagesMap = citySpotImages[city]
-  if (cityImagesMap) {
-    for (const [key, value] of Object.entries(cityImagesMap)) {
-      if (spotName.includes(key)) {
-        return value
-      }
+  if (!spotName) return cityImages[city] || defaultImage
+  
+  // 1. 完全匹配
+  if (spotImageMap[spotName]) {
+    return spotImageMap[spotName]
+  }
+  
+  // 2. 包含匹配 - 检查景点名称是否包含映射表中的关键词
+  for (const [keyword, imagePath] of Object.entries(spotImageMap)) {
+    if (spotName.includes(keyword) || keyword.includes(spotName)) {
+      return imagePath
     }
   }
-  // 如果没有特定映射，使用城市默认图片
+  
+  // 3. 如果都不匹配，使用城市默认图片
   return cityImages[city] || defaultImage
 }
 
@@ -290,29 +350,37 @@ const loadSpots = async () => {
     const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(cityName.value)}`)
     const data = await response.json()
     if (data.spots) {
-      spots.value = data.spots.map(s => ({
-        ...s,
-        // 使用本地景点图片映射
-        image: (s.images && s.images.length > 0) ? s.images[0] : getSpotImage(s.name, cityName.value)
-      }))
+      spots.value = data.spots.map(s => {
+        // 使用智能映射获取图片
+        const image = getSpotImage(s.name, cityName.value)
+        return {
+          ...s,
+          image: image
+        }
+      })
     } else if (Array.isArray(data)) {
-      spots.value = data.map(s => ({
-        ...s,
-        image: (s.images && s.images.length > 0) ? s.images[0] : getSpotImage(s.name, cityName.value)
-      }))
+      spots.value = data.map(s => {
+        const image = getSpotImage(s.name, cityName.value)
+        return {
+          ...s,
+          image: image
+        }
+      })
     }
   } catch (error) {
     console.error('加载失败:', error)
-    // 模拟数据 - 带真实本地图片
-    spots.value = [
-      { id: 1, name: '故宫博物院', rating: 4.9, category: '历史古迹', description: '世界上现存规模最大的木质结构古建筑', tags: ['必玩景点', '历史文化'], image: '/images/spots/beijing/beijing_gugong_bowuyuan.jpg' },
-      { id: 2, name: '天坛公园', rating: 4.9, category: '历史古迹', description: '明清两代帝王祭祀场所', tags: ['古建绝美'], image: '/images/spots/beijing/beijing_tiantan_gongyuan.jpg' },
-      { id: 3, name: '颐和园', rating: 4.9, category: '风景名胜', description: '清代皇家园林', tags: ['皇家园林'], image: '/images/spots/beijing/beijing_yiheyuan.jpg' },
-      { id: 4, name: '八达岭长城', rating: 4.8, category: '历史古迹', description: '万里长城的重要组成部分', tags: ['必玩景点'], image: '/images/spots/beijing/beijing_badaling_changcheng.jpg' },
-      { id: 5, name: '天安门广场', rating: 4.7, category: '历史古迹', description: '世界上最大的城市广场', tags: ['标志性建筑'], image: '/images/spots/beijing/beijing_tiananmen_guangchang.jpg' },
-      { id: 6, name: '圆明园', rating: 4.7, category: '历史古迹', description: '清代皇家园林遗址', tags: ['历史遗址'], image: '/images/spots/beijing/beijing_yuanmingyuan.jpg' },
-    ]
   }
+}
+
+// 格式化数字
+const formatNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
 }
 
 const goBack = () => router.back()
@@ -435,78 +503,160 @@ const goToSpot = (spot) => {
 
 .spots-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .spots-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .spots-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
 }
 
 .spot-card {
-  background: rgba(20, 20, 40, 0.8);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .spot-card:hover {
   transform: translateY(-5px);
-  border-color: #00d4ff;
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.15);
 }
 
 .spot-image {
   position: relative;
-  height: 120px;
+  height: 160px;
+  overflow: hidden;
 }
 
 .spot-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
 }
 
-.spot-rating {
+.spot-card:hover .spot-image img {
+  transform: scale(1.05);
+}
+
+.spot-badges {
   position: absolute;
   top: 10px;
-  left: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 13px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.badge {
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.heart {
+.rating-badge {
+  color: #ffc107;
+}
+
+.fav-badge {
   color: #ff6b6b;
 }
 
-.spot-info {
-  padding: 12px;
+.star {
+  font-size: 11px;
 }
 
-.spot-info h3 {
+.heart {
+  font-size: 10px;
+}
+
+.spot-content {
+  padding: 16px;
+}
+
+.spot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.spot-title {
   font-size: 15px;
-  margin-bottom: 6px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.spot-category {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(0, 212, 255, 0.15);
+  border-radius: 6px;
+  color: #00d4ff;
+  white-space: nowrap;
 }
 
 .spot-desc {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.spot-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .spot-tags {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .tag {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   background: rgba(0, 212, 255, 0.1);
   border-radius: 10px;
   color: #00d4ff;
+}
+
+.spot-arrow {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
 }
 
 .empty-state {

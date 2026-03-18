@@ -1,7 +1,9 @@
 <template>
   <div class="route-plan-page">
+    <!-- 导航栏 -->
+    <Navbar />
+
     <header class="page-header">
-      <button class="back-btn" @click="goBack">←</button>
       <h1 class="page-title">路线规划</h1>
       <button class="action-btn" @click="shareRoute">分享</button>
     </header>
@@ -114,6 +116,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import AmapContainer from '../components/AmapContainer.vue'
+import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
 

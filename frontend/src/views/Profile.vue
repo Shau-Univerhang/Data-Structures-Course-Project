@@ -1,10 +1,7 @@
 <template>
   <div class="profile-page">
-    <header class="page-header">
-      <button class="back-btn" @click="goBack">←</button>
-      <h1 class="page-title">我的</h1>
-      <div style="width: 40px;"></div>
-    </header>
+    <!-- 导航栏 -->
+    <Navbar />
 
     <!-- 用户信息 -->
     <section class="user-section">
@@ -85,6 +82,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import Navbar from '../components/Navbar.vue'
 
 const router = useRouter()
 
@@ -180,7 +178,6 @@ const fetchStats = async () => {
   }
 }
 
-const goBack = () => router.back()
 const goTrips = () => router.push('/trips')
 const goDiary = () => router.push('/diary')
 const goCollection = () => router.push('/collection')
@@ -194,28 +191,8 @@ const goAbout = () => alert('邮游世界 v1.0.0\n基于MiniMax大模型\n北京
   min-height: 100vh;
   background: #0a0a1a;
   color: #fff;
+  padding-top: 80px;
 }
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 20px;
-  background: rgba(10, 10, 26, 0.9);
-}
-
-.back-btn, .settings-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  background: transparent;
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.page-title { font-size: 18px; }
 
 .user-section {
   display: flex;

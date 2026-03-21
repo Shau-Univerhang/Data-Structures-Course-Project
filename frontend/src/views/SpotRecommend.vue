@@ -301,15 +301,8 @@ const createTrip = () => {
   localStorage.setItem('tripDays', days.value)
   localStorage.setItem('tripPreferences', preferences.value.join(','))
   
-  // 跳转到行程详情页
-  router.push({
-    path: '/trip',
-    query: {
-      city: city.value,
-      days: days.value,
-      preferences: preferences.value.join(',')
-    }
-  })
+  // 跳转到行程详情页，使用 new 作为 id 表示新行程
+  router.push(`/trip/new?city=${city.value}&days=${days.value}&preferences=${preferences.value.join(',')}`)
 }
 
 // 初始化

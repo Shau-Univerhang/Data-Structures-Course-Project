@@ -219,9 +219,18 @@ def create_trip_from_xiaohongshu(
 ):
     """直接从小红书链接创建行程"""
     
-    # 解析链接
-    parse_result = parse_xiaohongshu(request, db)
-    itinerary = parse_result.get("itinerary", {})
+    # 如果前端传递了content（解析后的行程数据），直接使用
+    if request.content:
+        try:
+            itinerary = json.loads(request.content)
+        except:
+            # 解析失败，调用解析API
+            parse_result = parse_xiaohongshu(request, db)
+            itinerary = parse_result.get("itinerary", {})
+    else:
+        # 解析链接
+        parse_result = parse_xiaohongshu(request, db)
+        itinerary = parse_result.get("itinerary", {})
     
     # 创建行程
     trip = Trip(
@@ -238,8 +247,76 @@ def create_trip_from_xiaohongshu(
     db.refresh(trip)
     
     # 获取景点并添加到行程
+    # 优先使用前端传递的按天数分配的景点
+    day_spots = itinerary.get("daySpots", {})
     spots = itinerary.get("spots", [])
-    if spots:
+    
+    print(f"Creating trip with day_spots: {day_spots}")
+    print(f"Spots: {spots}")
+    
+    if day_spots and len(day_spots) > 0:
+        # 使用前端分配的景点（按天）
+        order_index = 0
+        for day_num, day_spot_list in day_spots.items():
+            print(f"Processing day {day_num}: {day_spot_list}")
+            for spot_name in day_spot_list:
+                # 查找景点
+                spot = db.query(ScenicSpot).filter(
+                    ScenicSpot.name.like(f"%{spot_name}%")
+                ).first()
+                
+                if spot:
+                    print(f"Found spot in DB: {spot.name}")
+                    schedule = TripDailySchedule(
+                        trip_id=trip.id,
+                        day_number=int(day_num),
+                        spot_id=spot.id,
+                        order_index=order_index
+                    )
+                    db.add(schedule)
+                    order_index += 1
+                else:
+                    # 如果数据库中找不到景点，创建一个虚拟景点
+                    print(f"Creating virtual spot: {spot_name}")
+                    
+                    # 尝试查找数据库中是否有相似景点的图片
+                    similar_spot = db.query(ScenicSpot).filter(
+                        ScenicSpot.name.contains(spot_name[:2]),  # 使用前两个字匹配
+                        ScenicSpot.images.isnot(None)
+                    ).first()
+                    
+                    if similar_spot and similar_spot.images:
+                        images = similar_spot.images
+                        print(f"Using images from similar spot: {similar_spot.name}")
+                    else:
+                        images = ["/images/default-spot.jpg"]
+                    
+                    virtual_spot = ScenicSpot(
+                        name=spot_name,
+                        city=itinerary.get("destination", "未知"),
+                        description=f"AI推荐的景点：{spot_name}",
+                        rating=4.5,
+                        images=images,
+                        tags=["AI推荐"]
+                    )
+                    db.add(virtual_spot)
+                    db.commit()
+                    db.refresh(virtual_spot)
+                    
+                    schedule = TripDailySchedule(
+                        trip_id=trip.id,
+                        day_number=int(day_num),
+                        spot_id=virtual_spot.id,
+                        order_index=order_index
+                    )
+                    db.add(schedule)
+                    order_index += 1
+        
+        db.commit()
+        print(f"Added {order_index} schedules to trip {trip.id}")
+    elif spots:
+        # 使用默认分配（每3个景点一天）
+        print(f"Using default distribution for {len(spots)} spots")
         for i, spot_name in enumerate(spots):
             # 查找景点
             spot = db.query(ScenicSpot).filter(
@@ -247,6 +324,7 @@ def create_trip_from_xiaohongshu(
             ).first()
             
             if spot:
+                print(f"Found spot in DB: {spot.name}")
                 schedule = TripDailySchedule(
                     trip_id=trip.id,
                     day_number=(i // 3) + 1,
@@ -254,8 +332,44 @@ def create_trip_from_xiaohongshu(
                     order_index=i
                 )
                 db.add(schedule)
+            else:
+                # 如果数据库中找不到景点，创建一个虚拟景点
+                print(f"Creating virtual spot: {spot_name}")
+                
+                # 尝试查找数据库中是否有相似景点的图片
+                similar_spot = db.query(ScenicSpot).filter(
+                    ScenicSpot.name.contains(spot_name[:2]),  # 使用前两个字匹配
+                    ScenicSpot.images.isnot(None)
+                ).first()
+                
+                if similar_spot and similar_spot.images:
+                    images = similar_spot.images
+                    print(f"Using images from similar spot: {similar_spot.name}")
+                else:
+                    images = ["/images/default-spot.jpg"]
+                
+                virtual_spot = ScenicSpot(
+                    name=spot_name,
+                    city=itinerary.get("destination", "未知"),
+                    description=f"AI推荐的景点：{spot_name}",
+                    rating=4.5,
+                    images=images,
+                    tags=["AI推荐"]
+                )
+                db.add(virtual_spot)
+                db.commit()
+                db.refresh(virtual_spot)
+                
+                schedule = TripDailySchedule(
+                    trip_id=trip.id,
+                    day_number=(i // 3) + 1,
+                    spot_id=virtual_spot.id,
+                    order_index=i
+                )
+                db.add(schedule)
         
         db.commit()
+        print(f"Added {len(spots)} schedules to trip {trip.id}")
     
     return {
         "success": True,

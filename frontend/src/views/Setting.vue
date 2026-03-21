@@ -174,17 +174,78 @@ const triggerUpload = () => {
   fileInput.value.click()
 }
 
+// 压缩图片
+const compressImage = (file, maxWidth = 400, maxHeight = 400, quality = 0.8) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (e) => {
+      const img = new Image()
+      img.src = e.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        // 计算缩放比例
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height
+          height = maxHeight
+        }
+
+        canvas.width = width
+        canvas.height = height
+
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
+          } else {
+            reject(new Error('压缩失败'))
+          }
+        }, 'image/jpeg', quality)
+      }
+      img.onerror = () => reject(new Error('图片加载失败'))
+    }
+    reader.onerror = () => reject(new Error('文件读取失败'))
+  })
+}
+
 const handleAvatarChange = async (event) => {
   const file = event.target.files[0]
   if (!file) return
 
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件')
+    return
+  }
+
+  // 验证文件大小（最大 5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return
+  }
+
   const userId = localStorage.getItem('userId')
   if (!userId) return
 
-  const formData = new FormData()
-  formData.append('file', file)
-
   try {
+    // 显示上传中提示
+    ElMessage.info('正在上传头像...')
+
+    // 压缩图片
+    const compressedFile = await compressImage(file)
+    
+    const formData = new FormData()
+    formData.append('file', compressedFile)
+
     const response = await fetch(`http://localhost:8000/api/auth/avatar?user_id=${userId}`, {
       method: 'POST',
       body: formData
@@ -192,18 +253,24 @@ const handleAvatarChange = async (event) => {
 
     if (response.ok) {
       const data = await response.json()
-      user.avatar_url = data.avatar_url
+      user.avatar_url = data.avatar_url + '?t=' + Date.now() // 添加时间戳避免缓存
+      
       // 更新本地存储的用户信息
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}')
       storedUser.avatar_url = data.avatar_url
       localStorage.setItem('user', JSON.stringify(storedUser))
+      
       ElMessage.success('头像上传成功')
     } else {
-      ElMessage.error('头像上传失败')
+      const error = await response.json()
+      ElMessage.error(error.detail || '头像上传失败')
     }
   } catch (error) {
     console.error('上传头像失败:', error)
-    ElMessage.error('头像上传失败')
+    ElMessage.error('上传失败：' + error.message)
+  } finally {
+    // 清空 input，允许重复上传同一文件
+    event.target.value = ''
   }
 }
 

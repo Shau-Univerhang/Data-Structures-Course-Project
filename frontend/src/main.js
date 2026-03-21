@@ -12,6 +12,7 @@ import SpotRecommend from './views/SpotRecommend.vue'
 import TripDetail from './views/TripDetail.vue'
 import RoutePlan from './views/RoutePlan.vue'
 import Diary from './views/Diary.vue'
+import DiaryDetail from './views/DiaryDetail.vue'
 import City from './views/City.vue'
 import SpotDetail from './views/SpotDetail.vue'
 import AIAssistant from './views/AIAssistant.vue'
@@ -38,6 +39,7 @@ const routes = [
   { path: '/trips', name: 'Trips', component: Trips },
   { path: '/route/:id', name: 'RoutePlan', component: RoutePlan },
   { path: '/diary', name: 'Diary', component: Diary },
+  { path: '/diary/:id', name: 'DiaryDetail', component: DiaryDetail },
   { path: '/city', name: 'City', component: City },
   { path: '/spot', name: 'SpotDetail', component: SpotDetail },
   { path: '/ai', name: 'AIAssistant', component: AIAssistant },
@@ -59,19 +61,19 @@ const publicRoutes = ['/', '/login', '/register', '/city', '/spot']
 
 router.beforeEach((to, from, next) => {
   const userId = localStorage.getItem('userId')
-  
+
   // 如果访问的是公开路由，直接放行
   if (publicRoutes.includes(to.path)) {
     next()
     return
   }
-  
+
   // 如果用户已登录，放行
   if (userId) {
     next()
     return
   }
-  
+
   // 未登录，跳转到登录页
   next('/login')
 })

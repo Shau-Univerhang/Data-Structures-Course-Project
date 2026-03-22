@@ -6,7 +6,7 @@
         <span class="back-icon">←</span>
       </button>
       <h1 class="page-title">{{ tripTitle }}</h1>
-      <button class="action-btn" @click="saveTrip">保存</button>
+      <button class="action-btn" @click="saveTrip">{{ isFromAI ? '保存到我的行程' : '保存' }}</button>
     </header>
 
     <main class="main-content">
@@ -181,6 +181,7 @@ const showModal = ref(false)
 const searchQuery = ref('')
 const routeInfo = ref(null)
 const showTraffic = ref(false)
+const isFromAI = ref(false)  // 标记是否从AI助手跳转过来
 
 // 每天的景点分配
 const daySpotsMap = ref({})
@@ -253,12 +254,98 @@ const filteredAvailableSpots = computed(() => {
 
 // 加载数据
 onMounted(async () => {
-  // 优先从 currentTrip 读取（从行程列表点击进入）
-  const currentTripStr = localStorage.getItem('currentTrip')
-  
-  if (currentTripStr && route.query.id) {
-    // 从行程列表进入，读取保存的行程数据
-    const currentTrip = JSON.parse(currentTripStr)
+  // 检查是否从AI助手跳转过来（URL包含 /trip/ 路径参数）
+  const tripId = route.params.id
+  const fromAI = route.query.from === 'ai'
+
+  console.log('TripDetail onMounted:', { tripId, fromAI, query: route.query })
+
+  if (tripId && tripId !== 'new') {
+    isFromAI.value = fromAI
+    
+    // 检查 ID 格式，如果是字符串格式（如 trip_xxx），从 localStorage 读取
+    if (typeof tripId === 'string' && tripId.startsWith('trip_')) {
+      console.log('Loading trip from localStorage:', tripId)
+      const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+      const tripData = savedTrips.find(t => t.id === tripId)
+      
+      if (tripData) {
+        city.value = tripData.city
+        days.value = tripData.days
+        preferences.value = tripData.preferences || []
+        tripTitle.value = tripData.title || `${tripData.city}${tripData.days}日游`
+        
+        // 恢复每天的景点分配
+        if (tripData.daySpots) {
+          daySpotsMap.value = tripData.daySpots
+          allSpots.value = Object.values(tripData.daySpots).flat()
+        }
+      } else {
+        alert('行程数据不存在')
+      }
+    } else {
+      // 从后端加载行程数据（数字ID）
+      try {
+        console.log('Fetching trip data from API for ID:', tripId)
+        const response = await fetch(`http://localhost:8000/api/trips/${tripId}`)
+        console.log('Trip API response status:', response.status)
+        if (response.ok) {
+        const tripData = await response.json()
+        console.log('Trip data:', tripData)
+        console.log('Schedules:', tripData.schedules)
+        city.value = tripData.destination || '北京'
+        days.value = tripData.total_days || 3
+        preferences.value = tripData.travel_preferences || []
+
+        // 加载行程中的景点
+        if (tripData.schedules && tripData.schedules.length > 0) {
+          console.log(`Loading ${tripData.schedules.length} schedules`)
+          // 将景点分配到各天
+          const spotsByDay = {}
+          for (let i = 1; i <= days.value; i++) {
+            spotsByDay[i] = []
+          }
+
+          tripData.schedules.forEach(schedule => {
+            console.log('Processing schedule:', schedule)
+            const dayNum = schedule.day_number || 1
+            if (!spotsByDay[dayNum]) spotsByDay[dayNum] = []
+            spotsByDay[dayNum].push({
+              id: schedule.spot_id,
+              name: schedule.spot_name || '未知景点',
+              image: schedule.spot_image || '/images/default-spot.jpg',
+              rating: 4.5,
+              duration: '2小时',
+              tags: []
+            })
+          })
+
+          daySpotsMap.value = spotsByDay
+          allSpots.value = Object.values(spotsByDay).flat()
+          console.log('daySpotsMap:', daySpotsMap.value)
+        } else {
+          console.log('No schedules found, initializing empty trip')
+          // 没有景点数据，初始化空行程（不加载默认景点）
+          const spotsByDay = {}
+          for (let i = 1; i <= days.value; i++) {
+            spotsByDay[i] = []
+          }
+          daySpotsMap.value = spotsByDay
+          allSpots.value = []
+        }
+      } else {
+        // API调用失败，显示错误
+        console.error('API调用失败:', response.status)
+        alert('加载行程失败，请刷新页面重试')
+      }
+    } catch (error) {
+      console.error('加载行程失败:', error)
+      alert('加载行程失败，请刷新页面重试')
+    }
+    }
+  } else if (localStorage.getItem('currentTrip') && route.query.id && !route.params.id) {
+    // 从行程列表进入（没有 path 参数 id，只有 query 参数 id），读取保存的行程数据
+    const currentTrip = JSON.parse(localStorage.getItem('currentTrip'))
     city.value = currentTrip.city
     days.value = currentTrip.days
     preferences.value = currentTrip.preferences || []
@@ -560,7 +647,12 @@ const removeSpot = (index) => {
 
 // 返回
 const goBack = () => {
-  router.push('/trips')
+  // 检查是否从AI界面跳转过来
+  if (route.query.from === 'ai') {
+    router.push('/ai')
+  } else {
+    router.push('/trips')
+  }
 }
 
 // 保存行程

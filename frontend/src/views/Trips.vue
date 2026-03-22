@@ -159,14 +159,8 @@ const viewTrip = (trip) => {
   // 将当前行程数据保存到 localStorage 以便 TripDetail 页面读取
   localStorage.setItem('currentTrip', JSON.stringify(trip.rawData))
   
-  router.push({ 
-    path: '/trip', 
-    query: { 
-      id: trip.id,
-      city: trip.city,
-      days: trip.days
-    } 
-  })
+  // 跳转到行程详情页，使用 path 参数
+  router.push(`/trip/${trip.id}?city=${trip.city}&days=${trip.days}`)
 }
 
 // 删除行程

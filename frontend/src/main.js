@@ -35,7 +35,7 @@ const routes = [
   { path: '/register', name: 'Register', component: Register },
   { path: '/create-trip', name: 'CreateTrip', component: CreateTrip },
   { path: '/spot-recommend', name: 'SpotRecommend', component: SpotRecommend },
-  { path: '/trip', name: 'TripDetail', component: TripDetail },
+  { path: '/trip/:id', name: 'TripDetail', component: TripDetail },
   { path: '/trips', name: 'Trips', component: Trips },
   { path: '/route/:id', name: 'RoutePlan', component: RoutePlan },
   { path: '/diary', name: 'Diary', component: Diary },

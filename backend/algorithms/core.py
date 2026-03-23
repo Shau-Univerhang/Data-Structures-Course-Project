@@ -15,7 +15,7 @@ import json
 
 # ==================== 1. 部分排序算法（Top 10）====================
 
-def top_k_spots(spots: List[dict], k: int = 10, sort_by: str = 'heat') -> List[dict]:
+def top_k_spots(spots: List[dict], k: int = 50, sort_by: str = 'heat') -> List[dict]:
     """
     部分排序：只返回前k个景点，不完全排序
     时间复杂度：O(n log k)

@@ -9,6 +9,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     AmapContainer: typeof import('./src/components/AmapContainer.vue')['default']
     AmapExample: typeof import('./src/components/AmapExample.vue')['default']
+    CommentsRatings: typeof import('./src/components/CommentsRatings.vue')['default']
+    ElButton: typeof import('element-plus/es')['ElButton']
+    ElInput: typeof import('element-plus/es')['ElInput']
     Navbar: typeof import('./src/components/Navbar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

@@ -225,10 +225,10 @@ const loadSpots = async () => {
     if (data.spots) {
       spots.value = data.spots.map(spot => ({
         ...spot,
-        // 如果没有收藏数，生成一个模拟的
-        favorites: spot.favorites || Math.floor(Math.random() * 5000) + 500,
-        // 如果没有评分，使用默认值
-        rating: spot.rating || (4.0 + Math.random() * 1.0)
+        // 如果没有收藏数，使用基于景点ID的确定性值
+        favorites: spot.favorites || ((spot.id * 137) % 5000) + 500,
+        // 如果没有评分，使用基于景点ID的确定性值
+        rating: spot.rating || (4.0 + ((spot.id * 53) % 100) / 100)
       }))
     } else {
       // 使用模拟数据

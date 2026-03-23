@@ -44,9 +44,10 @@ class ScenicSpot(Base):
     city = Column(String(50))
     category = Column(String(50))  # 类别：历史古迹、自然风光、现代建筑等
     type = Column(String(20))  # 'scenic'景点 或 'campus'校园
-    rating = Column(Float, default=0)  # 评分 0-5
+    rating = Column(Float, default=0)  # 评分 0-5，根据用户评价计算
     heat_score = Column(Integer, default=0)  # 热度值
     review_count = Column(Integer, default=0)  # 评价数量
+    favorites_count = Column(Integer, default=0)  # 收藏数量
     open_time = Column(String(100))  # 开放时间
     ticket_price = Column(String(50))  # 门票价格
     need_booking = Column(Boolean, default=False)  # 是否需要预约
@@ -232,6 +233,20 @@ class Collection(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     spot_id = Column(Integer, ForeignKey("scenic_spots.id"))
     created_at = Column(String, default=datetime.now().isoformat)
+
+
+class SpotReview(Base):
+    """景点评价表"""
+    __tablename__ = "spot_reviews"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    rating = Column(Float, nullable=False)  # 评分 1-5
+    content = Column(Text)  # 评价内容
+    images = Column(JSON)  # 评价图片
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
 
 
 class TripPhoto(Base):

@@ -10,12 +10,7 @@
     <!-- 景点图片 -->
     <section class="spot-hero">
       <img :src="spot.image || defaultImage" :alt="spot.name" class="hero-image" />
-      <div class="hero-overlay">
-        <div class="rating-badge">
-          <span class="heart">♥</span>
-          <span class="rating-value">{{ spot.rating }}</span>
-        </div>
-      </div>
+      <div class="hero-overlay"></div>
     </section>
 
     <!-- 景点基本信息 -->
@@ -46,19 +41,34 @@
     <!-- 用户评价 -->
     <section class="reviews-section">
       <div class="section-header">
-        <h3>用户评价</h3>
-        <span class="review-count">{{ reviews.length }}条评价</span>
+        <div class="header-left">
+          <h3>用户评价</h3>
+          <span class="review-count">{{ reviews.length }}条评价</span>
+          <span class="avg-rating" v-if="spot.rating">平均 {{ spot.rating.toFixed(1) }}分</span>
+        </div>
+        <button class="add-btn" @click="showAddReview = true" v-if="!hasReviewed && userId">+ 写评价</button>
       </div>
-      <div class="reviews-list">
+      
+      <!-- 评价列表 -->
+      <div class="reviews-list" v-if="reviews.length > 0">
         <div v-for="review in reviews" :key="review.id" class="review-card">
           <div class="review-header">
-            <div class="review-avatar">{{ review.user[0] }}</div>
+            <div class="review-avatar">{{ review.username?.[0] || '用' }}</div>
             <div class="review-info">
-              <span class="review-user">{{ review.user }}</span>
-              <span class="review-date">{{ review.date }}</span>
+              <span class="review-user">{{ review.username || '用户' }}</span>
+              <span class="review-date">{{ formatDate(review.created_at) }}</span>
             </div>
-            <div class="review-rating">
-              <span v-for="i in 5" :key="i" :class="['star', { filled: i <= review.rating }]">★</span>
+            <div class="review-actions">
+              <div class="review-rating">
+                <span v-for="i in 5" :key="i" :class="['star', { filled: i <= review.rating }]">★</span>
+              </div>
+              <button 
+                v-if="review.user_id == userId" 
+                class="delete-review-btn"
+                @click="deleteReview(review.id)"
+              >
+                删除
+              </button>
             </div>
           </div>
           <p class="review-content">{{ review.content }}</p>
@@ -66,6 +76,11 @@
             <img v-for="(img, idx) in review.images" :key="idx" :src="img" />
           </div>
         </div>
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else class="empty-reviews">
+        <p>暂无评价，快来发表第一条评价吧！</p>
       </div>
     </section>
 
@@ -75,7 +90,7 @@
         <h3>拍照点位</h3>
         <button class="add-btn" @click="showAddPhoto = true">+ 上传</button>
       </div>
-      <div class="photo-spots-grid">
+      <div class="photo-spots-grid" v-if="photoSpots.length > 0">
         <div v-for="ps in photoSpots" :key="ps.id" class="photo-spot-card">
           <img :src="ps.image" :alt="ps.name" />
           <div class="photo-info">
@@ -83,6 +98,9 @@
             <p>{{ ps.description }}</p>
           </div>
         </div>
+      </div>
+      <div v-else class="empty-photo-spots">
+        <p>暂无拍照点位，快来上传第一个吧！</p>
       </div>
     </section>
 
@@ -129,12 +147,37 @@
         </div>
       </div>
     </div>
+
+    <!-- 写评价弹窗 -->
+    <div v-if="showAddReview" class="modal-overlay" @click.self="showAddReview = false">
+      <div class="modal-content">
+        <h3>写评价</h3>
+        <div class="rating-input">
+          <span class="rating-label">评分：</span>
+          <div class="star-input">
+            <span 
+              v-for="i in 5" 
+              :key="i" 
+              :class="['star', { filled: i <= newReview.rating }]"
+              @click="newReview.rating = i"
+            >★</span>
+          </div>
+          <span class="rating-text">{{ newReview.rating }}分</span>
+        </div>
+        <textarea class="tech-input" placeholder="分享您的游玩体验..." v-model="newReview.content" rows="4"></textarea>
+        <div class="modal-actions">
+          <button class="btn-cancel" @click="showAddReview = false">取消</button>
+          <button class="btn-confirm" @click="submitReview" :disabled="newReview.rating === 0">提交</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const route = useRoute()
@@ -144,40 +187,60 @@ const reviews = ref([])
 const photoSpots = ref([])
 const showTripSelector = ref(false)
 const showAddPhoto = ref(false)
+const showAddReview = ref(false)
 const isCollected = ref(false)
+const hasReviewed = ref(false)
+const userId = computed(() => localStorage.getItem('userId'))
+
 const userTrips = ref([
   { id: 1, title: '北京三日游', days: 3 },
   { id: 2, title: '上海周末游', days: 2 }
 ])
 const newPhoto = ref({ name: '', description: '', image: '' })
+const photoFile = ref(null)
+const newReview = ref({ rating: 0, content: '' })
 const defaultImage = 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=800'
 
 onMounted(async () => {
   const spotId = route.query.id
-  await loadSpot(spotId)
+  if (spotId) {
+    await loadSpot(spotId)
+    await loadReviews(spotId)
+    await checkIfReviewed(spotId)
+    await loadPhotoSpots(spotId)
+  }
 })
 
 const loadSpot = async (id) => {
   try {
     const response = await fetch(`http://localhost:8000/api/spots/${id}`)
     const data = await response.json()
-    spot.value = { ...data, image: data.images?.[0] || defaultImage }
+    console.log('[DEBUG] API返回数据:', data)
+    console.log('[DEBUG] favorites_count:', data.favorites_count)
+    spot.value = { 
+      ...data, 
+      image: data.images?.[0] || defaultImage,
+      rating: data.rating || 0,
+      favorites_count: data.favorites_count || 0
+    }
+    console.log('[DEBUG] spot.value:', spot.value)
     
     // 检查是否已收藏
-    const userId = localStorage.getItem('userId')
-    if (userId) {
-      const checkRes = await fetch(`http://localhost:8000/api/collections/check/${id}?user_id=${userId}`)
+    if (userId.value) {
+      const checkRes = await fetch(`http://localhost:8000/api/collections/check/${id}?user_id=${userId.value}`)
       if (checkRes.ok) {
         const checkData = await checkRes.json()
         isCollected.value = checkData.is_collected
       }
     }
   } catch (error) {
+    console.error('加载景点失败:', error)
     spot.value = {
       id: id,
       name: '景点详情',
       city: route.query.city || '北京',
-      rating: 4.8,
+      rating: 0,
+      favorites_count: 0,
       category: '历史古迹',
       description: '景点描述加载中...',
       tags: ['必玩景点'],
@@ -186,16 +249,52 @@ const loadSpot = async (id) => {
     }
   }
   
-  // 加载评价和拍照点位（模拟数据）
-  reviews.value = [
-    { id: 1, user: '张三', date: '2024-01-15', rating: 5, content: '非常棒的景点，建筑宏伟，值得一去！', images: [] },
-    { id: 2, user: '李四', date: '2024-01-10', rating: 4, content: '风景很美，就是人太多了', images: [] },
-  ]
-  
-  photoSpots.value = [
-    { id: 1, name: '最佳拍摄点1', description: '可以拍到全景', image: 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=300' },
-    { id: 2, name: '最佳拍摄点2', description: '人少出片', image: 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=300' },
-  ]
+}
+
+const loadReviews = async (spotId) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/collections/spot-reviews/${spotId}`)
+    if (response.ok) {
+      const data = await response.json()
+      console.log('[DEBUG] 加载评价列表:', data)
+      reviews.value = data
+    }
+  } catch (error) {
+    console.error('加载评价失败:', error)
+    reviews.value = []
+  }
+}
+
+const checkIfReviewed = async (spotId) => {
+  if (!userId.value) return
+  try {
+    const response = await fetch(`http://localhost:8000/api/collections/spot-reviews/check/${spotId}?user_id=${userId.value}`)
+    if (response.ok) {
+      const data = await response.json()
+      hasReviewed.value = data.has_reviewed
+    }
+  } catch (error) {
+    console.error('检查评价状态失败:', error)
+  }
+}
+
+const loadPhotoSpots = async (spotId) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/photo-spots/${spotId}`)
+    if (response.ok) {
+      const data = await response.json()
+      photoSpots.value = data
+    }
+  } catch (error) {
+    console.error('加载拍照点位失败:', error)
+    photoSpots.value = []
+  }
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN')
 }
 
 const goBack = () => router.back()
@@ -206,8 +305,7 @@ const addToTrip = (tripId) => {
 }
 
 const toggleCollect = async () => {
-  const userId = localStorage.getItem('userId')
-  if (!userId) {
+  if (!userId.value) {
     router.push('/login')
     return
   }
@@ -215,25 +313,121 @@ const toggleCollect = async () => {
   try {
     if (isCollected.value) {
       // 取消收藏
-      const response = await fetch(`http://localhost:8000/api/collections/${spot.value.id}?user_id=${userId}`, {
+      const response = await fetch(`http://localhost:8000/api/collections/${spot.value.id}?user_id=${userId.value}`, {
         method: 'DELETE'
       })
       if (response.ok) {
         isCollected.value = false
+        spot.value.favorites_count = Math.max(0, (spot.value.favorites_count || 0) - 1)
+        ElMessage.success('已取消收藏')
       }
     } else {
       // 添加收藏
-      const response = await fetch(`http://localhost:8000/api/collections?user_id=${userId}`, {
+      const response = await fetch(`http://localhost:8000/api/collections?user_id=${userId.value}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ spot_id: spot.value.id })
       })
       if (response.ok) {
         isCollected.value = true
+        spot.value.favorites_count = (spot.value.favorites_count || 0) + 1
+        ElMessage.success('收藏成功')
       }
     }
   } catch (error) {
     console.error('操作失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
+const submitReview = async () => {
+  if (!userId.value) {
+    router.push('/login')
+    return
+  }
+  
+  if (newReview.value.rating === 0) {
+    ElMessage.warning('请选择评分')
+    return
+  }
+  
+  try {
+    const response = await fetch(`http://localhost:8000/api/collections/spot-reviews?user_id=${userId.value}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        spot_id: spot.value.id,
+        rating: newReview.value.rating,
+        content: newReview.value.content
+      })
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      reviews.value.unshift(data)
+      hasReviewed.value = true
+      showAddReview.value = false
+      newReview.value = { rating: 0, content: '' }
+      
+      // 更新景点评分
+      spot.value.rating = data.new_rating || spot.value.rating
+      spot.value.review_count = (spot.value.review_count || 0) + 1
+      
+      ElMessage.success('评价提交成功')
+      
+      // 重新加载评价
+      await loadReviews(spot.value.id)
+    } else {
+      const error = await response.json()
+      ElMessage.error(error.detail || '评价失败')
+    }
+  } catch (error) {
+    console.error('提交评价失败:', error)
+    ElMessage.error('提交失败')
+  }
+}
+
+const deleteReview = async (reviewId) => {
+  if (!confirm('确定要删除这条评价吗？')) return
+  
+  console.log('[DEBUG] 删除评价 - reviewId:', reviewId, 'userId:', userId.value)
+  
+  try {
+    const url = `http://localhost:8000/api/collections/reviews/delete/${reviewId}?user_id=${userId.value}`
+    console.log('[DEBUG] 请求URL:', url)
+    
+    const response = await fetch(url, {
+      method: 'DELETE'
+    })
+    
+    console.log('[DEBUG] 响应状态:', response.status, response.statusText)
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('[DEBUG] 删除成功:', data)
+      ElMessage.success('评价已删除')
+      
+      // 重新加载评价
+      await loadReviews(spot.value.id)
+      
+      // 更新评价状态
+      hasReviewed.value = false
+      
+      // 重新加载景点信息以更新评分
+      await loadSpot(spot.value.id)
+    } else {
+      const errorText = await response.text()
+      console.error('[DEBUG] 删除失败:', response.status, errorText)
+      try {
+        const error = JSON.parse(errorText)
+        ElMessage.error(error.detail || '删除失败')
+      } catch {
+        ElMessage.error(`删除失败: ${response.status} ${errorText}`)
+      }
+    }
+  } catch (error) {
+    console.error('[DEBUG] 删除评价异常:', error)
+    ElMessage.error('删除失败: ' + error.message)
   }
 }
 
@@ -245,19 +439,47 @@ const createNewTrip = () => {
 const handlePhotoUpload = (e) => {
   const file = e.target.files[0]
   if (file) {
+    photoFile.value = file
     newPhoto.value.image = URL.createObjectURL(file)
   }
 }
 
-const submitPhoto = () => {
-  if (newPhoto.value.name && newPhoto.value.image) {
-    photoSpots.value.unshift({
-      id: Date.now(),
-      ...newPhoto.value
-    })
-    showAddPhoto.value = false
-    newPhoto.value = { name: '', description: '', image: '' }
-    alert('拍照点位已上传！')
+const submitPhoto = async () => {
+  if (!userId.value) {
+    router.push('/login')
+    return
+  }
+  
+  if (newPhoto.value.name && photoFile.value) {
+    try {
+      const formData = new FormData()
+      formData.append('spot_id', spot.value.id)
+      formData.append('name', newPhoto.value.name)
+      formData.append('description', newPhoto.value.description || '')
+      formData.append('image', photoFile.value)
+      
+      const response = await fetch(`http://localhost:8000/api/photo-spots/?user_id=${userId.value}`, {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        photoSpots.value.unshift(data)
+        showAddPhoto.value = false
+        newPhoto.value = { name: '', description: '', image: '' }
+        photoFile.value = null
+        ElMessage.success('拍照点位已上传！')
+      } else {
+        const error = await response.json()
+        ElMessage.error(error.detail || '上传失败')
+      }
+    } catch (error) {
+      console.error('上传拍照点位失败:', error)
+      ElMessage.error('上传失败')
+    }
+  } else {
+    ElMessage.warning('请填写名称并选择图片')
   }
 }
 </script>
@@ -341,6 +563,12 @@ const submitPhoto = () => {
   gap: 20px;
   color: rgba(255, 255, 255, 0.6);
   margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.rating-item {
+  color: #ffc107;
+  font-weight: 500;
 }
 
 .spot-desc {
@@ -401,13 +629,23 @@ const submitPhoto = () => {
   margin-bottom: 15px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .section-header h3 {
   font-size: 18px;
 }
 
-.review-count, .add-btn {
+.review-count, .avg-rating {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+.avg-rating {
+  color: #ffc107;
 }
 
 .add-btn {
@@ -458,10 +696,46 @@ const submitPhoto = () => {
 }
 .review-rating .star.filled { color: #ffd700; }
 
+.review-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.delete-review-btn {
+  background: none;
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.delete-review-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
+
 .review-content {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
   line-height: 1.5;
+}
+
+.empty-reviews {
+  text-align: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.empty-photo-spots {
+  text-align: center;
+  padding: 30px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  margin-top: 10px;
 }
 
 /* 拍照点位 */
@@ -479,8 +753,10 @@ const submitPhoto = () => {
 
 .photo-spot-card img {
   width: 100%;
-  height: 120px;
-  object-fit: cover;
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
+  display: block;
 }
 
 .photo-info {
@@ -578,6 +854,41 @@ textarea.tech-input {
   resize: vertical;
 }
 
+/* 评分输入 */
+.rating-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.rating-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.star-input {
+  display: flex;
+  gap: 5px;
+}
+
+.star-input .star {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.star-input .star.filled {
+  color: #ffd700;
+}
+
+.rating-text {
+  font-size: 14px;
+  color: #ffd700;
+  margin-left: 10px;
+}
+
 .trips-list {
   max-height: 200px;
   overflow-y: auto;
@@ -631,5 +942,10 @@ textarea.tech-input {
   background: linear-gradient(135deg, #00d4ff, #7b2cbf);
   border: none;
   color: #fff;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

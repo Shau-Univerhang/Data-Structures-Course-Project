@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import Navbar from '../components/Navbar.vue'
@@ -225,10 +225,9 @@ const loadSpots = async () => {
     if (data.spots) {
       spots.value = data.spots.map(spot => ({
         ...spot,
-        // 如果没有收藏数，使用基于景点ID的确定性值
-        favorites: spot.favorites || ((spot.id * 137) % 5000) + 500,
-        // 如果没有评分，使用基于景点ID的确定性值
-        rating: spot.rating || (4.0 + ((spot.id * 53) % 100) / 100)
+        // 使用数据库中的真实数据，如果没有则默认为0
+        favorites: spot.favorites_count || 0,
+        rating: spot.rating || 0
       }))
     } else {
       // 使用模拟数据
@@ -561,6 +560,11 @@ onMounted(() => {
   const prefStr = route.query.preferences || ''
   preferences.value = prefStr.split(',').filter(p => p)
   
+  loadSpots()
+})
+
+// 当页面重新激活时刷新数据
+onActivated(() => {
   loadSpots()
 })
 </script>

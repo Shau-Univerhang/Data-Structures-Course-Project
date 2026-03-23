@@ -750,6 +750,7 @@ class SpotResponse(BaseModel):
     rating: Optional[float] = 0
     heat_score: Optional[int] = 0
     review_count: Optional[int] = 0
+    favorites_count: Optional[int] = 0
     open_time: Optional[str] = None
     ticket_price: Optional[str] = None
     need_booking: Optional[bool] = False
@@ -867,9 +868,10 @@ def recommend_spots(
             'address': s.address,
             'city': s.city,
             'category': s.category,
-            'rating': s.rating,
-            'heat_score': s.heat_score,
-            'review_count': s.review_count,
+            'rating': s.rating or 0,
+            'heat_score': s.heat_score or 0,
+            'review_count': s.review_count or 0,
+            'favorites_count': s.favorites_count or 0,
             'open_time': s.open_time,
             'ticket_price': s.ticket_price,
             'need_booking': s.need_booking,
@@ -920,7 +922,7 @@ def recommend_spots(
     return {"total": len(result), "spots": result}
 
 
-@router.get("/{spot_id}", response_model=SpotResponse)
+@router.get("/{spot_id}")
 def get_spot(spot_id: int, db: Session = Depends(get_db)):
     """获取景点详情"""
     spot = db.query(ScenicSpot).filter(ScenicSpot.id == spot_id).first()
@@ -937,15 +939,17 @@ def get_spot(spot_id: int, db: Session = Depends(get_db)):
         'address': spot.address,
         'city': spot.city,
         'category': spot.category,
-        'rating': spot.rating,
-        'heat_score': spot.heat_score,
-        'review_count': spot.review_count,
+        'rating': spot.rating or 0,
+        'heat_score': spot.heat_score or 0,
+        'review_count': spot.review_count or 0,
+        'favorites_count': spot.favorites_count or 0,
         'open_time': spot.open_time,
         'ticket_price': spot.ticket_price,
         'need_booking': spot.need_booking,
         'images': get_spot_image(spot.name, spot.city),
         'tags': spot.tags or []
     }
+    print(f"[DEBUG] get_spot 返回数据: {spot_dict}")
     return spot_dict
 
 

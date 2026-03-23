@@ -261,6 +261,19 @@ class TripPhoto(Base):
     created_at = Column(String, default=datetime.now().isoformat())
 
 
+class PhotoSpot(Base):
+    """景点拍照点位表"""
+    __tablename__ = "photo_spots"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String(100), nullable=False)  # 点位名称
+    description = Column(Text)  # 点位描述
+    image = Column(String(255))  # 点位图片URL
+    created_at = Column(String, default=datetime.now().isoformat)
+
+
 # 数据库初始化
 engine = create_engine(f'sqlite:///{DB_PATH}', echo=False)
 Base.metadata.create_all(engine)

@@ -41,18 +41,18 @@
           <div class="spot-image">
             <img :src="spot.image || defaultImage" :alt="spot.name" loading="lazy" />
             <div class="image-overlay"></div>
-            <div class="spot-badges">
-              <div class="badge rating-badge" v-if="spot.rating">
-                <span class="star">★</span>
-                <span>{{ spot.rating.toFixed(1) }}</span>
-              </div>
-              <div class="badge fav-badge" v-if="spot.collection_count">
-                <span class="heart">♥</span>
-                <span>{{ formatNumber(spot.collection_count) }}</span>
-              </div>
-            </div>
           </div>
           <div class="spot-content">
+            <div class="spot-badges-below">
+              <div class="badge rating-badge">
+                <span class="star">★</span>
+                <span>{{ (spot.rating || 0).toFixed(1) }}</span>
+              </div>
+              <div class="badge fav-badge">
+                <span class="heart">♥</span>
+                <span>{{ formatNumber(spot.favorites_count || 0) }}</span>
+              </div>
+            </div>
             <div class="spot-header">
               <h3 class="spot-title">{{ spot.name }}</h3>
               <span class="spot-category" v-if="spot.category">{{ spot.category }}</span>
@@ -77,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -605,6 +605,11 @@ onMounted(async () => {
   await loadSpots()
 })
 
+// 当页面重新激活时刷新数据（从其他页面返回时）
+onActivated(async () => {
+  await loadSpots()
+})
+
 const loadSpots = async () => {
   try {
     const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(cityName.value)}`)
@@ -825,6 +830,12 @@ const goToSpot = (spot) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.spot-badges-below {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .badge {

@@ -72,16 +72,12 @@
             >
               <div class="card-image">
                 <img :src="getSpotImage(spot.name, spot.city) || spot.images?.[0] || `/images/cities/${getCityImageName(spot.city)}`" :alt="spot.name" />
-                <div class="card-badge" v-if="spot.rating >= 4.8">
-                  <span>★</span>
-                  <span>{{ spot.rating }}</span>
-                </div>
               </div>
               <div class="card-info">
                 <h3>{{ spot.name }}</h3>
                 <div class="card-meta">
-                  <span class="rating">⭐ {{ spot.rating?.toFixed(1) || '4.5' }}</span>
-                  <span class="favorites" v-if="spot.favorites">❤️ {{ formatNumber(spot.favorites) }}</span>
+                  <span class="rating">⭐ {{ spot.rating?.toFixed(1) || '0.0' }}</span>
+                  <span class="favorites">❤️ {{ formatNumber(spot.favorites_count || 0) }}</span>
                 </div>
                 <div class="card-tags">
                   <span v-for="tag in (spot.tags || []).slice(0, 2)" :key="tag" class="tag">

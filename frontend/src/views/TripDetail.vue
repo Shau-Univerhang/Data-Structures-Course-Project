@@ -300,6 +300,17 @@ onMounted(async () => {
         // 加载行程中的景点
         if (tripData.schedules && tripData.schedules.length > 0) {
           console.log(`Loading ${tripData.schedules.length} schedules`)
+          
+          // 先加载该城市的所有景点数据，获取真实评分等信息
+          const spotsResponse = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`)
+          const spotsData = await spotsResponse.json()
+          const spotsMap = {}
+          if (spotsData.spots) {
+            spotsData.spots.forEach(spot => {
+              spotsMap[spot.id] = spot
+            })
+          }
+          
           // 将景点分配到各天
           const spotsByDay = {}
           for (let i = 1; i <= days.value; i++) {
@@ -310,13 +321,17 @@ onMounted(async () => {
             console.log('Processing schedule:', schedule)
             const dayNum = schedule.day_number || 1
             if (!spotsByDay[dayNum]) spotsByDay[dayNum] = []
+            
+            // 从景点API数据中获取完整信息
+            const spotDetail = spotsMap[schedule.spot_id]
+            
             spotsByDay[dayNum].push({
               id: schedule.spot_id,
-              name: schedule.spot_name || '未知景点',
-              image: schedule.spot_image || '/images/default-spot.jpg',
-              rating: 4.5,
+              name: schedule.spot_name || spotDetail?.name || '未知景点',
+              image: schedule.spot_image || spotDetail?.images?.[0] || '/images/default-spot.jpg',
+              rating: spotDetail?.rating || schedule.spot_rating || 0,
               duration: '2小时',
-              tags: []
+              tags: spotDetail?.tags || []
             })
           })
 

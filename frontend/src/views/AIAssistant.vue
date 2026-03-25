@@ -881,69 +881,97 @@ const deleteHistoryItem = (id, event) => {
 // 景点详细信息缓存
 const spotDetailsMap = ref({})
 
-// 加载景点详细信息
+// 加载景点详细信息 - 使用与 TripDetail.vue 相同的数据源
 const loadSpotDetails = async (spots, destination) => {
   if (!spots || !destination) return
   
   console.log('Loading spot details for:', spots, 'in', destination)
   
-  for (const spot of spots) {
-    // 如果已经加载过，跳过
-    if (spotDetailsMap.value[spot]) {
-      console.log('Details already cached for:', spot)
-      continue
-    }
-    
-    try {
-      // 查询后端获取景点信息
-      const url = `http://localhost:8000/api/spots/search?q=${encodeURIComponent(spot)}&city=${encodeURIComponent(destination)}`
-      console.log('Fetching:', url)
-      const response = await fetch(url)
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Search result for', spot, ':', data)
-        if (data.spots && data.spots.length > 0) {
-          // 使用第一个匹配景点的完整信息
-          const spotData = data.spots[0]
-          console.log('Found spot:', spotData.name, 'images:', spotData.images)
-          // 保存完整景点信息
-          spotDetailsMap.value[spot] = {
-            name: spotData.name,
-            image: spotData.images && spotData.images.length > 0 ? spotData.images[0] : '/images/default-spot.jpg',
-            rating: spotData.rating || 4.5,
-            duration: '2小时',
-            tags: spotData.tags || []
+  try {
+    // 使用与 TripDetail.vue 相同的 API 获取该城市所有景点数据
+    const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(destination)}&limit=100`)
+    if (response.ok) {
+      const data = await response.json()
+      
+      if (data.spots) {
+        // 建立景点名称到数据的映射
+        const spotsDataMap = {}
+        data.spots.forEach(spot => {
+          spotsDataMap[spot.name] = spot
+          // 也使用 ID 作为 key，方便通过 ID 查找
+          spotsDataMap[spot.id] = spot
+        })
+        
+        // 为每个景点查找详细信息
+        for (const spot of spots) {
+          // 如果已经加载过，跳过
+          if (spotDetailsMap.value[spot]) {
+            console.log('Details already cached for:', spot)
+            continue
           }
-          console.log('Set details for', spot, ':', spotDetailsMap.value[spot])
-        } else {
-          console.log('No spots found for:', spot)
-          // 使用默认信息
+          
+          // 在数据中查找匹配的景点
+          let spotData = spotsDataMap[spot]
+          
+          // 如果没有精确匹配，尝试部分匹配
+          if (!spotData) {
+            for (const [name, data] of Object.entries(spotsDataMap)) {
+              if (typeof name === 'string' && (name.includes(spot) || spot.includes(name))) {
+                spotData = data
+                break
+              }
+            }
+          }
+          
+          if (spotData) {
+            console.log('Found spot data for', spot, ':', spotData)
+            spotDetailsMap.value[spot] = {
+              name: spotData.name,
+              image: spotData.images && spotData.images.length > 0 ? spotData.images[0] : '/images/default-spot.jpg',
+              rating: spotData.rating || 0,
+              duration: '2小时',
+              tags: spotData.tags || []
+            }
+          } else {
+            console.log('No spot data found for:', spot)
+            // 使用默认信息
+            spotDetailsMap.value[spot] = {
+              name: spot,
+              image: '/images/default-spot.jpg',
+              rating: 0,
+              duration: '2小时',
+              tags: []
+            }
+          }
+        }
+      }
+    } else {
+      console.error('API error:', response.status)
+      // 使用默认信息填充所有景点
+      for (const spot of spots) {
+        if (!spotDetailsMap.value[spot]) {
           spotDetailsMap.value[spot] = {
             name: spot,
             image: '/images/default-spot.jpg',
-            rating: 4.5,
+            rating: 0,
             duration: '2小时',
             tags: []
           }
         }
-      } else {
-        console.error('API error:', response.status)
+      }
+    }
+  } catch (error) {
+    console.error('获取景点信息失败:', error)
+    // 使用默认信息填充所有景点
+    for (const spot of spots) {
+      if (!spotDetailsMap.value[spot]) {
         spotDetailsMap.value[spot] = {
           name: spot,
           image: '/images/default-spot.jpg',
-          rating: 4.5,
+          rating: 0,
           duration: '2小时',
           tags: []
         }
-      }
-    } catch (error) {
-      console.error('获取景点信息失败:', error)
-      spotDetailsMap.value[spot] = {
-        name: spot,
-        image: '/images/default-spot.jpg',
-        rating: 4.5,
-        duration: '2小时',
-        tags: []
       }
     }
   }

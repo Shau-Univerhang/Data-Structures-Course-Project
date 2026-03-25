@@ -301,7 +301,6 @@ const spotImageMap = {
   '南山': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
   '鹿回头': '/images/spots/sanya/sanya_yalongwan.jpg',
   '天涯镇': '/images/spots/sanya/sanya_tianyahaijiao.jpg',
-  '后海': '/images/spots/sanya/sanya_yalongwan.jpg',
   '免税店': '/images/spots/sanya/sanya_yalongwan.jpg',
   
   // 张家界
@@ -503,7 +502,6 @@ const spotImageMap = {
   '海棠湾': '/images/spots/sanya/sanya_haitangwan.jpg',
   '鹿回头': '/images/spots/sanya/sanya_luhuitou.jpg',
   '天涯镇': '/images/spots/sanya/sanya_tianyazhen.jpg',
-  '后海': '/images/spots/sanya/sanya_houhai.jpg',
   '免税店': '/images/spots/sanya/sanya_mianshuidian.jpg',
   '亚特兰蒂斯水世界': '/images/spots/sanya/sanya_yatelandisi_shuishijie.jpg',
   '千古情': '/images/spots/sanya/sanya_qianguging.jpg',

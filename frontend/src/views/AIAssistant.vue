@@ -139,7 +139,7 @@
           <div class="itinerary-spots-list" v-if="sessionItinerary.spots && sessionItinerary.spots.length > 0">
             <h5>📍 景点安排</h5>
             <div class="spots-cards">
-              <div class="spot-card-item" v-for="(spot, idx) in sessionItinerary.spots" :key="idx">
+              <div class="spot-card-item" v-for="(spot, idx) in sessionItinerary.spots.filter(s => spotDetailsMap[s])" :key="idx">
                 <div class="spot-order">{{ idx + 1 }}</div>
                 <div class="spot-image">
                   <img :src="spotDetailsMap[spot]?.image || '/images/default-spot.jpg'" :alt="spot" />
@@ -455,7 +455,7 @@ ${data.content ? `摘要：${(data.content.summary || '').slice(0, 100)}...` : '
 📍 目的地：北京
 📅 天数：3天
 📍 行程安排：
-- Day1: 故宫 → 天安门 → 王府井
+- Day1: 故宫 → 天安门 → 景山公园
 - Day2: 颐和园 → 圆明园 → 北大
 - Day3: 长城 → 南锣鼓巷
 
@@ -745,7 +745,7 @@ const getLocalResponse = (question) => {
       title: "北京3日游",
       destination: "北京",
       days: 3,
-      spots: ["故宫博物院", "天安门广场", "王府井小吃街", "颐和园", "圆明园", "八达岭长城", "南锣鼓巷", "后海酒吧街"],
+      spots: ["故宫博物院", "天安门广场", "景山公园", "颐和园", "圆明园", "八达岭长城", "南锣鼓巷", "什刹海"],
       food: ["北京烤鸭", "炸酱面", "豆汁儿"],
       preferences: ["必玩景点", "历史文化"]
     }
@@ -757,7 +757,7 @@ const getLocalResponse = (question) => {
 📅 <b>Day 1 - 历史文化</b>
 • 故宫博物院（必打卡！）
 • 天安门广场
-• 王府井小吃街
+• 景山公园
 
 📅 <b>Day 2 - 皇家园林</b>
 • 颐和园（昆明湖+万寿山）
@@ -767,7 +767,7 @@ const getLocalResponse = (question) => {
 📅 <b>Day 3 - 长城 & 市井</b>
 • 八达岭长城
 • 南锣鼓巷
-• 后海酒吧街
+• 什刹海
 
 <b>小贴士：</b>
 ✓ 建议提前预约故宫门票
@@ -902,7 +902,7 @@ const loadSpotDetails = async (spots, destination) => {
           spotsDataMap[spot.id] = spot
         })
         
-        // 为每个景点查找详细信息
+        // 为每个景点查找详细信息 - 只保留存在于该城市景点列表中的景点
         for (const spot of spots) {
           // 如果已经加载过，跳过
           if (spotDetailsMap.value[spot]) {
@@ -923,6 +923,7 @@ const loadSpotDetails = async (spots, destination) => {
             }
           }
           
+          // 只添加存在于该城市景点列表中的景点
           if (spotData) {
             console.log('Found spot data for', spot, ':', spotData)
             spotDetailsMap.value[spot] = {
@@ -933,47 +934,18 @@ const loadSpotDetails = async (spots, destination) => {
               tags: spotData.tags || []
             }
           } else {
-            console.log('No spot data found for:', spot)
-            // 使用默认信息
-            spotDetailsMap.value[spot] = {
-              name: spot,
-              image: '/images/default-spot.jpg',
-              rating: 0,
-              duration: '2小时',
-              tags: []
-            }
+            console.log('Spot not found in city database, ignoring:', spot)
+            // 不存在的景点不添加到 spotDetailsMap，即直接忽略
           }
         }
       }
     } else {
       console.error('API error:', response.status)
-      // 使用默认信息填充所有景点
-      for (const spot of spots) {
-        if (!spotDetailsMap.value[spot]) {
-          spotDetailsMap.value[spot] = {
-            name: spot,
-            image: '/images/default-spot.jpg',
-            rating: 0,
-            duration: '2小时',
-            tags: []
-          }
-        }
-      }
+      // API 错误时不添加任何景点
     }
   } catch (error) {
     console.error('获取景点信息失败:', error)
-    // 使用默认信息填充所有景点
-    for (const spot of spots) {
-      if (!spotDetailsMap.value[spot]) {
-        spotDetailsMap.value[spot] = {
-          name: spot,
-          image: '/images/default-spot.jpg',
-          rating: 0,
-          duration: '2小时',
-          tags: []
-        }
-      }
-    }
+    // 出错时不添加任何景点
   }
   
   console.log('Final spotDetailsMap:', spotDetailsMap.value)
@@ -1003,10 +975,34 @@ const goToSessionItinerary = async () => {
 
   try {
     console.log('sessionItinerary:', sessionItinerary.value)
-    // 直接使用AI分配的daySpots（如果存在），否则使用默认分配
-    const itineraryWithDaySpots = sessionItinerary.value.daySpots 
-      ? sessionItinerary.value 
-      : createItineraryWithDaySpots(sessionItinerary.value)
+    
+    // 过滤掉不在该城市景点列表中的景点
+    const validSpots = sessionItinerary.value.spots.filter(spot => spotDetailsMap.value[spot])
+    
+    if (validSpots.length === 0) {
+      alert('该城市暂无推荐的景点，请尝试其他城市')
+      return
+    }
+    
+    // 过滤 daySpots 中不存在的景点
+    let filteredDaySpots = {}
+    if (sessionItinerary.value.daySpots) {
+      Object.entries(sessionItinerary.value.daySpots).forEach(([day, spots]) => {
+        const validDaySpots = spots.filter(spot => spotDetailsMap.value[spot])
+        if (validDaySpots.length > 0) {
+          filteredDaySpots[day] = validDaySpots
+        }
+      })
+    }
+    
+    // 如果没有有效的 daySpots，重新创建
+    if (Object.keys(filteredDaySpots).length === 0) {
+      filteredDaySpots = null
+    }
+    
+    const itineraryWithDaySpots = filteredDaySpots 
+      ? { ...sessionItinerary.value, spots: validSpots, daySpots: filteredDaySpots }
+      : createItineraryWithDaySpots({ ...sessionItinerary.value, spots: validSpots })
 
     console.log('Sending itinerary to backend:', itineraryWithDaySpots)
     console.log('daySpots:', itineraryWithDaySpots.daySpots)

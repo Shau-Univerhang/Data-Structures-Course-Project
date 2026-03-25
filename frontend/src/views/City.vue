@@ -391,7 +391,22 @@ const spotImageMap = {
   '鸟巢': '/images/spots/beijing/beijing_niaochao.jpg',
   '水立方': '/images/spots/beijing/beijing_shuilifang.jpg',
   '什刹海': '/images/spots/beijing/beijing_shichahai.jpg',
-  
+  '王府井': '/images/spots/beijing/beijing_wangfujin.jpg',
+  '奥林匹克公园': '/images/spots/beijing/beijing_aolinpikegongyuan.jpg',
+  '雍和宫': '/images/spots/beijing/beijing_yonghegong.jpg',
+  '明十三陵': '/images/spots/beijing/beijing_mingshisanling.jpg',
+  '798艺术区': '/images/spots/beijing/beijing_798yishuqu.jpg',
+  '三里屯': '/images/spots/beijing/beijing_sanlitun.jpg',
+  '国贸': '/images/spots/beijing/beijing_guomao.jpg',
+  '前门大街': '/images/spots/beijing/beijing_qianmendajie.jpg',
+  '环球影城': '/images/spots/beijing/beijing_huanqiuyingcheng.jpg',
+  '军事博物馆': '/images/spots/beijing/beijing_junshibowuguan.jpg',
+  '国家博物馆': '/images/spots/beijing/beijing_guojiabowuguan.jpg',
+  '人民大会堂': '/images/spots/beijing/beijing_renmindahuitang.jpg',
+  '地坛公园': '/images/spots/beijing/beijing_ditangongyuan.jpg',
+  '北京鼓楼': '/images/spots/beijing/beijing_gulou.jpg',
+  '北京动物园': '/images/spots/beijing/beijing_beijingdongwuyuan.jpg',
+
   // 新增景点 - 上海补充
   '城隍庙': '/images/spots/shanghai/shanghai_chenghuangmiao.jpg',
   '新天地': '/images/spots/shanghai/shanghai_xintiandi.jpg',

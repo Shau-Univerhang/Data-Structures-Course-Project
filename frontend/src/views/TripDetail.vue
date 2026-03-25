@@ -145,14 +145,17 @@
               v-for="spot in filteredAvailableSpots"
               :key="spot.id"
               class="available-spot-item"
-              @click="addSpot(spot)"
+              :class="{ 'already-added': usedSpotIds.has(spot.id) }"
+              @click="!usedSpotIds.has(spot.id) && addSpot(spot)"
             >
               <img :src="spot.image" :alt="spot.name" class="spot-thumb" />
               <div class="spot-brief">
                 <h4>{{ spot.name }}</h4>
                 <span class="spot-rating-small">⭐ {{ spot.rating?.toFixed(1) || '4.5' }}</span>
               </div>
-              <span class="add-icon">+</span>
+              <span class="add-icon" :class="{ 'disabled': usedSpotIds.has(spot.id) }">
+                {{ usedSpotIds.has(spot.id) ? '✓' : '+' }}
+              </span>
             </div>
           </div>
         </div>
@@ -176,6 +179,7 @@ const days = ref(3)
 const preferences = ref([])
 const selectedSpots = ref([])
 const allSpots = ref([])
+const cityAllSpots = ref([])  // 该城市的所有景点（用于添加景点弹窗）
 const selectedDay = ref(1)
 const showModal = ref(false)
 const searchQuery = ref('')
@@ -237,10 +241,19 @@ const totalSpots = computed(() => {
   return Object.values(daySpotsMap.value).flat().length
 })
 
-// 可添加的景点（未在当前天使用的）
+// 获取所有已添加的景点ID
+const usedSpotIds = computed(() => {
+  const usedIds = new Set()
+  for (let day = 1; day <= days.value; day++) {
+    const daySpots = daySpotsMap.value[day] || []
+    daySpots.forEach(spot => usedIds.add(spot.id))
+  }
+  return usedIds
+})
+
+// 可添加的景点（该城市所有景点，用于显示）
 const availableSpots = computed(() => {
-  const usedIds = new Set(currentDaySpots.value.map(s => s.id))
-  return allSpots.value.filter(spot => !usedIds.has(spot.id))
+  return cityAllSpots.value
 })
 
 // 过滤后的可添加景点
@@ -630,9 +643,32 @@ const onDragEnd = (evt) => {
 }
 
 // 显示添加景点弹窗
-const showAddSpotModal = () => {
+// 显示添加景点弹窗
+const showAddSpotModal = async () => {
   showModal.value = true
   searchQuery.value = ''
+  
+  // 如果还没有加载该城市所有景点，从API获取
+  if (cityAllSpots.value.length === 0 && city.value) {
+    try {
+      const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.spots) {
+          cityAllSpots.value = data.spots.map(spot => ({
+            id: spot.id,
+            name: spot.name,
+            image: spot.images && spot.images.length > 0 ? spot.images[0] : '/images/default-spot.jpg',
+            rating: spot.rating || 0,
+            duration: '2小时',
+            tags: spot.tags || []
+          }))
+        }
+      }
+    } catch (error) {
+      console.error('获取城市景点失败:', error)
+    }
+  }
 }
 
 // 关闭弹窗
@@ -1264,6 +1300,21 @@ watch(selectedDay, () => {
   color: #000;
   font-size: 18px;
   font-weight: 600;
+}
+
+.add-icon.disabled {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.available-spot-item.already-added {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.available-spot-item.already-added:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-color);
 }
 
 /* 自定义地图标记样式 */

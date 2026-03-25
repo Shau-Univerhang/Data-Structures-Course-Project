@@ -29,6 +29,9 @@
             </div>
             <div class="trip-status" :class="trip.status">{{ trip.statusText }}</div>
           </div>
+          <button class="rename-btn" @click.stop="renameTrip(trip)" title="重命名">
+            <span>✏️</span>
+          </button>
           <button class="delete-btn" @click.stop="deleteTrip(trip)" title="删除行程">
             <span>🗑️</span>
           </button>
@@ -58,6 +61,28 @@
         </div>
       </div>
     </div>
+
+    <!-- 重命名弹窗 -->
+    <div v-if="showRenameModal" class="modal-overlay" @click.self="cancelRename">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>重命名行程</h3>
+        </div>
+        <div class="modal-body">
+          <input 
+            v-model="newTitle" 
+            type="text" 
+            class="rename-input"
+            placeholder="请输入新名称"
+            @keyup.enter="confirmRename"
+          />
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn cancel" @click="cancelRename">取消</button>
+          <button class="modal-btn confirm-rename" @click="confirmRename">确认</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -73,6 +98,9 @@ const trips = ref([])
 const showDeleteModal = ref(false)
 const tripToDelete = ref(null)
 const debugInfo = ref('')
+const showRenameModal = ref(false)
+const tripToRename = ref(null)
+const newTitle = ref('')
 
 // 从 localStorage 加载行程列表
 const loadTrips = () => {
@@ -202,6 +230,54 @@ const confirmDelete = () => {
   tripToDelete.value = null
   
   ElMessage.success('行程已删除')
+}
+
+// 重命名行程
+const renameTrip = (trip) => {
+  tripToRename.value = trip
+  newTitle.value = trip.title
+  showRenameModal.value = true
+}
+
+// 取消重命名
+const cancelRename = () => {
+  showRenameModal.value = false
+  tripToRename.value = null
+  newTitle.value = ''
+}
+
+// 确认重命名
+const confirmRename = () => {
+  if (!tripToRename.value || !newTitle.value.trim()) return
+  
+  // 从 localStorage 读取保存的行程
+  const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+  
+  // 找到要重命名的行程并更新
+  const tripIndex = savedTrips.findIndex(t => t.id === tripToRename.value.id)
+  if (tripIndex !== -1) {
+    savedTrips[tripIndex].title = newTitle.value.trim()
+    
+    // 保存回 localStorage
+    localStorage.setItem('savedTrips', JSON.stringify(savedTrips))
+    
+    // 如果重命名的是当前行程，也更新 currentTrip
+    const currentTrip = JSON.parse(localStorage.getItem('currentTrip') || '{}')
+    if (currentTrip.id === tripToRename.value.id) {
+      currentTrip.title = newTitle.value.trim()
+      localStorage.setItem('currentTrip', JSON.stringify(currentTrip))
+    }
+    
+    // 刷新列表
+    loadTrips()
+    
+    ElMessage.success('行程已重命名')
+  }
+  
+  // 关闭弹窗
+  showRenameModal.value = false
+  tripToRename.value = null
+  newTitle.value = ''
 }
 
 // 初始化默认行程数据（如果没有数据）
@@ -350,6 +426,28 @@ onMounted(() => {
   color: #7b2cbf;
 }
 
+.rename-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 10px;
+  color: #00d4ff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.rename-btn:hover {
+  background: rgba(0, 212, 255, 0.2);
+  border-color: #00d4ff;
+  transform: scale(1.05);
+}
+
 .delete-btn {
   width: 40px;
   height: 40px;
@@ -370,6 +468,31 @@ onMounted(() => {
   background: rgba(255, 71, 87, 0.2);
   border-color: #ff4757;
   transform: scale(1.05);
+}
+
+.rename-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.rename-input:focus {
+  border-color: #00d4ff;
+}
+
+.modal-btn.confirm-rename {
+  background: rgba(0, 212, 255, 0.2);
+  color: #00d4ff;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.modal-btn.confirm-rename:hover {
+  background: rgba(0, 212, 255, 0.3);
 }
 
 .empty-state {

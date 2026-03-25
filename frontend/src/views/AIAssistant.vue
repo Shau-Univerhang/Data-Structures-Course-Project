@@ -620,17 +620,45 @@ ${aiReply}
               }
             }
 
-            // 收集所有景点
+            // 收集所有景点并拆分斜杠分隔的景点（如"豫园/城隍庙"）
             const allSpots = Object.values(daySpots).flat()
-            console.log('Final daySpots:', daySpots)
-            console.log('All spots:', allSpots)
+            
+            // 拆分斜杠分隔的景点
+            const splitSpots = []
+            allSpots.forEach(spot => {
+              if (spot.includes('/') || spot.includes('\\') || spot.includes('、')) {
+                // 使用 / \ 、 作为分隔符拆分
+                const parts = spot.split(/[/\\、]/).map(s => s.trim()).filter(s => s)
+                splitSpots.push(...parts)
+              } else {
+                splitSpots.push(spot)
+              }
+            })
+            
+            // 同样拆分 daySpots 中的景点
+            const splitDaySpots = {}
+            Object.entries(daySpots).forEach(([day, spots]) => {
+              const daySplitSpots = []
+              spots.forEach(spot => {
+                if (spot.includes('/') || spot.includes('\\') || spot.includes('、')) {
+                  const parts = spot.split(/[/\\、]/).map(s => s.trim()).filter(s => s)
+                  daySplitSpots.push(...parts)
+                } else {
+                  daySplitSpots.push(spot)
+                }
+              })
+              splitDaySpots[day] = daySplitSpots
+            })
+            
+            console.log('Final daySpots:', splitDaySpots)
+            console.log('All spots:', splitSpots)
 
             sessionItinerary.value = {
               title: extracted.title || `${extracted.destination}${days}日游`,
               destination: extracted.destination,
               days: days,
-              spots: allSpots,
-              daySpots: daySpots,
+              spots: splitSpots,
+              daySpots: splitDaySpots,
               food: extracted.food || ['当地特色美食'],
               preferences: ['必玩景点']
             }

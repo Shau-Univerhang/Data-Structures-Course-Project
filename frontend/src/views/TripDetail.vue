@@ -6,7 +6,9 @@
         <span class="back-icon">←</span>
       </button>
       <h1 class="page-title">{{ tripTitle }}</h1>
-      <button class="action-btn" @click="saveTrip">{{ isFromAI ? '保存到我的行程' : '保存' }}</button>
+      <button class="action-btn" @click="saveTrip">
+        {{ isFromAI ? "保存到我的行程" : "保存" }}
+      </button>
     </header>
 
     <main class="main-content">
@@ -58,11 +60,20 @@
                 <div class="spot-info">
                   <h4 class="spot-name">{{ spot.name }}</h4>
                   <div class="spot-meta">
-                    <span class="spot-rating">⭐ {{ spot.rating?.toFixed(1) || '4.5' }}</span>
-                    <span class="spot-duration">⏱️ {{ spot.duration || '2小时' }}</span>
+                    <span class="spot-rating"
+                      >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
+                    >
+                    <span class="spot-duration"
+                      >⏱️ {{ spot.duration || "2小时" }}</span
+                    >
                   </div>
                   <div class="spot-tags" v-if="spot.tags?.length">
-                    <span v-for="tag in spot.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+                    <span
+                      v-for="tag in spot.tags.slice(0, 2)"
+                      :key="tag"
+                      class="tag"
+                      >{{ tag }}</span
+                    >
                   </div>
                 </div>
                 <button class="delete-btn" @click="removeSpot(index)">
@@ -99,14 +110,14 @@
       <!-- 右侧：高德地图 -->
       <section class="right-panel">
         <div id="amap-container" class="map-container"></div>
-        
+
         <!-- 地图控制按钮 -->
         <div class="map-controls">
           <button class="map-btn" @click="fitView">
             <span>🎯</span> 适应视图
           </button>
           <button class="map-btn" @click="toggleTraffic">
-            <span>🚦</span> {{ showTraffic ? '隐藏' : '显示' }}路况
+            <span>🚦</span> {{ showTraffic ? "隐藏" : "显示" }}路况
           </button>
         </div>
 
@@ -151,10 +162,15 @@
               <img :src="spot.image" :alt="spot.name" class="spot-thumb" />
               <div class="spot-brief">
                 <h4>{{ spot.name }}</h4>
-                <span class="spot-rating-small">⭐ {{ spot.rating?.toFixed(1) || '4.5' }}</span>
+                <span class="spot-rating-small"
+                  >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
+                >
               </div>
-              <span class="add-icon" :class="{ 'disabled': usedSpotIds.has(spot.id) }">
-                {{ usedSpotIds.has(spot.id) ? '✓' : '+' }}
+              <span
+                class="add-icon"
+                :class="{ disabled: usedSpotIds.has(spot.id) }"
+              >
+                {{ usedSpotIds.has(spot.id) ? "✓" : "+" }}
               </span>
             </div>
           </div>
@@ -165,552 +181,746 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import draggable from 'vuedraggable'
+import { ref, shallowRef, onMounted, computed, watch, nextTick } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { ElMessage } from "element-plus";
+import draggable from "vuedraggable";
+import AMapLoader from "@amap/amap-jsapi-loader";
 
-const router = useRouter()
-const route = useRoute()
+const router = useRouter();
+const route = useRoute();
 
 // 数据
-const city = ref('')
-const days = ref(3)
-const preferences = ref([])
-const selectedSpots = ref([])
-const allSpots = ref([])
-const cityAllSpots = ref([])  // 该城市的所有景点（用于添加景点弹窗）
-const selectedDay = ref(1)
-const showModal = ref(false)
-const searchQuery = ref('')
-const routeInfo = ref(null)
-const showTraffic = ref(false)
-const isFromAI = ref(false)  // 标记是否从AI助手跳转过来
+const city = ref("");
+const days = ref(3);
+const preferences = ref([]);
+const selectedSpots = ref([]);
+const allSpots = ref([]);
+const cityAllSpots = ref([]); // 该城市的所有景点（用于添加景点弹窗）
+const selectedDay = ref(1);
+const showModal = ref(false);
+const searchQuery = ref("");
+const routeInfo = ref(null);
+const showTraffic = ref(false);
+const isFromAI = ref(false); // 标记是否从AI助手跳转过来
 
 // 每天的景点分配
-const daySpotsMap = ref({})
+const daySpotsMap = ref({});
 
 // 高德地图相关
-let map = null
-let markers = []
-let polylines = []
-let trafficLayer = null
+const map = shallowRef(null);
+let markers = [];
+let polylines = [];
+let trafficLayer = null;
+let drivingPlugin = null;
 
 // 偏好映射
 const prefMap = {
-  'must_visit': '必玩景点',
-  'history': '历史文化',
-  'landmark': '地标建筑',
-  'heritage': '非遗体验',
-  'scenery': '风景名胜',
-  'food': '逛吃逛喝',
-  'museum': '博物展览',
-  'citywalk': 'citywalk',
-  'photo': '拍照出片',
-  'local_life': '市井烟火',
-  'leisure': '休闲娱乐'
-}
+  must_visit: "必玩景点",
+  history: "历史文化",
+  landmark: "地标建筑",
+  heritage: "非遗体验",
+  scenery: "风景名胜",
+  food: "逛吃逛喝",
+  museum: "博物展览",
+  citywalk: "citywalk",
+  photo: "拍照出片",
+  local_life: "市井烟火",
+  leisure: "休闲娱乐",
+};
 
 const preferencesText = computed(() => {
-  return preferences.value.map(p => prefMap[p] || p).slice(0, 2).join('、')
-})
+  return preferences.value
+    .map((p) => prefMap[p] || p)
+    .slice(0, 2)
+    .join("、");
+});
 
 const tripTitle = computed(() => {
-  return `${city.value}${days.value}日${preferencesText.value || '游'}`
-})
+  return `${city.value}${days.value}日${preferencesText.value || "游"}`;
+});
 
 // 当前选中的天的景点列表
 const currentDaySpots = computed({
   get() {
-    return daySpotsMap.value[selectedDay.value] || []
+    return daySpotsMap.value[selectedDay.value] || [];
   },
   set(value) {
     // 使用 Vue 的响应式方式更新数组
-    const dayKey = selectedDay.value
-    daySpotsMap.value[dayKey] = [...value]
-  }
-})
+    const dayKey = selectedDay.value;
+    daySpotsMap.value[dayKey] = [...value];
+  },
+});
 
 // 获取某天的景点
 const getDaySpots = (day) => {
-  return daySpotsMap.value[day] || []
-}
+  return daySpotsMap.value[day] || [];
+};
 
 // 总景点数
 const totalSpots = computed(() => {
-  return Object.values(daySpotsMap.value).flat().length
-})
+  return Object.values(daySpotsMap.value).flat().length;
+});
 
 // 获取所有已添加的景点ID
 const usedSpotIds = computed(() => {
-  const usedIds = new Set()
+  const usedIds = new Set();
   for (let day = 1; day <= days.value; day++) {
-    const daySpots = daySpotsMap.value[day] || []
-    daySpots.forEach(spot => usedIds.add(spot.id))
+    const daySpots = daySpotsMap.value[day] || [];
+    daySpots.forEach((spot) => usedIds.add(spot.id));
   }
-  return usedIds
-})
+  return usedIds;
+});
 
 // 可添加的景点（该城市所有景点，用于显示）
 const availableSpots = computed(() => {
-  return cityAllSpots.value
-})
+  return cityAllSpots.value;
+});
 
 // 过滤后的可添加景点
 const filteredAvailableSpots = computed(() => {
-  if (!searchQuery.value) return availableSpots.value
-  const query = searchQuery.value.toLowerCase()
-  return availableSpots.value.filter(spot => 
-    spot.name.toLowerCase().includes(query)
-  )
-})
+  if (!searchQuery.value) return availableSpots.value;
+  const query = searchQuery.value.toLowerCase();
+  return availableSpots.value.filter((spot) =>
+    spot.name.toLowerCase().includes(query),
+  );
+});
 
 // 加载数据
 onMounted(async () => {
   // 检查是否从AI助手跳转过来（URL包含 /trip/ 路径参数）
-  const tripId = route.params.id
-  const fromAI = route.query.from === 'ai'
+  const tripId = route.params.id;
+  const fromAI = route.query.from === "ai";
 
-  console.log('TripDetail onMounted:', { tripId, fromAI, query: route.query })
+  console.log("TripDetail onMounted:", { tripId, fromAI, query: route.query });
 
-  if (tripId && tripId !== 'new') {
-    isFromAI.value = fromAI
-    
+  if (tripId && tripId !== "new") {
+    isFromAI.value = fromAI;
+
     // 检查 ID 格式，如果是字符串格式（如 trip_xxx），从 localStorage 读取
-    if (typeof tripId === 'string' && tripId.startsWith('trip_')) {
-      console.log('Loading trip from localStorage:', tripId)
-      const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
-      const tripData = savedTrips.find(t => t.id === tripId)
-      
+    if (typeof tripId === "string" && tripId.startsWith("trip_")) {
+      console.log("Loading trip from localStorage:", tripId);
+      const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+      const tripData = savedTrips.find((t) => t.id === tripId);
+
       if (tripData) {
-        city.value = tripData.city
-        days.value = tripData.days
-        preferences.value = tripData.preferences || []
-        tripTitle.value = tripData.title || `${tripData.city}${tripData.days}日游`
-        
+        city.value = tripData.city;
+        days.value = tripData.days;
+        preferences.value = tripData.preferences || [];
+        tripTitle.value =
+          tripData.title || `${tripData.city}${tripData.days}日游`;
+
         // 恢复每天的景点分配
         if (tripData.daySpots) {
-          daySpotsMap.value = tripData.daySpots
-          allSpots.value = Object.values(tripData.daySpots).flat()
+          daySpotsMap.value = tripData.daySpots;
+          allSpots.value = Object.values(tripData.daySpots).flat();
         }
       } else {
-        alert('行程数据不存在')
+        alert("行程数据不存在");
       }
     } else {
       // 从后端加载行程数据（数字ID）
       try {
-        console.log('Fetching trip data from API for ID:', tripId)
-        const response = await fetch(`http://localhost:8000/api/trips/${tripId}`)
-        console.log('Trip API response status:', response.status)
+        console.log("Fetching trip data from API for ID:", tripId);
+        const response = await fetch(
+          `http://localhost:8000/api/trips/${tripId}`,
+        );
+        console.log("Trip API response status:", response.status);
         if (response.ok) {
-        const tripData = await response.json()
-        console.log('Trip data:', tripData)
-        console.log('Schedules:', tripData.schedules)
-        city.value = tripData.destination || '北京'
-        days.value = tripData.total_days || 3
-        preferences.value = tripData.travel_preferences || []
+          const tripData = await response.json();
+          console.log("Trip data:", tripData);
+          console.log("Schedules:", tripData.schedules);
+          city.value = tripData.destination || "北京";
+          days.value = tripData.total_days || 3;
+          preferences.value = tripData.travel_preferences || [];
 
-        // 加载行程中的景点
-        if (tripData.schedules && tripData.schedules.length > 0) {
-          console.log(`Loading ${tripData.schedules.length} schedules`)
-          
-          // 先加载该城市的所有景点数据，获取真实评分等信息
-          const spotsResponse = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`)
-          const spotsData = await spotsResponse.json()
-          const spotsMap = {}
-          if (spotsData.spots) {
-            spotsData.spots.forEach(spot => {
-              spotsMap[spot.id] = spot
-            })
+          // 加载行程中的景点
+          if (tripData.schedules && tripData.schedules.length > 0) {
+            console.log(`Loading ${tripData.schedules.length} schedules`);
+
+            // 先加载该城市的所有景点数据，获取真实评分等信息
+            const spotsResponse = await fetch(
+              `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`,
+            );
+            const spotsData = await spotsResponse.json();
+            const spotsMap = {};
+            if (spotsData.spots) {
+              spotsData.spots.forEach((spot) => {
+                spotsMap[spot.id] = spot;
+              });
+            }
+
+            // 将景点分配到各天
+            const spotsByDay = {};
+            for (let i = 1; i <= days.value; i++) {
+              spotsByDay[i] = [];
+            }
+
+            tripData.schedules.forEach((schedule) => {
+              console.log("Processing schedule:", schedule);
+              const dayNum = schedule.day_number || 1;
+              if (!spotsByDay[dayNum]) spotsByDay[dayNum] = [];
+
+              // 从景点API数据中获取完整信息
+              const spotDetail = spotsMap[schedule.spot_id];
+
+              spotsByDay[dayNum].push({
+                id: schedule.spot_id,
+                name: schedule.spot_name || spotDetail?.name || "未知景点",
+                image:
+                  schedule.spot_image ||
+                  spotDetail?.images?.[0] ||
+                  "/images/default-spot.jpg",
+                rating: spotDetail?.rating || schedule.spot_rating || 0,
+                duration: "2小时",
+                tags: spotDetail?.tags || [],
+              });
+            });
+
+            daySpotsMap.value = spotsByDay;
+            allSpots.value = Object.values(spotsByDay).flat();
+            console.log("daySpotsMap:", daySpotsMap.value);
+          } else {
+            console.log("No schedules found, initializing empty trip");
+            // 没有景点数据，初始化空行程（不加载默认景点）
+            const spotsByDay = {};
+            for (let i = 1; i <= days.value; i++) {
+              spotsByDay[i] = [];
+            }
+            daySpotsMap.value = spotsByDay;
+            allSpots.value = [];
           }
-          
-          // 将景点分配到各天
-          const spotsByDay = {}
-          for (let i = 1; i <= days.value; i++) {
-            spotsByDay[i] = []
-          }
-
-          tripData.schedules.forEach(schedule => {
-            console.log('Processing schedule:', schedule)
-            const dayNum = schedule.day_number || 1
-            if (!spotsByDay[dayNum]) spotsByDay[dayNum] = []
-            
-            // 从景点API数据中获取完整信息
-            const spotDetail = spotsMap[schedule.spot_id]
-            
-            spotsByDay[dayNum].push({
-              id: schedule.spot_id,
-              name: schedule.spot_name || spotDetail?.name || '未知景点',
-              image: schedule.spot_image || spotDetail?.images?.[0] || '/images/default-spot.jpg',
-              rating: spotDetail?.rating || schedule.spot_rating || 0,
-              duration: '2小时',
-              tags: spotDetail?.tags || []
-            })
-          })
-
-          daySpotsMap.value = spotsByDay
-          allSpots.value = Object.values(spotsByDay).flat()
-          console.log('daySpotsMap:', daySpotsMap.value)
         } else {
-          console.log('No schedules found, initializing empty trip')
-          // 没有景点数据，初始化空行程（不加载默认景点）
-          const spotsByDay = {}
-          for (let i = 1; i <= days.value; i++) {
-            spotsByDay[i] = []
-          }
-          daySpotsMap.value = spotsByDay
-          allSpots.value = []
+          // API调用失败，显示错误
+          console.error("API调用失败:", response.status);
+          alert("加载行程失败，请刷新页面重试");
         }
-      } else {
-        // API调用失败，显示错误
-        console.error('API调用失败:', response.status)
-        alert('加载行程失败，请刷新页面重试')
+      } catch (error) {
+        console.error("加载行程失败:", error);
+        alert("加载行程失败，请刷新页面重试");
       }
-    } catch (error) {
-      console.error('加载行程失败:', error)
-      alert('加载行程失败，请刷新页面重试')
     }
-    }
-  } else if (localStorage.getItem('currentTrip') && route.query.id && !route.params.id) {
+  } else if (
+    localStorage.getItem("currentTrip") &&
+    route.query.id &&
+    !route.params.id
+  ) {
     // 从行程列表进入（没有 path 参数 id，只有 query 参数 id），读取保存的行程数据
-    const currentTrip = JSON.parse(localStorage.getItem('currentTrip'))
-    city.value = currentTrip.city
-    days.value = currentTrip.days
-    preferences.value = currentTrip.preferences || []
-    
+    const currentTrip = JSON.parse(localStorage.getItem("currentTrip"));
+    city.value = currentTrip.city;
+    days.value = currentTrip.days;
+    preferences.value = currentTrip.preferences || [];
+
     // 恢复每天的景点分配
     if (currentTrip.daySpots) {
-      daySpotsMap.value = currentTrip.daySpots
-      allSpots.value = Object.values(currentTrip.daySpots).flat()
+      daySpotsMap.value = currentTrip.daySpots;
+      allSpots.value = Object.values(currentTrip.daySpots).flat();
     }
   } else {
     // 从创建流程进入
-    city.value = route.query.city || localStorage.getItem('tripCity') || '北京'
-    days.value = parseInt(route.query.days) || parseInt(localStorage.getItem('tripDays')) || 3
-    
-    const prefStr = route.query.preferences || localStorage.getItem('tripPreferences') || ''
-    preferences.value = prefStr.split(',').filter(p => p)
-    
+    city.value = route.query.city || localStorage.getItem("tripCity") || "北京";
+    days.value =
+      parseInt(route.query.days) ||
+      parseInt(localStorage.getItem("tripDays")) ||
+      3;
+
+    const prefStr =
+      route.query.preferences || localStorage.getItem("tripPreferences") || "";
+    preferences.value = prefStr.split(",").filter((p) => p);
+
     // 从 localStorage 读取已选择的景点（现在是完整的对象数组）
-    const spotsStr = localStorage.getItem('selectedSpots') || '[]'
-    selectedSpots.value = JSON.parse(spotsStr)
-    
+    const spotsStr = localStorage.getItem("selectedSpots") || "[]";
+    selectedSpots.value = JSON.parse(spotsStr);
+
     // 如果有已选择的景点，直接使用它们
     if (selectedSpots.value.length > 0) {
-      allSpots.value = selectedSpots.value
+      allSpots.value = selectedSpots.value;
       // 平均分配景点到各天
-      distributeSpotsToDays()
+      distributeSpotsToDays();
     } else {
       // 加载所有景点数据
-      await loadAllSpots()
+      await loadAllSpots();
       // 平均分配景点到各天
-      distributeSpotsToDays()
+      distributeSpotsToDays();
     }
   }
-  
+
   // 初始化地图
   nextTick(() => {
-    initMap()
-  })
-})
+    initMap();
+  });
+});
 
 // 加载所有景点
 const loadAllSpots = async () => {
   try {
-    const response = await fetch(`/api/spots?city=${encodeURIComponent(city.value)}`)
-    const data = await response.json()
+    const response = await fetch(
+      `/api/spots?city=${encodeURIComponent(city.value)}`,
+    );
+    const data = await response.json();
     if (data && data.length > 0) {
-      allSpots.value = data
+      allSpots.value = data;
     } else {
       // 使用模拟数据
-      allSpots.value = getMockSpots()
+      allSpots.value = getMockSpots();
     }
   } catch (error) {
-    console.error('加载景点失败:', error)
-    allSpots.value = getMockSpots()
+    console.error("加载景点失败:", error);
+    allSpots.value = getMockSpots();
   }
-}
+};
 
 // 模拟景点数据
 const getMockSpots = () => {
   const baseSpots = [
-    { id: 1, name: '故宫博物院', rating: 4.9, favorites: 12580, tags: ['history', 'landmark', 'must_visit'], duration: '4小时', image: '/images/spots/beijing/beijing_gugong_bowuyuan.jpg', location: [116.397477, 39.903738] },
-    { id: 2, name: '天安门广场', rating: 4.8, favorites: 9876, tags: ['landmark', 'must_visit', 'photo'], duration: '1小时', image: '/images/spots/beijing/beijing_tiananmen_guangchang.jpg', location: [116.397477, 39.905489] },
-    { id: 3, name: '颐和园', rating: 4.8, favorites: 8654, tags: ['scenery', 'history', 'must_visit'], duration: '4小时', image: '/images/spots/beijing/beijing_yiheyuan.jpg', location: [116.275467, 39.994867] },
-    { id: 4, name: '八达岭长城', rating: 4.9, favorites: 11234, tags: ['scenery', 'history', 'must_visit'], duration: '5小时', image: '/images/spots/beijing/beijing_badaling_changcheng.jpg', location: [116.016953, 40.353469] },
-    { id: 5, name: '天坛公园', rating: 4.7, favorites: 6543, tags: ['history', 'scenery'], duration: '2小时', image: '/images/spots/beijing/beijing_tiantan_gongyuan.jpg', location: [116.406588, 39.883365] },
-    { id: 6, name: '南锣鼓巷', rating: 4.5, favorites: 7890, tags: ['food', 'local_life', 'citywalk'], duration: '2小时', image: '/images/spots/beijing/beijing_nanluoguxiang.jpg', location: [116.403147, 39.937243] },
-    { id: 7, name: '798艺术区', rating: 4.6, favorites: 5432, tags: ['photo', 'leisure', 'art'], duration: '3小时', image: '/images/spots/beijing/beijing_798_art.jpg', location: [116.500876, 39.985432] },
-    { id: 8, name: '什刹海', rating: 4.6, favorites: 6789, tags: ['scenery', 'food', 'local_life'], duration: '2小时', image: '/images/spots/beijing/beijing_shichahai.jpg', location: [116.387654, 39.943210] },
-    { id: 9, name: '圆明园', rating: 4.5, favorites: 4567, tags: ['history', 'scenery'], duration: '3小时', image: '/images/spots/beijing/beijing_yuanmingyuan.jpg', location: [116.298765, 40.009876] },
-  ]
-  
+    {
+      id: 1,
+      name: "故宫博物院",
+      rating: 4.9,
+      favorites: 12580,
+      tags: ["history", "landmark", "must_visit"],
+      duration: "4小时",
+      image: "/images/spots/beijing/beijing_gugong_bowuyuan.jpg",
+      location: [116.397477, 39.903738],
+    },
+    {
+      id: 2,
+      name: "天安门广场",
+      rating: 4.8,
+      favorites: 9876,
+      tags: ["landmark", "must_visit", "photo"],
+      duration: "1小时",
+      image: "/images/spots/beijing/beijing_tiananmen_guangchang.jpg",
+      location: [116.397477, 39.905489],
+    },
+    {
+      id: 3,
+      name: "颐和园",
+      rating: 4.8,
+      favorites: 8654,
+      tags: ["scenery", "history", "must_visit"],
+      duration: "4小时",
+      image: "/images/spots/beijing/beijing_yiheyuan.jpg",
+      location: [116.275467, 39.994867],
+    },
+    {
+      id: 4,
+      name: "八达岭长城",
+      rating: 4.9,
+      favorites: 11234,
+      tags: ["scenery", "history", "must_visit"],
+      duration: "5小时",
+      image: "/images/spots/beijing/beijing_badaling_changcheng.jpg",
+      location: [116.016953, 40.353469],
+    },
+    {
+      id: 5,
+      name: "天坛公园",
+      rating: 4.7,
+      favorites: 6543,
+      tags: ["history", "scenery"],
+      duration: "2小时",
+      image: "/images/spots/beijing/beijing_tiantan_gongyuan.jpg",
+      location: [116.406588, 39.883365],
+    },
+    {
+      id: 6,
+      name: "南锣鼓巷",
+      rating: 4.5,
+      favorites: 7890,
+      tags: ["food", "local_life", "citywalk"],
+      duration: "2小时",
+      image: "/images/spots/beijing/beijing_nanluoguxiang.jpg",
+      location: [116.403147, 39.937243],
+    },
+    {
+      id: 7,
+      name: "798艺术区",
+      rating: 4.6,
+      favorites: 5432,
+      tags: ["photo", "leisure", "art"],
+      duration: "3小时",
+      image: "/images/spots/beijing/beijing_798_art.jpg",
+      location: [116.500876, 39.985432],
+    },
+    {
+      id: 8,
+      name: "什刹海",
+      rating: 4.6,
+      favorites: 6789,
+      tags: ["scenery", "food", "local_life"],
+      duration: "2小时",
+      image: "/images/spots/beijing/beijing_shichahai.jpg",
+      location: [116.387654, 39.94321],
+    },
+    {
+      id: 9,
+      name: "圆明园",
+      rating: 4.5,
+      favorites: 4567,
+      tags: ["history", "scenery"],
+      duration: "3小时",
+      image: "/images/spots/beijing/beijing_yuanmingyuan.jpg",
+      location: [116.298765, 40.009876],
+    },
+  ];
+
   // 根据已选择的景点ID过滤，如果没有则使用全部
   if (selectedSpots.value.length > 0) {
-    const selectedIds = selectedSpots.value.map(s => s.id || s)
-    return baseSpots.filter(s => selectedIds.includes(s.id))
+    const selectedIds = selectedSpots.value.map((s) => s.id || s);
+    return baseSpots.filter((s) => selectedIds.includes(s.id));
   }
-  return baseSpots
-}
+  return baseSpots;
+};
 
 // 平均分配景点到各天
 const distributeSpotsToDays = () => {
-  const spots = [...allSpots.value]
-  const spotsPerDay = Math.ceil(spots.length / days.value)
-  
+  const spots = [...allSpots.value];
+  const spotsPerDay = Math.ceil(spots.length / days.value);
+
   for (let day = 1; day <= days.value; day++) {
-    const startIndex = (day - 1) * spotsPerDay
-    const endIndex = Math.min(startIndex + spotsPerDay, spots.length)
-    daySpotsMap.value[day] = spots.slice(startIndex, endIndex)
+    const startIndex = (day - 1) * spotsPerDay;
+    const endIndex = Math.min(startIndex + spotsPerDay, spots.length);
+    daySpotsMap.value[day] = spots.slice(startIndex, endIndex);
   }
-}
+};
 
 // 初始化高德地图
 const initMap = () => {
-  if (typeof AMap === 'undefined') {
-    console.error('高德地图API未加载')
-    return
-  }
-  
-  map = new AMap.Map('amap-container', {
-    zoom: 12,
-    center: getCityCenter(),
-    viewMode: '2D'
+  const amapKey =
+    import.meta.env.VITE_AMAP_KEY || "d2c6e8f1a8f8c2e4b8e0f1a8e8f1c2e4";
+
+  AMapLoader.load({
+    key: amapKey,
+    version: "1.4.15",
+    plugins: ["AMap.ToolBar", "AMap.Scale", "AMap.Driving"],
   })
-  
-  // 添加地图控件
-  AMap.plugin(['AMap.ToolBar', 'AMap.Scale'], () => {
-    map.addControl(new AMap.ToolBar())
-    map.addControl(new AMap.Scale())
-  })
-  
-  // 显示当前天的路线
-  updateMapRoute()
-}
+    .then((AMap) => {
+      window.AMap = AMap;
+
+      map.value = new AMap.Map("amap-container", {
+        zoom: 12,
+        center: getCityCenter(),
+        viewMode: "2D",
+      });
+
+      map.value.addControl(new AMap.ToolBar());
+      map.value.addControl(new AMap.Scale());
+
+      drivingPlugin = new AMap.Driving({
+        map: map.value,
+        panel: null,
+        hideMarkers: true,
+      });
+
+      updateMapRoute();
+    })
+    .catch((err) => {
+      console.error("高德地图加载失败:", err);
+    });
+};
 
 // 获取城市中心坐标
 const getCityCenter = () => {
   const cityCenters = {
-    '北京': [116.397477, 39.903738],
-    '上海': [121.473667, 31.230525],
-    '广州': [113.264434, 23.129163],
-    '深圳': [114.057868, 22.543099],
-    '杭州': [120.155070, 30.274085],
-    '成都': [104.066541, 30.572269],
-    '西安': [108.939770, 34.341574],
-    '南京': [118.796877, 32.060255]
+    北京: [116.397477, 39.903738],
+    上海: [121.473667, 31.230525],
+    广州: [113.264434, 23.129163],
+    深圳: [114.057868, 22.543099],
+    杭州: [120.15507, 30.274085],
+    成都: [104.066541, 30.572269],
+    西安: [108.93977, 34.341574],
+    南京: [118.796877, 32.060255],
+    武汉: [114.305539, 30.593099],
+    长沙: [112.938823, 28.228208],
+    重庆: [106.551557, 29.563009],
+    厦门: [118.089425, 24.479833],
+    青岛: [120.382642, 36.067082],
+    苏州: [120.585316, 31.298886],
+    桂林: [110.299621, 25.274215],
+    丽江: [100.228975, 26.855571],
+    大理: [100.267638, 25.60689],
+    黄山: [118.315582, 29.71477],
+    九寨沟: [104.246246, 33.111847],
+    张家界: [110.479648, 29.117238],
+    三亚: [109.511909, 18.252847],
+  };
+
+  const cityName = city.value?.trim() || "";
+  console.log("当前城市:", cityName);
+
+  if (cityCenters[cityName]) {
+    return cityCenters[cityName];
   }
-  return cityCenters[city.value] || [116.397477, 39.903738]
-}
+
+  for (const [key, value] of Object.entries(cityCenters)) {
+    if (cityName.includes(key) || key.includes(cityName)) {
+      return value;
+    }
+  }
+
+  return [116.397477, 39.903738];
+};
+
+// 获取有效经纬度坐标
+const getValidLngLat = (spot) => {
+  if (!spot) {
+    console.error("spot 参数无效:", spot);
+    return null;
+  }
+
+  let lng = null;
+  let lat = null;
+
+  if (spot.location_lng !== undefined && spot.location_lat !== undefined) {
+    lng = spot.location_lng;
+    lat = spot.location_lat;
+  } else if (
+    spot.location &&
+    Array.isArray(spot.location) &&
+    spot.location.length === 2
+  ) {
+    lng = spot.location[0];
+    lat = spot.location[1];
+  }
+
+  if (lng === null || lat === null) {
+    console.error(`景点 "${spot.name}" 缺少有效坐标，已跳过:`, spot);
+    return null;
+  }
+
+  if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+    console.error(
+      `景点 "${spot.name}" 坐标超出有效范围 [lng:${lng}, lat:${lat}]，已跳过`,
+    );
+    return null;
+  }
+
+  return [lng, lat];
+};
 
 // 更新地图路线
 const updateMapRoute = () => {
-  if (!map) return
-  
-  // 清除旧的标记和路线
-  clearMapOverlays()
-  
-  const spots = currentDaySpots.value
-  if (spots.length === 0) return
-  
-  // 添加标记
-  const path = []
-  spots.forEach((spot, index) => {
-    const position = spot.location || getMockLocation(spot.name)
-    path.push(position)
-    
-    const marker = new AMap.Marker({
-      position: position,
-      content: `<div class="custom-marker">${index + 1}</div>`,
-      offset: new AMap.Pixel(-15, -30)
-    })
-    
-    marker.setMap(map)
-    markers.push(marker)
-    
-    // 添加信息窗体
-    const infoWindow = new AMap.InfoWindow({
-      content: `<div style="padding: 10px;"><h4>${spot.name}</h4><p>⭐ ${spot.rating?.toFixed(1) || '4.5'}</p></div>`,
-      offset: new AMap.Pixel(0, -30)
-    })
-    
-    marker.on('click', () => {
-      infoWindow.open(map, marker.getPosition())
-    })
-  })
-  
-  // 绘制路线
-  if (path.length > 1) {
-    const polyline = new AMap.Polyline({
-      path: path,
-      strokeColor: '#00d4ff',
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
-      showDir: true
-    })
-    polyline.setMap(map)
-    polylines.push(polyline)
-    
-    // 计算路线信息
-    calculateRouteInfo(path)
-  }
-  
-  // 适应视图
-  fitView()
-}
+  if (!map.value || !drivingPlugin) return;
 
-// 获取模拟位置（实际应该从数据中获取）
-const getMockLocation = (spotName) => {
-  const mockLocations = {
-    '故宫博物院': [116.397477, 39.903738],
-    '天安门广场': [116.397477, 39.905489],
-    '颐和园': [116.275467, 39.994867],
-    '八达岭长城': [116.016953, 40.353469],
-    '天坛公园': [116.406588, 39.883365],
-    '南锣鼓巷': [116.403147, 39.937243],
-    '798艺术区': [116.500876, 39.985432],
-    '什刹海': [116.387654, 39.943210],
-    '圆明园': [116.298765, 40.009876]
+  map.value.clearMap();
+
+  const spots = currentDaySpots.value;
+  if (spots.length === 0) return;
+
+  const validSpots = [];
+  spots.forEach((spot) => {
+    const position = getValidLngLat(spot);
+    if (position) {
+      validSpots.push({ ...spot, position });
+    }
+  });
+
+  if (validSpots.length === 0) {
+    console.warn("没有有效的景点坐标可展示");
+    return;
   }
-  return mockLocations[spotName] || [116.397477 + Math.random() * 0.1, 39.903738 + Math.random() * 0.1]
-}
+
+  validSpots.forEach((spot, index) => {
+    const marker = new AMap.Marker({
+      position: spot.position,
+      content: `<div class="custom-marker">${index + 1}</div>`,
+      offset: new AMap.Pixel(-15, -30),
+    });
+    marker.setMap(map.value);
+    markers.push(marker);
+
+    const infoWindow = new AMap.InfoWindow({
+      content: `<div style="padding: 10px;"><h4>${spot.name}</h4><p>⭐ ${spot.rating?.toFixed(1) || "4.5"}</p></div>`,
+      offset: new AMap.Pixel(0, -30),
+    });
+
+    marker.on("click", () => {
+      infoWindow.open(map.value, marker.getPosition());
+    });
+  });
+
+  if (validSpots.length > 1) {
+    const origin = validSpots[0].position;
+    const destination = validSpots[validSpots.length - 1].position;
+    const waypoints = validSpots.slice(1, -1).map((s) => s.position);
+
+    drivingPlugin.search(
+      origin,
+      destination,
+      { waypoints },
+      (status, result) => {
+        if (
+          status === "complete" &&
+          result.routes &&
+          result.routes.length > 0
+        ) {
+          const route = result.routes[0];
+          routeInfo.value = {
+            distance: (route.distance / 1000).toFixed(1),
+            duration: Math.ceil(route.time / 60),
+          };
+        } else {
+          console.error("路径规划失败:", result);
+        }
+
+        nextTick(() => {
+          if (markers.length > 0) {
+            map.value.setFitView(markers);
+          }
+        });
+      },
+    );
+  } else if (validSpots.length === 1) {
+    routeInfo.value = null;
+    nextTick(() => {
+      map.value.setFitView(markers);
+    });
+  }
+};
 
 // 清除地图覆盖物
 const clearMapOverlays = () => {
-  markers.forEach(marker => marker.setMap(null))
-  markers = []
-  polylines.forEach(line => line.setMap(null))
-  polylines = []
-}
+  if (map.value) {
+    map.value.clearMap();
+  }
+  markers = [];
+  polylines = [];
+};
 
 // 计算路线信息
 const calculateRouteInfo = (path) => {
-  let totalDistance = 0
+  let totalDistance = 0;
   for (let i = 0; i < path.length - 1; i++) {
-    totalDistance += AMap.GeometryUtil.distance(path[i], path[i + 1])
+    totalDistance += AMap.GeometryUtil.distance(path[i], path[i + 1]);
   }
-  
+
   routeInfo.value = {
     distance: (totalDistance / 1000).toFixed(1),
-    duration: Math.ceil(totalDistance / 1000 / 30 * 60) // 假设平均速度30km/h
-  }
-}
+    duration: Math.ceil((totalDistance / 1000 / 30) * 60), // 假设平均速度30km/h
+  };
+};
 
 // 适应视图
 const fitView = () => {
-  if (!map || markers.length === 0) return
-  map.setFitView(markers)
-}
+  if (!map.value || markers.length === 0) return;
+  map.value.setFitView(markers);
+};
 
 // 切换路况
 const toggleTraffic = () => {
-  if (!map) return
-  
+  if (!map.value) return;
+
   if (showTraffic.value) {
     if (trafficLayer) {
-      trafficLayer.hide()
+      trafficLayer.hide();
     }
-    showTraffic.value = false
+    showTraffic.value = false;
   } else {
     if (!trafficLayer) {
       trafficLayer = new AMap.TileLayer.Traffic({
-        zIndex: 10
-      })
-      trafficLayer.setMap(map)
+        zIndex: 10,
+      });
+      trafficLayer.setMap(map.value);
     } else {
-      trafficLayer.show()
+      trafficLayer.show();
     }
-    showTraffic.value = true
+    showTraffic.value = true;
   }
-}
+};
 
 // 选择天数
 const selectDay = (day) => {
-  selectedDay.value = day
+  selectedDay.value = day;
   nextTick(() => {
-    updateMapRoute()
-  })
-}
+    updateMapRoute();
+  });
+};
 
 // 拖拽结束
 const onDragEnd = (evt) => {
-  console.log('拖拽结束', evt)
+  console.log("拖拽结束", evt);
   // 强制更新视图
   nextTick(() => {
-    updateMapRoute()
-    ElMessage.success('顺序已更新')
-  })
-}
+    updateMapRoute();
+    ElMessage.success("顺序已更新");
+  });
+};
 
 // 显示添加景点弹窗
 // 显示添加景点弹窗
 const showAddSpotModal = async () => {
-  showModal.value = true
-  searchQuery.value = ''
-  
+  showModal.value = true;
+  searchQuery.value = "";
+
   // 如果还没有加载该城市所有景点，从API获取
   if (cityAllSpots.value.length === 0 && city.value) {
     try {
-      const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`)
+      const response = await fetch(
+        `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`,
+      );
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json();
         if (data.spots) {
-          cityAllSpots.value = data.spots.map(spot => ({
+          cityAllSpots.value = data.spots.map((spot) => ({
             id: spot.id,
             name: spot.name,
-            image: spot.images && spot.images.length > 0 ? spot.images[0] : '/images/default-spot.jpg',
+            image:
+              spot.images && spot.images.length > 0
+                ? spot.images[0]
+                : "/images/default-spot.jpg",
             rating: spot.rating || 0,
-            duration: '2小时',
-            tags: spot.tags || []
-          }))
+            duration: "2小时",
+            tags: spot.tags || [],
+          }));
         }
       }
     } catch (error) {
-      console.error('获取城市景点失败:', error)
+      console.error("获取城市景点失败:", error);
     }
   }
-}
+};
 
 // 关闭弹窗
 const closeModal = () => {
-  showModal.value = false
-}
+  showModal.value = false;
+};
 
 // 添加景点
 const addSpot = (spot) => {
-  currentDaySpots.value.push(spot)
-  closeModal()
+  currentDaySpots.value.push(spot);
+  closeModal();
   nextTick(() => {
-    updateMapRoute()
-  })
-  ElMessage.success(`已添加 ${spot.name}`)
-}
+    updateMapRoute();
+  });
+  ElMessage.success(`已添加 ${spot.name}`);
+};
 
 // 删除景点
 const removeSpot = (index) => {
-  const spot = currentDaySpots.value[index]
-  currentDaySpots.value.splice(index, 1)
+  const spot = currentDaySpots.value[index];
+  currentDaySpots.value.splice(index, 1);
   nextTick(() => {
-    updateMapRoute()
-  })
-  ElMessage.success(`已删除 ${spot.name}`)
-}
+    updateMapRoute();
+  });
+  ElMessage.success(`已删除 ${spot.name}`);
+};
 
 // 返回
 const goBack = () => {
   // 检查是否从AI界面跳转过来
-  if (route.query.from === 'ai') {
-    router.push('/ai')
+  if (route.query.from === "ai") {
+    router.push("/ai");
   } else {
-    router.push('/trips')
+    router.push("/trips");
   }
-}
+};
 
 // 保存行程
 const saveTrip = () => {
   // 生成唯一ID
-  const tripId = 'trip_' + Date.now()
-  
+  const tripId = "trip_" + Date.now();
+
   const tripData = {
     id: tripId,
     title: tripTitle.value,
@@ -720,41 +930,42 @@ const saveTrip = () => {
     daySpots: daySpotsMap.value,
     totalSpots: totalSpots.value,
     createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString()
-  }
-  
+    updateTime: new Date().toISOString(),
+  };
+
   // 保存到本地存储
-  const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
-  
+  const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+
   // 检查是否已存在相同行程（根据城市、天数、创建时间判断）
-  const existingIndex = savedTrips.findIndex(t => 
-    t.city === tripData.city && 
-    t.days === tripData.days && 
-    t.createTime === tripData.createTime
-  )
-  
+  const existingIndex = savedTrips.findIndex(
+    (t) =>
+      t.city === tripData.city &&
+      t.days === tripData.days &&
+      t.createTime === tripData.createTime,
+  );
+
   if (existingIndex > -1) {
     // 更新已有行程
-    savedTrips[existingIndex] = tripData
-    ElMessage.success('行程已更新')
+    savedTrips[existingIndex] = tripData;
+    ElMessage.success("行程已更新");
   } else {
     // 添加新行程
-    savedTrips.push(tripData)
-    ElMessage.success('行程已保存')
+    savedTrips.push(tripData);
+    ElMessage.success("行程已保存");
   }
-  
-  localStorage.setItem('savedTrips', JSON.stringify(savedTrips))
-  
+
+  localStorage.setItem("savedTrips", JSON.stringify(savedTrips));
+
   // 同时保存为当前行程
-  localStorage.setItem('currentTrip', JSON.stringify(tripData))
-}
+  localStorage.setItem("currentTrip", JSON.stringify(tripData));
+};
 
 // 监听当前天变化，更新地图
 watch(selectedDay, () => {
   nextTick(() => {
-    updateMapRoute()
-  })
-})
+    updateMapRoute();
+  });
+});
 </script>
 
 <style scoped>
@@ -798,7 +1009,11 @@ watch(selectedDay, () => {
 }
 
 .action-btn {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
   border: none;
   color: #000;
   font-size: 14px;
@@ -860,7 +1075,11 @@ watch(selectedDay, () => {
 }
 
 .day-tab.active {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
   border-color: transparent;
   color: #000;
 }
@@ -961,7 +1180,11 @@ watch(selectedDay, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
@@ -1098,11 +1321,13 @@ watch(selectedDay, () => {
   flex: 1;
   position: relative;
   background: #1a1a2e;
+  min-height: 400px;
 }
 
 .map-container {
   width: 100%;
   height: 100%;
+  min-height: 400px;
 }
 
 /* 地图控制按钮 */
@@ -1343,14 +1568,14 @@ watch(selectedDay, () => {
   .main-content {
     flex-direction: column;
   }
-  
+
   .left-panel {
     width: 100%;
     height: 50vh;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
   }
-  
+
   .right-panel {
     height: 50vh;
   }

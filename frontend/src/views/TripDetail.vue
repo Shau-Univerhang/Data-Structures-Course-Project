@@ -49,7 +49,11 @@
             @end="onDragEnd"
           >
             <template #item="{ element: spot, index }">
-              <div class="spot-card" title="按住拖动可调整顺序">
+              <div
+                class="spot-card"
+                title="按住拖动可调整顺序"
+                @click="focusSpot(spot)"
+              >
                 <div class="drag-handle">
                   <span class="drag-icon">⋮⋮</span>
                 </div>
@@ -64,7 +68,7 @@
                       >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
                     >
                     <span class="spot-duration"
-                      >⏱️ {{ spot.duration || "2小时" }}</span
+                      >⏱️ {{ spot.duration || "2 小时" }}</span
                     >
                   </div>
                   <div class="spot-tags" v-if="spot.tags?.length">
@@ -502,7 +506,17 @@ const ensureSpotsHaveCoordinates = async () => {
     // 更新景点坐标
     let updatedCount = 0;
     spotsToUpdate.forEach((spot) => {
-      const apiSpot = spotsFromAPI.find((s) => s.id === spot.id);
+      // 先尝试通过 ID 匹配
+      let apiSpot = spotsFromAPI.find((s) => s.id === spot.id);
+
+      // 如果 ID 匹配失败，尝试通过名称匹配
+      if (!apiSpot) {
+        apiSpot = spotsFromAPI.find((s) => s.name === spot.name);
+        if (apiSpot) {
+          console.log(`通过名称匹配到景点 ${spot.name}`);
+        }
+      }
+
       if (apiSpot) {
         console.log(
           `找到景点 ${spot.name}:`,
@@ -525,6 +539,18 @@ const ensureSpotsHaveCoordinates = async () => {
       newDaySpotsMap[day] = [...spots];
     });
     daySpotsMap.value = newDaySpotsMap;
+
+    // 同时更新 localStorage 中的行程数据
+    const tripId = route.query.tripId || localStorage.getItem("currentTripId");
+    if (tripId) {
+      const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+      const tripIndex = savedTrips.findIndex((t) => t.tripId === tripId);
+      if (tripIndex !== -1) {
+        savedTrips[tripIndex].daySpots = daySpotsMap.value;
+        localStorage.setItem("savedTrips", JSON.stringify(savedTrips));
+        console.log("已更新 localStorage 中的景点坐标");
+      }
+    }
 
     // 更新地图
     nextTick(() => {
@@ -867,6 +893,29 @@ const calculateRouteInfo = (path) => {
     distance: (totalDistance / 1000).toFixed(1),
     duration: Math.ceil((totalDistance / 1000 / 30) * 60), // 假设平均速度30km/h
   };
+};
+
+// 聚焦到指定景点
+const focusSpot = (spot) => {
+  if (!map.value || !spot.location) return;
+
+  // 根据景点类型和位置动态调整缩放级别
+  // 城市中心区域使用更大的缩放级别（17-18），郊区使用较小的缩放级别（15-16）
+  let zoomLevel = 17;
+
+  // 对于某些特殊景点，使用更大的缩放级别
+  const largeAreaSpots = ["博物馆", "公园", "广场", "古城", "遗址"];
+  if (
+    spot.tags?.some((tag) => largeAreaSpots.some((area) => tag.includes(area)))
+  ) {
+    zoomLevel = 16; // 大型景点稍微缩小一点，展示全貌
+  }
+
+  // 放大到景点位置，使用平滑动画
+  // 第三个参数 true 表示使用动画过渡
+  map.value.setZoomAndCenter(zoomLevel, spot.location, true);
+
+  console.log(`聚焦景点：${spot.name} [缩放级别：${zoomLevel}]`, spot.location);
 };
 
 // 适应视图

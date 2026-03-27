@@ -314,6 +314,9 @@ onMounted(async () => {
         if (tripData.daySpots) {
           daySpotsMap.value = tripData.daySpots;
           allSpots.value = Object.values(tripData.daySpots).flat();
+
+          // 检查景点是否有坐标，如果没有，重新从 API 获取
+          await ensureSpotsHaveCoordinates();
         }
       } else {
         alert("行程数据不存在");
@@ -372,8 +375,14 @@ onMounted(async () => {
                   spotDetail?.images?.[0] ||
                   "/images/default-spot.jpg",
                 rating: spotDetail?.rating || schedule.spot_rating || 0,
-                duration: "2小时",
+                duration: "2 小时",
                 tags: spotDetail?.tags || [],
+                location:
+                  schedule.spot_location_lng && schedule.spot_location_lat
+                    ? [schedule.spot_location_lng, schedule.spot_location_lat]
+                    : spotDetail?.location_lng && spotDetail?.location_lat
+                      ? [spotDetail.location_lng, spotDetail.location_lat]
+                      : spotDetail?.location || null,
               });
             });
 
@@ -415,6 +424,9 @@ onMounted(async () => {
     if (currentTrip.daySpots) {
       daySpotsMap.value = currentTrip.daySpots;
       allSpots.value = Object.values(currentTrip.daySpots).flat();
+
+      // 检查景点是否有坐标，如果没有，重新从 API 获取
+      await ensureSpotsHaveCoordinates();
     }
   } else {
     // 从创建流程进入
@@ -450,6 +462,79 @@ onMounted(async () => {
     initMap();
   });
 });
+
+// 确保所有景点都有坐标（从 API 获取）
+const ensureSpotsHaveCoordinates = async () => {
+  const spotsToUpdate = [];
+
+  // 收集所有缺少坐标的景点
+  Object.values(daySpotsMap.value).forEach((daySpots) => {
+    daySpots.forEach((spot) => {
+      console.log("检查景点坐标:", spot.name, "location:", spot.location);
+      if (!spot.location && spot.id) {
+        spotsToUpdate.push(spot);
+      }
+    });
+  });
+
+  if (spotsToUpdate.length === 0) {
+    console.log("所有景点已有坐标，无需更新");
+    return;
+  }
+
+  console.log(`需要更新 ${spotsToUpdate.length} 个景点的坐标`);
+
+  try {
+    // 从 API 获取景点详情
+    const response = await fetch(
+      `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=100`,
+    );
+
+    if (!response.ok) {
+      throw new Error("API 请求失败");
+    }
+
+    const data = await response.json();
+    const spotsFromAPI = data.spots || data;
+
+    console.log("API 返回的景点数量:", spotsFromAPI.length);
+
+    // 更新景点坐标
+    let updatedCount = 0;
+    spotsToUpdate.forEach((spot) => {
+      const apiSpot = spotsFromAPI.find((s) => s.id === spot.id);
+      if (apiSpot) {
+        console.log(
+          `找到景点 ${spot.name}:`,
+          `lng=${apiSpot.location_lng}, lat=${apiSpot.location_lat}`,
+        );
+        if (apiSpot.location_lng && apiSpot.location_lat) {
+          spot.location = [apiSpot.location_lng, apiSpot.location_lat];
+          updatedCount++;
+        }
+      } else {
+        console.warn(`未找到景点 ${spot.name} 的 API 数据`);
+      }
+    });
+
+    console.log(`更新了 ${updatedCount} 个景点的坐标`);
+
+    // 重新生成 daySpotsMap 以触发响应式更新
+    const newDaySpotsMap = {};
+    Object.entries(daySpotsMap.value).forEach(([day, spots]) => {
+      newDaySpotsMap[day] = [...spots];
+    });
+    daySpotsMap.value = newDaySpotsMap;
+
+    // 更新地图
+    nextTick(() => {
+      console.log("调用 updateMapRoute");
+      updateMapRoute();
+    });
+  } catch (error) {
+    console.error("获取景点坐标失败:", error);
+  }
+};
 
 // 加载所有景点
 const loadAllSpots = async () => {
@@ -593,7 +678,7 @@ const initMap = () => {
   AMapLoader.load({
     key: amapKey,
     version: "1.4.15",
-    plugins: ["AMap.ToolBar", "AMap.Scale", "AMap.Driving"],
+    plugins: ["AMap.ToolBar", "AMap.Scale"],
   })
     .then((AMap) => {
       window.AMap = AMap;
@@ -606,12 +691,6 @@ const initMap = () => {
 
       map.value.addControl(new AMap.ToolBar());
       map.value.addControl(new AMap.Scale());
-
-      drivingPlugin = new AMap.Driving({
-        map: map.value,
-        panel: null,
-        hideMarkers: true,
-      });
 
       updateMapRoute();
     })
@@ -701,7 +780,7 @@ const getValidLngLat = (spot) => {
 
 // 更新地图路线
 const updateMapRoute = () => {
-  if (!map.value || !drivingPlugin) return;
+  if (!map.value) return;
 
   map.value.clearMap();
 
@@ -741,42 +820,31 @@ const updateMapRoute = () => {
   });
 
   if (validSpots.length > 1) {
-    const origin = validSpots[0].position;
-    const destination = validSpots[validSpots.length - 1].position;
-    const waypoints = validSpots.slice(1, -1).map((s) => s.position);
+    const path = validSpots.map((s) => s.position);
 
-    drivingPlugin.search(
-      origin,
-      destination,
-      { waypoints },
-      (status, result) => {
-        if (
-          status === "complete" &&
-          result.routes &&
-          result.routes.length > 0
-        ) {
-          const route = result.routes[0];
-          routeInfo.value = {
-            distance: (route.distance / 1000).toFixed(1),
-            duration: Math.ceil(route.time / 60),
-          };
-        } else {
-          console.error("路径规划失败:", result);
-        }
+    const polyline = new AMap.Polyline({
+      path: path,
+      strokeColor: "#00d4ff",
+      strokeWeight: 4,
+      strokeOpacity: 0.8,
+      showDir: true,
+    });
+    polyline.setMap(map.value);
+    polylines.push(polyline);
 
-        nextTick(() => {
-          if (markers.length > 0) {
-            map.value.setFitView(markers);
-          }
-        });
-      },
-    );
+    routeInfo.value = {
+      distance: "N/A",
+      duration: validSpots.length * 2,
+    };
   } else if (validSpots.length === 1) {
     routeInfo.value = null;
-    nextTick(() => {
-      map.value.setFitView(markers);
-    });
   }
+
+  nextTick(() => {
+    if (markers.length > 0) {
+      map.value.setFitView(markers);
+    }
+  });
 };
 
 // 清除地图覆盖物

@@ -135,6 +135,8 @@ def get_trip(trip_id: int, db: Session = Depends(get_db)):
             'spot_name': spot.name if spot else None,
             'spot_image': spot.images[0] if spot and spot.images else None,
             'spot_rating': spot.rating if spot else None,
+            'spot_location_lng': spot.location_lng if spot else None,
+            'spot_location_lat': spot.location_lat if spot else None,
             'order_index': s.order_index,
             'visit_time_start': s.visit_time_start,
             'visit_time_end': s.visit_time_end,

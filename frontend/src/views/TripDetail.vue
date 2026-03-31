@@ -115,6 +115,35 @@
       <section class="right-panel">
         <div id="amap-container" class="map-container"></div>
 
+        <!-- 算法控制面板 -->
+        <div class="algo-controls">
+          <!-- 交通方式 -->
+          <div class="transport-group">
+            <button
+              v-for="t in transportOptions"
+              :key="t.value"
+              class="transport-btn"
+              :class="{ active: currentTransport === t.value }"
+              @click="switchTransport(t.value)"
+            >{{ t.label }}</button>
+          </div>
+          <!-- 拥挤度 -->
+          <div class="congestion-group">
+            <span class="congestion-label">拥挤度</span>
+            <input
+              type="range" min="0" max="0.9" step="0.1"
+              v-model.number="congestionLevel"
+              @change="updateMapRoute"
+              class="congestion-slider"
+            />
+            <span class="congestion-value">{{ Math.round(congestionLevel * 100) }}%</span>
+          </div>
+          <!-- TSP 最优顺序 -->
+          <button class="map-btn tsp-btn" @click="runTSP">
+            <span>🔀</span> 最优顺序
+          </button>
+        </div>
+
         <!-- 地图控制按钮 -->
         <div class="map-controls">
           <button class="map-btn" @click="fitView">
@@ -134,6 +163,10 @@
           <div class="route-stat">
             <span class="route-icon">⏱️</span>
             <span>预计时间: {{ routeInfo.duration }}分钟</span>
+          </div>
+          <div class="route-stat" v-if="routeInfo.orderedNames">
+            <span class="route-icon">🗺️</span>
+            <span>最优顺序: {{ routeInfo.orderedNames.join(' → ') }}</span>
           </div>
         </div>
       </section>
@@ -190,6 +223,9 @@ import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import draggable from "vuedraggable";
 import AMapLoader from "@amap/amap-jsapi-loader";
+import { buildGraphFromSpots, haversineDistance, TransportType } from "@/pathfinder/graph.js";
+import { dijkstra, reconstructPath } from "@/pathfinder/dijkstra.js";
+import { solveTSP, buildCostMatrix } from "@/pathfinder/tsp.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -217,6 +253,15 @@ let markers = [];
 let polylines = [];
 let trafficLayer = null;
 let drivingPlugin = null;
+
+// 算法控制状态
+const currentTransport = ref(TransportType.WALK);
+const congestionLevel = ref(0.2);
+const transportOptions = [
+  { label: "🚶 步行", value: TransportType.WALK },
+  { label: "🚲 自行车", value: TransportType.BIKE },
+  { label: "🛵 电瓶车", value: TransportType.SCOOTER },
+];
 
 // 偏好映射
 const prefMap = {
@@ -698,13 +743,18 @@ const distributeSpotsToDays = () => {
 
 // 初始化高德地图
 const initMap = () => {
-  const amapKey =
-    import.meta.env.VITE_AMAP_KEY || "d2c6e8f1a8f8c2e4b8e0f1a8e8f1c2e4";
+  const amapKey = import.meta.env.VITE_AMAP_KEY;
+  const securityKey = import.meta.env.VITE_AMAP_SECURITY_KEY;
+
+  // 若配置了安全密钥，则在加载前注入（高德 2.0+ 要求）
+  if (securityKey) {
+    window._AMapSecurityConfig = { securityJsCode: securityKey };
+  }
 
   AMapLoader.load({
     key: amapKey,
-    version: "1.4.15",
-    plugins: ["AMap.ToolBar", "AMap.Scale"],
+    version: "2.0",
+    plugins: ["AMap.ToolBar", "AMap.Scale", "AMap.Walking", "AMap.Riding"],
   })
     .then((AMap) => {
       window.AMap = AMap;
@@ -804,73 +854,227 @@ const getValidLngLat = (spot) => {
   return [lng, lat];
 };
 
-// 更新地图路线
-const updateMapRoute = () => {
+/**
+ * 用高德插件获取两点间真实道路坐标折点（仅获取坐标，不做导航决策）
+ * 步行用 AMap.Walking，自行车/电瓶车用 AMap.Riding
+ * @returns {Promise<[number,number][]>} 坐标数组
+ */
+const getRoadPath = (from, to) => {
+  return new Promise((resolve) => {
+    const AMap = window.AMap;
+    const useRiding = currentTransport.value !== TransportType.WALK;
+
+    const extractCoords = (steps) => {
+      const coords = [];
+      (steps || []).forEach((step) => {
+        (step.path || []).forEach((p) => coords.push([p.lng, p.lat]));
+      });
+      return coords;
+    };
+
+    if (useRiding) {
+      const riding = new AMap.Riding({ map: null });
+      riding.search(from, to, (status, result) => {
+        console.log("[Riding] status:", status);
+        console.log("[Riding] result keys:", result ? Object.keys(result) : result);
+        if (status === "complete") {
+          // 尝试所有可能的路由字段
+          const route = result.rideRoutes?.[0] ?? result.routes?.[0];
+          console.log("[Riding] route keys:", route ? Object.keys(route) : route);
+          // AMap 2.0 Riding 的步骤字段可能是 rides 而非 steps
+          const steps = route?.rides ?? route?.steps ?? [];
+          console.log("[Riding] steps length:", steps.length, "steps[0]:", steps[0]);
+          // 每个 ride/step 的坐标可能直接在 path 或 passedPolyline
+          const coords = [];
+          steps.forEach((s) => {
+            const pts = s.path ?? s.passedPolyline ?? [];
+            pts.forEach((p) => coords.push([p.lng ?? p[0], p.lat ?? p[1]]));
+          });
+          console.log("[Riding] coords length:", coords.length);
+          resolve(coords.length > 0 ? coords : [from, to]);
+        } else {
+          console.warn("[Riding] 失败:", status, result);
+          resolve([from, to]);
+        }
+      });
+    } else {
+      const walking = new AMap.Walking({ map: null });
+      walking.search(from, to, (status, result) => {
+        if (status === "complete" && result.routes?.[0]) {
+          const coords = extractCoords(result.routes[0].steps || []);
+          resolve(coords.length > 0 ? coords : [from, to]);
+        } else {
+          console.warn("[Walking] 失败，降级直线:", status, result);
+          resolve([from, to]);
+        }
+      });
+    }
+  });
+};
+
+/**
+ * 更新地图路线
+ * 决策层：自研 Dijkstra 算法（权重 = 距离 / 速度×(1-拥挤度)）
+ * 可视化层：高德插件获取真实道路坐标折点
+ */
+const updateMapRoute = async () => {
   if (!map.value) return;
 
   map.value.clearMap();
+  markers = [];
+  polylines = [];
 
   const spots = currentDaySpots.value;
   if (spots.length === 0) return;
 
-  const validSpots = [];
-  spots.forEach((spot) => {
-    const position = getValidLngLat(spot);
-    if (position) {
-      validSpots.push({ ...spot, position });
-    }
-  });
+  const validSpots = spots
+    .map((s) => { const pos = getValidLngLat(s); return pos ? { ...s, location: pos } : null; })
+    .filter(Boolean);
 
-  if (validSpots.length === 0) {
-    console.warn("没有有效的景点坐标可展示");
-    return;
-  }
+  if (validSpots.length === 0) return;
 
+  // 绘制景点编号标记
   validSpots.forEach((spot, index) => {
     const marker = new AMap.Marker({
-      position: spot.position,
+      position: spot.location,
       content: `<div class="custom-marker">${index + 1}</div>`,
       offset: new AMap.Pixel(-15, -30),
+      zIndex: 110,
     });
     marker.setMap(map.value);
     markers.push(marker);
 
     const infoWindow = new AMap.InfoWindow({
-      content: `<div style="padding: 10px;"><h4>${spot.name}</h4><p>⭐ ${spot.rating?.toFixed(1) || "4.5"}</p></div>`,
+      content: `<div style="padding:10px"><h4>${spot.name}</h4><p>⭐ ${spot.rating?.toFixed(1) || "4.5"}</p></div>`,
       offset: new AMap.Pixel(0, -30),
     });
-
-    marker.on("click", () => {
-      infoWindow.open(map.value, marker.getPosition());
-    });
+    marker.on("click", () => infoWindow.open(map.value, marker.getPosition()));
   });
 
-  if (validSpots.length > 1) {
-    const path = validSpots.map((s) => s.position);
-
-    const polyline = new AMap.Polyline({
-      path: path,
-      strokeColor: "#00d4ff",
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
-      showDir: true,
-    });
-    polyline.setMap(map.value);
-    polylines.push(polyline);
-
-    routeInfo.value = {
-      distance: "N/A",
-      duration: validSpots.length * 2,
-    };
-  } else if (validSpots.length === 1) {
+  if (validSpots.length < 2) {
     routeInfo.value = null;
+    nextTick(() => map.value.setFitView(markers));
+    return;
   }
 
-  nextTick(() => {
-    if (markers.length > 0) {
-      map.value.setFitView(markers);
-    }
+  // ── 自研算法决策层 ──
+  // 构建图，注入当前交通方式和拥挤度
+  const graph = buildGraphFromSpots(validSpots, currentTransport.value);
+  for (const edges of graph.adjList.values()) {
+    edges.forEach((e) => { e.congestion = congestionLevel.value; });
+  }
+
+  // Dijkstra 计算各段权重（时间代价），用于 routeInfo 统计
+  let totalDistance = 0;
+  let totalDuration = 0;
+
+  for (let i = 0; i < validSpots.length - 1; i++) {
+    const { dist } = dijkstra(graph, validSpots[i].id);
+    const segCost = dist.get(validSpots[i + 1].id) ?? 0;
+    totalDuration += segCost;
+    totalDistance += haversineDistance(validSpots[i].location, validSpots[i + 1].location);
+  }
+
+  // ── 可视化层：高德插件获取真实道路折线坐标 ──
+  // 逐段异步获取，然后拼接绘制
+  const segPromises = [];
+  for (let i = 0; i < validSpots.length - 1; i++) {
+    segPromises.push(getRoadPath(validSpots[i].location, validSpots[i + 1].location));
+  }
+
+  const segments = await Promise.all(segPromises);
+
+  // 拼接所有段坐标（去重连接点）
+  const allCoords = [];
+  segments.forEach((seg, i) => {
+    if (i === 0) allCoords.push(...seg);
+    else allCoords.push(...seg.slice(1));
   });
+
+  // 绘制真实道路折线（带方向箭头）
+  const polyline = new AMap.Polyline({
+    path: allCoords,
+    strokeColor: "#00d4ff",
+    strokeWeight: 5,
+    strokeOpacity: 0.9,
+    showDir: true,
+    lineJoin: "round",
+    lineCap: "round",
+  });
+  polyline.setMap(map.value);
+  polylines.push(polyline);
+
+  routeInfo.value = {
+    distance: (totalDistance / 1000).toFixed(2),
+    duration: Math.ceil(totalDuration),
+  };
+
+  nextTick(() => { if (markers.length > 0) map.value.setFitView(markers); });
+};
+
+// 切换交通方式：先 TSP 重排景点顺序，再重绘真实路径
+const switchTransport = (mode) => {
+  currentTransport.value = mode;
+
+  const spots = currentDaySpots.value;
+  const validSpots = spots
+    .map((s) => { const pos = getValidLngLat(s); return pos ? { ...s, location: pos } : null; })
+    .filter(Boolean);
+
+  if (validSpots.length < 2) {
+    updateMapRoute();
+    return;
+  }
+
+  const graph = buildGraphFromSpots(validSpots, mode);
+  for (const edges of graph.adjList.values()) {
+    edges.forEach((e) => { e.congestion = congestionLevel.value; });
+  }
+
+  const costMatrix = buildCostMatrix(validSpots, (a, b) => {
+    const { dist } = dijkstra(graph, a.id, mode);
+    const c = dist.get(b.id);
+    return c === Infinity || c === undefined ? 1e9 : c;
+  });
+
+  const { order } = solveTSP(costMatrix, 0);
+  const reordered = order.map((idx) => validSpots[idx]);
+  daySpotsMap.value = { ...daySpotsMap.value, [selectedDay.value]: reordered };
+
+  nextTick(() => updateMapRoute());
+};
+
+// TSP 最优顺序规划
+const runTSP = () => {
+  const spots = currentDaySpots.value;
+  if (spots.length < 2) return;
+
+  const validSpots = spots
+    .map((s) => { const pos = getValidLngLat(s); return pos ? { ...s, location: pos } : null; })
+    .filter(Boolean);
+  if (validSpots.length < 2) return;
+
+  const graph = buildGraphFromSpots(validSpots, currentTransport.value);
+  for (const edges of graph.adjList.values()) {
+    edges.forEach((e) => { e.congestion = congestionLevel.value; });
+  }
+
+  // 构建代价矩阵（Dijkstra 两两最短代价）
+  const costMatrix = buildCostMatrix(validSpots, (a, b) => {
+    const { dist } = dijkstra(graph, a.id, currentTransport.value);
+    const c = dist.get(b.id);
+    return c === Infinity ? 1e9 : c;
+  });
+
+  const { order } = solveTSP(costMatrix, 0);
+
+  // 按 TSP 最优顺序重排当前天景点
+  const reordered = order.map((idx) => validSpots[idx]);
+  // 触发响应式：替换整个 daySpotsMap 对象
+  daySpotsMap.value = { ...daySpotsMap.value, [selectedDay.value]: reordered };
+
+  ElMessage.success("已按最优顺序重排景点");
+  nextTick(() => updateMapRoute());
 };
 
 // 清除地图覆盖物
@@ -1445,6 +1649,76 @@ watch(selectedDay, () => {
   width: 100%;
   height: 100%;
   min-height: 400px;
+}
+
+/* 算法控制面板 */
+.algo-controls {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  z-index: 100;
+  background: rgba(10, 10, 26, 0.88);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.transport-group {
+  display: flex;
+  gap: 6px;
+}
+
+.transport-btn {
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.transport-btn.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #000;
+  font-weight: 600;
+}
+
+.congestion-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.congestion-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.congestion-slider {
+  width: 80px;
+  accent-color: var(--primary-color);
+  cursor: pointer;
+}
+
+.congestion-value {
+  font-size: 12px;
+  color: var(--primary-color);
+  min-width: 30px;
+}
+
+.tsp-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  white-space: nowrap;
 }
 
 /* 地图控制按钮 */

@@ -283,180 +283,17 @@
       </button>
     </main>
 
-    <!-- 创建日记弹窗 - 智能编辑器 -->
+    <!-- 创建日记弹窗 - 使用 SmartDiaryEditor 组件 -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content smart-editor">
-        <h2 class="editor-title">✨ 智能日记创作</h2>
-        
-        <!-- 标题输入 -->
-        <input
-          type="text"
-          class="tech-input title-input"
-          placeholder="给日记起个标题吧"
-          v-model="newDiary.title"
+      <div class="modal-content editor-modal">
+        <SmartDiaryEditor
+          :initial-title="newDiary.title"
+          :initial-content="newDiary.content"
+          :initial-type="newDiary.diary_type"
+          @save="handleSaveDraft"
+          @publish="handlePublish"
+          @cancel="closeModal"
         />
-
-        <!-- 灵感输入框 -->
-        <div class="inspiration-section">
-          <div class="inspiration-header">
-            <span class="section-label">💡 一句话灵感</span>
-            <button 
-              class="ai-generate-btn" 
-              @click="generateWithAI"
-              :disabled="!inspirationText || generating"
-              :class="{ loading: generating }"
-            >
-              <span v-if="!generating">✨ AI 生成</span>
-              <span v-else class="loading-spinner">
-                <span class="spinner"></span>
-                生成中...
-              </span>
-            </button>
-          </div>
-          
-          <div class="inspiration-input-wrapper">
-            <textarea
-              v-model="inspirationText"
-              class="inspiration-textarea"
-              placeholder="例如：今天在上海吃到了一家超赞的本帮菜，红烧肉肥而不腻，入口即化，心情大好！"
-              :rows="3"
-            ></textarea>
-          </div>
-          
-          <p class="inspiration-tip">输入一句话，AI 帮你扩写成优美的日记</p>
-        </div>
-
-        <!-- 写作风格选择 -->
-        <div class="style-selector">
-          <span class="section-label">🎨 AI 扩写风格</span>
-          <div class="style-buttons">
-            <button 
-              v-for="style in writingStyles" 
-              :key="style.key"
-              class="style-btn"
-              :class="{ active: selectedStyle === style.key }"
-              @click="selectedStyle = style.key"
-            >
-              {{ style.emoji }} {{ style.name }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 图片上传区域 -->
-        <div class="image-upload-section">
-          <span class="section-label">📸 添加图片</span>
-          <div 
-            class="image-dropzone"
-            @dragover.prevent
-            @drop.prevent="handleDrop"
-            @click="triggerImageUpload"
-          >
-            <div v-if="uploadedImages.length === 0" class="dropzone-placeholder">
-              <span class="dropzone-icon">🖼️</span>
-              <p>点击或拖拽图片到此处上传</p>
-              <p class="dropzone-hint">支持 JPG、PNG 格式，AI 将自动识别图片内容</p>
-            </div>
-            <div v-else class="image-preview-grid">
-              <div v-for="(img, index) in uploadedImages" :key="index" class="image-preview-item">
-                <img :src="img.url" :alt="img.name" class="preview-image" />
-                <div class="image-overlay">
-                  <span class="image-name">{{ img.name }}</span>
-                  <button class="remove-image-btn" @click.stop="removeImage(index)">×</button>
-                </div>
-                <div v-if="img.analyzing" class="analyzing-overlay">
-                  <span class="spinner-small"></span>
-                  <span>AI 识别中...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <input 
-            ref="imageInput"
-            type="file" 
-            accept="image/*" 
-            multiple 
-            @change="handleImageSelect"
-            class="hidden"
-          />
-        </div>
-
-        <!-- AI 生成的内容区域 -->
-        <div class="ai-content-section" v-if="generatedContent">
-          <div class="content-header">
-            <span class="section-label">📝 AI 生成内容</span>
-            <div class="content-actions">
-              <button class="regenerate-btn" @click="generateWithAI" :disabled="generating">
-                🔄 重新生成
-              </button>
-            </div>
-          </div>
-          
-          <div class="generated-result">
-            <textarea
-              v-model="generatedContent"
-              class="generated-textarea"
-              :rows="10"
-              placeholder="AI 生成的内容将显示在这里..."
-            ></textarea>
-            
-            <div class="generated-meta">
-              <div class="meta-tag" v-if="detectedType">
-                <span class="tag-icon">{{ getTypeEmoji(detectedType) }}</span>
-                {{ getTypeLabel(detectedType) }}
-              </div>
-              <div class="meta-tag" v-for="(tag, index) in generatedTags" :key="index">
-                # {{ tag }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 传统编辑器入口 -->
-        <div class="manual-edit-toggle">
-          <button class="toggle-btn" @click="showManualEditor = !showManualEditor">
-            {{ showManualEditor ? '隐藏' : '显示' }} 手动编辑
-          </button>
-        </div>
-
-        <!-- 手动编辑区域 -->
-        <div v-if="showManualEditor" class="manual-editor">
-          <div class="type-selector">
-            <span class="type-label">日记类型：</span>
-            <div class="type-buttons">
-              <button 
-                v-for="type in diaryTypes" 
-                :key="type.value"
-                class="type-btn"
-                :class="{ active: newDiary.diary_type === type.value }"
-                @click="newDiary.diary_type = type.value"
-              >
-                {{ type.emoji }} {{ type.label }}
-              </button>
-            </div>
-          </div>
-
-          <textarea
-            class="tech-input diary-textarea"
-            :placeholder="getPlaceholder()"
-            v-model="newDiary.content"
-          ></textarea>
-
-          <!-- 便捷输入按钮 -->
-          <div class="quick-inputs">
-            <button class="quick-input-btn" @click="addSection('【今日行程】')">+ 行程</button>
-            <button class="quick-input-btn" @click="addSection('【美食推荐】')">+ 美食</button>
-            <button class="quick-input-btn" @click="addSection('【住宿推荐】')">+ 住宿</button>
-            <button class="quick-input-btn" @click="addSection('【实用贴士】')">+ 贴士</button>
-            <button class="quick-input-btn" @click="addSection('【推荐指数】⭐⭐⭐⭐⭐')">+ 评分</button>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button class="tech-button secondary" @click="closeModal">取消</button>
-          <button class="tech-button" @click="createDiary" :disabled="!canSave">
-            {{ generatedContent ? '使用 AI 生成内容' : '保存' }}
-          </button>
-        </div>
       </div>
     </div>
   </div>
@@ -467,6 +304,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import Navbar from '../components/Navbar.vue'
+import SmartDiaryEditor from '../components/SmartDiaryEditor.vue'
 
 const router = useRouter()
 
@@ -977,6 +815,44 @@ const openAIEditor = () => {
   showCreateModal.value = true
 }
 
+// 处理编辑器保存草稿事件
+const handleSaveDraft = (draft) => {
+  // 草稿已保存在 localStorage，这里可以添加额外逻辑
+  console.log('草稿已保存:', draft)
+}
+
+// 处理编辑器发布事件
+const handlePublish = async (diary) => {
+  try {
+    const response = await fetch('http://localhost:8000/api/diaries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: diary.title,
+        content: diary.content,
+        diary_type: newDiary.value.diary_type || 'notes',
+        user_id: currentUserId.value,
+        is_public: false,
+        view_count: 0,
+        avg_rating: 0
+      })
+    })
+    
+    if (response.ok) {
+      const savedDiary = await response.json()
+      diaries.value.unshift(savedDiary)
+      ElMessage.success('日记发布成功！')
+      closeModal()
+    } else {
+      const error = await response.json()
+      ElMessage.error('保存失败：' + (error.detail || '未知错误'))
+    }
+  } catch (error) {
+    console.error('保存失败:', error)
+    ElMessage.error('保存失败')
+  }
+}
+
 // 打开相机上传
 const openCameraUpload = () => {
   newDiary.value = { title: '', content: '', diary_type: 'travel' }
@@ -1296,11 +1172,17 @@ const openCameraUpload = () => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 20px;
-  padding: 25px;
+  padding: 0;
   width: 100%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.modal-content.editor-modal {
+  background: transparent;
+  border: none;
+  max-width: 1000px;
 }
 
 .modal-content h2 {

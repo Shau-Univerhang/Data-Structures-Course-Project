@@ -405,61 +405,95 @@ const denoiseText = (text) => {
   return cleaned
 }
 
-// 时间标准化映射
-const normalizeTime = (text) => {
-  const timeMap = {
-    // 早上
-    '早上六七点': '06:30',
-    '早上七八点': '07:30',
-    '早上八九点': '08:30',
-    '早上九点多': '09:30',
-    '早上十点': '10:00',
-    '早上十点多': '10:30',
-    '早上': '08:00',
-    // 上午
-    '上午': '10:00',
-    '上午九点多': '09:30',
-    '上午十点': '10:00',
-    '上午十点多': '10:30',
-    '上午十一点': '11:00',
-    // 中午
-    '中午': '12:00',
-    '中午十二点多': '12:30',
-    '中午一点': '13:00',
-    // 下午
-    '下午': '14:00',
-    '下午一两点': '13:30',
-    '下午两点多': '14:30',
-    '下午三四点': '15:30',
-    '下午四点': '16:00',
-    '傍晚': '17:30',
-    // 晚上
-    '晚上': '19:00',
-    '晚上六七点': '18:30',
-    '晚上七八点': '19:30',
-    '晚上八点': '20:00',
-    '晚上八点多': '20:30',
-    '晚上九点': '21:00',
-    '深夜': '23:00',
-    '凌晨': '05:00'
+// 智能时间标准化 - 改进版
+const normalizeTime = (text, contextTime = null) => {
+  // 如果有上下文时间，作为默认值
+  let defaultTime = contextTime || '09:00'
+  
+  // 时间段关键词映射（更精确）
+  const timeKeywords = {
+    '凌晨': { time: '05:00', priority: 1 },
+    '清晨': { time: '06:30', priority: 1 },
+    '一早': { time: '07:00', priority: 1 },
+    '早上': { time: '08:30', priority: 2 },
+    '上午': { time: '10:00', priority: 2 },
+    '中午': { time: '12:00', priority: 3 },
+    '午后': { time: '13:30', priority: 3 },
+    '下午': { time: '14:30', priority: 2 },
+    '傍晚': { time: '17:30', priority: 3 },
+    '晚上': { time: '19:30', priority: 2 },
+    '深夜': { time: '22:00', priority: 1 },
+    '半夜': { time: '00:00', priority: 1 }
   }
   
-  // 先尝试匹配完整短语
-  for (const [phrase, time] of Object.entries(timeMap)) {
-    if (text.includes(phrase)) {
-      return { time, matchedPhrase: phrase }
+  // 1. 先匹配具体时间（最高优先级）
+  // 匹配 "11点多"、"11点左右"、"大概11点多"
+  const fuzzyTimeMatch = text.match(/(?:大概|大约|差不多)?(\d{1,2})点(?:多|左右|前后|大概)?/)
+  if (fuzzyTimeMatch) {
+    let hour = parseInt(fuzzyTimeMatch[1])
+    // 根据上下文判断上午/下午
+    if (text.includes('下午') || text.includes('晚上') || text.includes('傍晚')) {
+      if (hour < 12) hour += 12
+    } else if (text.includes('中午') && hour < 12) {
+      hour = 12
+    }
+    return { 
+      time: `${hour.toString().padStart(2, '0')}:00`, 
+      matchedPhrase: fuzzyTimeMatch[0],
+      isFuzzy: true
     }
   }
   
-  // 匹配数字时间格式
-  const numMatch = text.match(/(\d{1,2})[点:：](\d{0,2})?/)
-  if (numMatch) {
-    const hour = numMatch[1].padStart(2, '0')
-    const minute = (numMatch[2] || '00').padStart(2, '0')
-    return { time: `${hour}:${minute}`, matchedPhrase: numMatch[0] }
+  // 2. 匹配精确时间 "11:30"、"11点30分"
+  const exactTimeMatch = text.match(/(\d{1,2})[点:：](\d{1,2})(?:分)?/)
+  if (exactTimeMatch) {
+    let hour = parseInt(exactTimeMatch[1])
+    const minute = parseInt(exactTimeMatch[2])
+    
+    // 处理12小时制转换
+    if (text.includes('下午') || text.includes('晚上') || text.includes('傍晚')) {
+      if (hour < 12) hour += 12
+    } else if (text.includes('中午') && hour < 12) {
+      hour = 12
+    } else if (text.includes('凌晨') || text.includes('早上') || text.includes('上午')) {
+      // 保持原样
+    }
+    
+    return { 
+      time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`, 
+      matchedPhrase: exactTimeMatch[0],
+      isExact: true
+    }
   }
   
-  return { time: '09:00', matchedPhrase: '' }
+  // 3. 匹配时间段关键词
+  for (const [keyword, info] of Object.entries(timeKeywords)) {
+    if (text.includes(keyword)) {
+      return { 
+        time: info.time, 
+        matchedPhrase: keyword,
+        isKeyword: true
+      }
+    }
+  }
+  
+  // 4. 特殊时间表达
+  const specialTimes = [
+    { pattern: /刚下(?:高铁|飞机|火车|地铁)/, time: '09:00', desc: '抵达' },
+    { pattern: /(?:到|抵达|到达)(?:了)?/, time: defaultTime, desc: '到达' },
+    { pattern: /(?:出发|启程|动身)/, time: '08:00', desc: '出发' },
+    { pattern: /(?:起床|睡醒|睁眼)/, time: '07:30', desc: '起床' },
+    { pattern: /(?:睡觉|入睡|休息)/, time: '23:00', desc: '休息' }
+  ]
+  
+  for (const { pattern, time, desc } of specialTimes) {
+    if (pattern.test(text)) {
+      return { time, matchedPhrase: desc, isSpecial: true }
+    }
+  }
+  
+  // 5. 如果没有提取到时间，返回上下文时间或null
+  return { time: null, matchedPhrase: '' }
 }
 
 // 提取地点
@@ -482,28 +516,76 @@ const extractLocation = (text) => {
   return ''
 }
 
-// 提取活动标题（简短动作）
+// 提取活动标题（改进版）
 const extractTitle = (text, location) => {
-  // 动作关键词
-  const actionPatterns = [
-    /(?:吃|品尝|尝试)(?:了)?([\u4e00-\u9fa5]{2,8})/,
-    /(?:去|到|逛|游览|参观|打卡)(?:了)?([\u4e00-\u9fa5]{2,8})/,
-    /(?:住|入住|住在)(?:了)?([\u4e00-\u9fa5]{2,8})/,
-    /(?:拍|拍照|拍摄)(?:了)?([\u4e00-\u9fa5]{2,8})/,
-    /(?:买|购买|逛)(?:了)?([\u4e00-\u9fa5]{2,8})/,
-    /(?:看|观看|欣赏)(?:了)?([\u4e00-\u9fa5]{2,8})/
+  // 清理文本
+  const cleanText = text.replace(/[，,。！!？?]/g, ' ').trim()
+  
+  // 1. 尝试提取 "动词 + 地点" 的结构
+  const actionLocationPatterns = [
+    // "挤进黄兴广场"、"打卡IFS"
+    { pattern: /(?:挤进|冲进|跑到|赶到|抵达|到达|去|逛|打卡|游览|参观|游玩)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8}(?:广场|街|路|巷|寺|庙|园|馆|塔|桥|山|湖|洲|村|镇|城|区|中心|商城|商场|店|餐厅|酒店|民宿|客栈))/ },
+    // "吃费大厨"、"品尝辣椒炒肉"
+    { pattern: /(?:吃|品尝|尝试|打卡)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8}(?:餐厅|饭店|店|馆|小吃|美食))/ },
+    // "住民宿"、"入住酒店"
+    { pattern: /(?:住|入住|住在)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8}(?:酒店|民宿|客栈|宾馆))/ },
+    // "买茶颜悦色"
+    { pattern: /(?:买|购买|点|喝)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8}(?:奶茶|咖啡|茶|饮料))/ }
   ]
   
-  for (const pattern of actionPatterns) {
-    const match = text.match(pattern)
+  for (const { pattern } of actionLocationPatterns) {
+    const match = cleanText.match(pattern)
     if (match) {
-      const action = match[0].replace(/了/g, '')
-      return action
+      // 提取动作词
+      const actionMatch = cleanText.match(/^(\S{1,4})/)
+      const action = actionMatch ? actionMatch[1] : '打卡'
+      return `${action}${match[1]}`
     }
   }
   
-  // 如果没有匹配到动作，返回简化描述
-  return text.slice(0, 12).replace(/[，,。！!]/g, '')
+  // 2. 提取核心动作 + 对象
+  const coreActionPatterns = [
+    // "拍大IP"、"拍合影"
+    { pattern: /(?:拍|拍摄|照)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,6})/, prefix: '拍摄' },
+    // "排队等号"
+    { pattern: /(?:排|等待)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,6})/, prefix: '排队' },
+    // "看毛爷爷像"
+    { pattern: /(?:看|观看|欣赏)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8})/, prefix: '参观' },
+    // "逛吃逛吃"
+    { pattern: /(?:逛|逛吃)(?:了)?(?:\s*)([\u4e00-\u9fa5]{0,4})/, prefix: '逛吃' }
+  ]
+  
+  for (const { pattern, prefix } of coreActionPatterns) {
+    const match = cleanText.match(pattern)
+    if (match) {
+      const obj = match[1] || ''
+      return obj ? `${prefix}${obj}` : prefix
+    }
+  }
+  
+  // 3. 如果有地点，生成 "在 + 地点 + 活动"
+  if (location && location.length >= 2) {
+    // 提取在地点做什么
+    const activityAtLocation = cleanText.match(/(?:在|去|到)\s*\S{2,8}(?:\s*)(.+)/)
+    if (activityAtLocation) {
+      const activity = activityAtLocation[1].slice(0, 8)
+      return `在${location}${activity}`
+    }
+    return `打卡${location}`
+  }
+  
+  // 4. 提取句子主干（主谓宾结构）
+  const mainContent = cleanText
+    .replace(/^(?:我|我们|然后|接着|后来|最后|终于)/, '')
+    .replace(/(?:感觉|觉得|真的|超级|特别|非常|太|很)\s*/, '')
+    .trim()
+  
+  if (mainContent.length >= 4 && mainContent.length <= 15) {
+    return mainContent
+  }
+  
+  // 5. 最后 fallback：取前10个字符
+  return mainContent.slice(0, 10) + (mainContent.length > 10 ? '...' : '')
 }
 
 // 提取Insight（氛围/感受）
@@ -532,16 +614,18 @@ const extractInsight = (text) => {
   return text.slice(0, 18) + (text.length > 18 ? '...' : '')
 }
 
-// 主解析函数
+// 主解析函数 - 改进版
 const parseTravelNotes = (text) => {
   // 1. 去噪
   const cleanedText = denoiseText(text)
   
-  // 2. 按句子分割
+  // 2. 按句子分割（更智能的分割）
   const sentences = cleanedText
     .split(/[。！!\n]+/)
     .map(s => s.trim())
     .filter(s => s.length > 3)
+    // 过滤掉纯情感表达
+    .filter(s => !/^[啊哦嗯哈].*$/.test(s))
   
   const timeline = []
   let currentDay = {
@@ -550,9 +634,18 @@ const parseTravelNotes = (text) => {
     activities: []
   }
   
+  // 时间上下文，用于推断未明确时间
+  let lastTime = null
+  let timeSequence = [
+    '08:00', '09:30', '11:00', '12:30', 
+    '14:00', '15:30', '17:00', '18:30', 
+    '20:00', '21:30'
+  ]
+  let timeIndex = 0
+  
   sentences.forEach((sentence, index) => {
     // 检测是否是新一天的开始
-    if (sentence.includes('第') && sentence.includes('天')) {
+    if (/第[一二三四五六七八九十\d]+天/.test(sentence) || /明天|后天/.test(sentence)) {
       if (currentDay.activities.length > 0) {
         timeline.push({ ...currentDay })
         currentDay = {
@@ -560,12 +653,33 @@ const parseTravelNotes = (text) => {
           theme: '精彩一天',
           activities: []
         }
+        // 重置时间上下文
+        lastTime = null
+        timeIndex = 0
       }
       return
     }
     
-    // 提取时间
-    const { time, matchedPhrase } = normalizeTime(sentence)
+    // 提取时间（传入上下文时间）
+    const timeResult = normalizeTime(sentence, lastTime)
+    let time = timeResult.time
+    
+    // 如果没有提取到时间，使用序列时间
+    if (!time) {
+      if (lastTime) {
+        // 基于上一个时间推断（加1-2小时）
+        const [lastHour, lastMin] = lastTime.split(':').map(Number)
+        const newHour = Math.min(lastHour + 1 + Math.floor(Math.random() * 2), 23)
+        time = `${newHour.toString().padStart(2, '0')}:00`
+      } else {
+        // 使用默认序列
+        time = timeSequence[timeIndex % timeSequence.length]
+        timeIndex++
+      }
+    }
+    
+    // 更新时间上下文
+    lastTime = time
     
     // 提取地点
     const location = extractLocation(sentence)
@@ -577,7 +691,7 @@ const parseTravelNotes = (text) => {
     const insight = extractInsight(sentence)
     
     // 只有当有实质内容时才添加
-    if (title || location) {
+    if (title || location || timeResult.matchedPhrase) {
       currentDay.activities.push({
         time,
         title: title || '旅行活动',
@@ -605,6 +719,13 @@ const parseTravelNotes = (text) => {
       }]
     })
   }
+  
+  // 按时间排序每一天的活动
+  timeline.forEach(day => {
+    day.activities.sort((a, b) => {
+      return a.time.localeCompare(b.time)
+    })
+  })
   
   return { timeline }
 }

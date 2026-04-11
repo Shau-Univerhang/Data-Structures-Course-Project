@@ -170,6 +170,9 @@
             <span v-for="tag in currentSpot.tags" :key="tag" class="tag">{{ tag }}</span>
           </div>
           <p class="modal-desc">{{ currentSpot.description || '暂无描述' }}</p>
+          <button class="go-detail-btn" @click="goToSpotDetail(currentSpot)">
+            查看详情 / 校园导航
+          </button>
         </div>
       </div>
     </div>
@@ -199,7 +202,10 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
+
+const router = useRouter()
 
 // 当前选中的标签
 const currentTab = ref('spots')
@@ -2130,6 +2136,11 @@ const showSpotDetail = (spot) => {
   showSpotModal.value = true
 }
 
+const goToSpotDetail = (spot) => {
+  showSpotModal.value = false
+  router.push({ path: '/spot', query: { id: spot.id, city: spot.city } })
+}
+
 // 显示美食详情
 const showFoodDetail = (food) => {
   currentFood.value = food
@@ -2562,6 +2573,23 @@ watch(selectedCity, () => {
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.7;
   font-size: 15px;
+  margin-bottom: 18px;
+}
+
+.go-detail-btn {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.go-detail-btn:hover {
+  opacity: 0.92;
 }
 
 /* 响应式 */

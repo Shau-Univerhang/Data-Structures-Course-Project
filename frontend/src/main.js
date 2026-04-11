@@ -13,6 +13,7 @@ import TripDetail from './views/TripDetail.vue'
 import RoutePlan from './views/RoutePlan.vue'
 import Diary from './views/Diary.vue'
 import DiaryDetail from './views/DiaryDetail.vue'
+import UserDiary from './views/UserDiary.vue'
 import City from './views/City.vue'
 import SpotDetail from './views/SpotDetail.vue'
 import AIAssistant from './views/AIAssistant.vue'
@@ -26,6 +27,8 @@ import Photos from './views/Photos.vue'
 import Collection from './views/Collection.vue'
 import Explore from './views/Explore.vue'
 import AmapExample from './components/AmapExample.vue'
+import DesignPresentation from './views/DesignPresentation.vue'
+import InternalNav from './views/InternalNav.vue'
 
 // 路由配置
 const routes = [
@@ -40,12 +43,15 @@ const routes = [
   { path: '/route/:id', name: 'RoutePlan', component: RoutePlan },
   { path: '/diary', name: 'Diary', component: Diary },
   { path: '/diary/:id', name: 'DiaryDetail', component: DiaryDetail },
+  { path: '/user-diary', name: 'UserDiary', component: UserDiary },
   { path: '/city', name: 'City', component: City },
   { path: '/spot', name: 'SpotDetail', component: SpotDetail },
+  { path: '/internal-nav', name: 'InternalNav', component: InternalNav },
   { path: '/ai', name: 'AIAssistant', component: AIAssistant },
   { path: '/profile', name: 'Profile', component: Profile },
   { path: '/food', name: 'Food', component: Food },
   { path: '/explore', name: 'Explore', component: Explore },
+  { path: '/presentation', name: 'DesignPresentation', component: DesignPresentation },
   { path: '/setting', name: 'Setting', component: Setting },
   { path: '/photos', name: 'Photos', component: Photos },
   { path: '/collection', name: 'Collection', component: Collection },
@@ -57,7 +63,7 @@ const router = createRouter({
 })
 
 // 路由守卫 - 检查是否需要登录
-const publicRoutes = ['/', '/login', '/register', '/city', '/spot']
+const publicRoutes = ['/', '/login', '/register', '/city', '/spot', '/internal-nav', '/presentation']
 
 router.beforeEach((to, from, next) => {
   const userId = localStorage.getItem('userId')

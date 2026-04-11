@@ -59,102 +59,149 @@ def top_k_restaurants(restaurants: List[dict], k: int = 10) -> List[dict]:
 
 # ==================== 2. 最短路径算法（Dijkstra）====================
 
-def build_graph(nodes: List[dict], edges: List[dict]) -> Dict[int, List[Tuple[int, float, float]]]:
+ROAD_TYPE_DEFAULT_SPEED = {
+    'walk': 1.4,      # 步行约5km/h
+    'bike': 5.0,      # 骑行约18km/h
+    'shuttle': 3.5,   # 电瓶车约12km/h
+    'car': 8.3        # 驾车约30km/h
+}
+
+TRANSPORT_ALLOWED_ROAD_TYPES = {
+    'walk': {'walk'},
+    'bike': {'bike'},
+    'shuttle': {'shuttle'},
+    'car': {'car'},
+    'smart_campus': {'walk', 'bike'},
+    'smart_scenic': {'walk', 'shuttle'},
+}
+
+
+TRANSPORT_MODE_LABELS = {
+    'walk': '步行',
+    'bike': '骑行',
+    'shuttle': '电瓶车',
+    'smart_campus': '智能混合',
+    'smart_scenic': '智能混合',
+}
+
+
+def resolve_transport_mode(transport_mode: str, spot_type: str = 'scenic') -> str:
+    if transport_mode == 'smart':
+        return 'smart_campus' if spot_type == 'campus' else 'smart_scenic'
+    return transport_mode
+
+
+def build_graph(nodes: List[dict], edges: List[dict]) -> Dict[int, List[dict]]:
     """
     构建图的邻接表表示
-    
+
     Returns:
-        {node_id: [(neighbor_id, distance, congestion), ...]}
+        {node_id: [edge, ...]}
     """
     graph = {node['id']: [] for node in nodes}
-    
+
     for edge in edges:
         from_id = edge['from_node_id']
         to_id = edge['to_node_id']
-        distance = edge['distance']
-        congestion = edge.get('congestion_factor', 1.0)
-        
-        # 添加边
-        graph[from_id].append((to_id, distance, congestion))
-        
-        # 如果是双向边，添加反向边
+        road_type = edge.get('road_type', 'walk')
+        edge_data = {
+            'to': to_id,
+            'distance': float(edge.get('distance', 0) or 0),
+            'congestion_factor': float(edge.get('congestion_factor', 1.0) or 1.0),
+            'ideal_speed': float(edge.get('ideal_speed') or ROAD_TYPE_DEFAULT_SPEED.get(road_type, 1.4)),
+            'road_type': road_type,
+        }
+
+        graph.setdefault(from_id, []).append(edge_data)
+
         if edge.get('is_bidirectional', True):
-            graph[to_id].append((from_id, distance, congestion))
-    
+            reverse_edge = edge_data.copy()
+            reverse_edge['to'] = from_id
+            graph.setdefault(to_id, []).append(reverse_edge)
+
     return graph
 
 
+
+def _edge_supports_transport(edge: dict, transport_mode: str) -> bool:
+    allowed_road_types = TRANSPORT_ALLOWED_ROAD_TYPES.get(transport_mode, {'walk'})
+    return edge.get('road_type', 'walk') in allowed_road_types
+
+
+
+def _edge_transport_mode(edge: dict, transport_mode: str) -> str:
+    road_type = edge.get('road_type', 'walk')
+    if transport_mode == 'smart_campus':
+        return 'bike' if road_type == 'bike' else 'walk'
+    if transport_mode == 'smart_scenic':
+        return 'shuttle' if road_type == 'shuttle' else 'walk'
+    return transport_mode
+
+
+
+def _edge_weight(edge: dict, strategy: str = 'shortest_time') -> float:
+    distance = float(edge.get('distance', 0) or 0)
+    if strategy == 'shortest_distance':
+        return distance
+
+    congestion = float(edge.get('congestion_factor', 1.0) or 1.0)
+    congestion = min(max(congestion, 0.01), 1.0)
+    ideal_speed = float(edge.get('ideal_speed', 1.4) or 1.4)
+    actual_speed = max(ideal_speed * congestion, 0.01)
+    return distance / actual_speed
+
+
+
 def dijkstra(
-    graph: Dict[int, List[Tuple[int, float, float]]],
+    graph: Dict[int, List[dict]],
     start: int,
     end: Optional[int] = None,
-    transport_mode: str = 'walk'
+    transport_mode: str = 'walk',
+    strategy: str = 'shortest_time'
 ) -> Tuple[Dict[int, float], Dict[int, Optional[int]]]:
     """
     Dijkstra最短路径算法
-    
-    Args:
-        graph: 邻接表
-        start: 起点节点ID
-        end: 终点节点ID（可选）
-        transport_mode: 交通工具类型
-    
-    Returns:
-        (dist: 距离表, prev: 前驱表)
     """
-    # 速度设置（米/秒）
-    speed_map = {
-        'walk': 1.4,      # 步行约5km/h
-        'bike': 5.0,      # 骑行约18km/h
-        'shuttle': 3.5,   # 电瓶车约12km/h
-        'car': 8.3        # 驾车约30km/h
-    }
-    base_speed = speed_map.get(transport_mode, 1.4)
-    
-    # 初始化距离表
     dist = {node: float('inf') for node in graph}
     dist[start] = 0
     prev = {node: None for node in graph}
-    
-    # 优先队列：(时间成本, 节点ID)
+
     pq = [(0, start)]
     visited = set()
-    
+
     while pq:
-        current_time, current = heapq.heappop(pq)
-        
+        current_cost, current = heapq.heappop(pq)
+
         if current in visited:
             continue
         visited.add(current)
-        
-        # 到达终点，提前结束
+
         if end and current == end:
             break
-        
-        # 遍历邻居
-        for neighbor, distance, congestion in graph.get(current, []):
+
+        for edge in graph.get(current, []):
+            neighbor = edge['to']
             if neighbor in visited:
                 continue
-            
-            # 计算实际通行时间（考虑拥挤度）
-            actual_speed = base_speed * congestion
-            actual_time = distance / actual_speed if actual_speed > 0 else float('inf')
-            
-            new_time = current_time + actual_time
-            
-            if new_time < dist[neighbor]:
-                dist[neighbor] = new_time
+            if not _edge_supports_transport(edge, transport_mode):
+                continue
+
+            new_cost = current_cost + _edge_weight(edge, strategy)
+
+            if new_cost < dist[neighbor]:
+                dist[neighbor] = new_cost
                 prev[neighbor] = current
-                heapq.heappush(pq, (new_time, neighbor))
-    
+                heapq.heappush(pq, (new_cost, neighbor))
+
     return dist, prev
+
 
 
 def get_shortest_path(prev: Dict[int, Optional[int]], start: int, end: int) -> List[int]:
     """根据前驱表重建最短路径"""
     if prev.get(end) is None and start != end:
         return []
-    
+
     path = []
     current = end
     while current is not None:
@@ -162,80 +209,100 @@ def get_shortest_path(prev: Dict[int, Optional[int]], start: int, end: int) -> L
         if current == start:
             break
         current = prev[current]
-    
+
     return list(reversed(path))
 
 
-def calculate_path_distance(graph: Dict[int, List[Tuple[int, float, float]]], path: List[int]) -> float:
+
+def calculate_path_distance(graph: Dict[int, List[dict]], path: List[int]) -> float:
     """计算路径总距离"""
     total = 0
     for i in range(len(path) - 1):
         from_id = path[i]
         to_id = path[i + 1]
-        for neighbor, distance, _ in graph.get(from_id, []):
-            if neighbor == to_id:
-                total += distance
+        for edge in graph.get(from_id, []):
+            if edge['to'] == to_id:
+                total += edge.get('distance', 0)
                 break
     return total
 
 
+
+def calculate_path_duration(graph: Dict[int, List[dict]], path: List[int], transport_mode: str = 'walk') -> float:
+    """计算路径总时间（秒）"""
+    total = 0
+    for i in range(len(path) - 1):
+        from_id = path[i]
+        to_id = path[i + 1]
+        for edge in graph.get(from_id, []):
+            if edge['to'] == to_id:
+                if _edge_supports_transport(edge, transport_mode):
+                    total += _edge_weight(edge, 'shortest_time')
+                break
+    return total
+
+
+
+def extract_segment_transport_modes(graph: Dict[int, List[dict]], path: List[int], transport_mode: str = 'walk') -> List[str]:
+    modes = []
+    for i in range(len(path) - 1):
+        from_id = path[i]
+        to_id = path[i + 1]
+        for edge in graph.get(from_id, []):
+            if edge['to'] == to_id:
+                modes.append(_edge_transport_mode(edge, transport_mode))
+                break
+    return modes
+
+
 # ==================== 3. TSP途经多点最短路径 ====================
 
+
 def tsp_shortest_path(
-    graph: Dict[int, List[Tuple[int, float, float]]],
+    graph: Dict[int, List[dict]],
     start: int,
     waypoints: List[int],
-    return_to_start: bool = True
-) -> Tuple[List[int], float]:
+    return_to_start: bool = True,
+    transport_mode: str = 'walk',
+    strategy: str = 'shortest_time'
+) -> Tuple[List[int], List[int], float, float, float, List[str]]:
     """
     途经多点的最短路径（TSP变种）
     使用贪心算法 + 2-opt优化
-    
-    Args:
-        graph: 道路图
-        start: 起点节点ID
-        waypoints: 途经点列表
-        return_to_start: 是否返回起点
-    
+
     Returns:
-        (最优路径, 总距离)
+        (完整路径, 访问顺序节点ID, 总优化目标成本, 总距离, 总时间, 实际使用交通方式列表)
     """
     if not waypoints:
-        return [start], 0
-    
+        return [start], [start], 0, 0, 0, []
+
     all_points = [start] + waypoints
     n = len(all_points)
-    
-    # 1. 预计算所有点之间的最短路径
+
     dist_matrix = {}
     path_matrix = {}
-    
+
     for i, p1 in enumerate(all_points):
         dist_matrix[i] = {}
         path_matrix[i] = {}
         for j, p2 in enumerate(all_points):
             if i != j:
-                dist, prev = dijkstra(graph, p1, p2)
+                dist, prev = dijkstra(graph, p1, p2, transport_mode, strategy)
                 if dist[p2] < float('inf'):
                     dist_matrix[i][j] = dist[p2]
                     path_matrix[i][j] = get_shortest_path(prev, p1, p2)
-    
-    # 检查连通性
+
     for i in range(n):
         for j in range(n):
             if i != j and dist_matrix[i].get(j, float('inf')) == float('inf'):
-                return [], float('inf')
-    
-    # 2. 贪心算法生成初始解
+                return [], [], float('inf'), 0, 0, []
+
     path = _greedy_tsp(dist_matrix, n, return_to_start)
-    
-    # 3. 2-opt优化
     path = _two_opt_optimize(path, dist_matrix, return_to_start)
-    
-    # 4. 计算总距离
-    total_distance = _calculate_tsp_distance(path, dist_matrix)
-    
-    # 5. 将节点索引转换为实际路径
+
+    total_cost = _calculate_tsp_distance(path, dist_matrix)
+    ordered_point_ids = [all_points[idx] for idx in path]
+
     full_path = []
     for i in range(len(path) - 1):
         from_idx = path[i]
@@ -245,8 +312,12 @@ def tsp_shortest_path(
             full_path.extend(segment[1:])
         else:
             full_path.extend(segment)
-    
-    return full_path, total_distance
+
+    total_distance = calculate_path_distance(graph, full_path)
+    total_duration = calculate_path_duration(graph, full_path, transport_mode)
+    transport_modes = extract_segment_transport_modes(graph, full_path, transport_mode)
+
+    return full_path, ordered_point_ids, total_cost, total_distance, total_duration, transport_modes
 
 
 def _greedy_tsp(dist_matrix: Dict, n: int, return_to_start: bool) -> List[int]:

@@ -205,6 +205,9 @@ class TravelDiary(Base):
     is_public = Column(Boolean, default=False)  # 是否公开
     images = Column(JSON)  # 图片列表
     videos = Column(JSON)  # 视频列表
+    itinerary = Column(JSON)  # 时间轴行程数据 [{day, title, spots: [{time, description, location}]}]
+    budget = Column(String(50))  # 预算
+    companion = Column(String(50))  # 同行伙伴
     view_count = Column(Integer, default=0)  # 浏览量
     avg_rating = Column(Float, default=0)  # 平均评分
     rating_count = Column(Integer, default=0)  # 评分人数
@@ -223,6 +226,21 @@ class DiaryRating(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     rating = Column(Integer)  # 1-5星
     created_at = Column(String, default=datetime.now().isoformat)
+
+
+class DiaryComment(Base):
+    """日记评论表"""
+    __tablename__ = "diary_comments"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    diary_id = Column(Integer, ForeignKey("travel_diaries.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    parent_id = Column(Integer, ForeignKey("diary_comments.id"), nullable=True)  # 回复的评论ID
+    content = Column(Text, nullable=False)  # 评论内容
+    like_count = Column(Integer, default=0)  # 点赞数
+    is_deleted = Column(Boolean, default=False)  # 是否删除
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
 
 
 class Collection(Base):

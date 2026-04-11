@@ -15,5 +15,6 @@ declare module 'vue' {
     Navbar: typeof import('./src/components/Navbar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SmartDiaryEditor: typeof import('./src/components/SmartDiaryEditor.vue')['default']
   }
 }

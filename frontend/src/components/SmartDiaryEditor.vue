@@ -1,1193 +1,1025 @@
 <template>
   <div class="smart-editor">
-    <!-- 顶部工具栏 -->
-    <div class="editor-toolbar">
-      <div class="toolbar-group">
-        <span class="group-label">智能排版</span>
-        <button class="tool-btn primary" @click="autoFormat" title="一键美化">
-          <span class="btn-icon">✨</span>
-          <span class="btn-text">一键排版</span>
-        </button>
-        <button class="tool-btn ai-btn" @click="openAIPanel" title="AI润色">
-          <span class="btn-icon">🤖</span>
-          <span class="btn-text">AI润色</span>
-        </button>
-      </div>
-      
-      <div class="toolbar-divider"></div>
-      
-      <div class="toolbar-group">
-        <span class="group-label">快速插入</span>
-        <button class="tool-btn" @click="insertWeather" title="插入天气">
-          <span class="btn-icon">🌤️</span>
-          <span class="btn-text">天气</span>
-        </button>
-        <button class="tool-btn" @click="insertLocation" title="插入地点">
-          <span class="btn-icon">📍</span>
-          <span class="btn-text">地点</span>
-        </button>
-        <button class="tool-btn" @click="insertStats" title="插入统计">
-          <span class="btn-icon">📊</span>
-          <span class="btn-text">数据</span>
-        </button>
-        <button class="tool-btn" @click="insertMood" title="插入心情">
-          <span class="btn-icon">😊</span>
-          <span class="btn-text">心情</span>
-        </button>
-        <button class="tool-btn" @click="insertFood" title="插入美食">
-          <span class="btn-icon">🍜</span>
-          <span class="btn-text">美食</span>
-        </button>
-        <button class="tool-btn" @click="insertTransport" title="插入交通">
-          <span class="btn-icon">🚗</span>
-          <span class="btn-text">交通</span>
-        </button>
-        <button class="tool-btn" @click="insertHotel" title="插入住宿">
-          <span class="btn-icon">🏨</span>
-          <span class="btn-text">住宿</span>
-        </button>
-        <button class="tool-btn" @click="insertCost" title="插入花费">
-          <span class="btn-icon">💰</span>
-          <span class="btn-text">花费</span>
-        </button>
-      </div>
-      
-      <div class="toolbar-divider"></div>
-      
-      <div class="toolbar-group">
-        <span class="group-label">模板</span>
-        <button class="tool-btn" @click="applyTemplate('travel')" title="行程模板">
-          <span class="btn-icon">🏃</span>
-          <span class="btn-text">行程</span>
-        </button>
-        <button class="tool-btn" @click="applyTemplate('food')" title="美食模板">
-          <span class="btn-icon">🍜</span>
-          <span class="btn-text">美食</span>
-        </button>
-        <button class="tool-btn" @click="applyTemplate('photo')" title="摄影模板">
-          <span class="btn-icon">📸</span>
-          <span class="btn-text">摄影</span>
-        </button>
-      </div>
-    </div>
-    
-    <!-- 编辑区域 -->
-    <div class="editor-container">
-      <div class="editor-wrapper">
-        <div class="editor-header">
-          <input 
-            type="text" 
-            v-model="title" 
-            class="title-input" 
-            placeholder="给日记起个标题..."
-          />
-        </div>
-        
-        <textarea 
-          ref="editorRef"
-          v-model="content" 
-          class="content-editor"
-          placeholder="开始记录你的旅行故事...
-
-💡 小贴士：
-• 点击'一键排版'让日记自动变美
-• 使用模板快速开始
-• 插入天气、地点让日记更完整"
-          @keydown="handleKeydown"
-        ></textarea>
-        
-        <!-- 字数统计 -->
-        <div class="editor-footer">
-          <span class="word-count">{{ content.length }} 字</span>
-          <span class="last-saved" v-if="lastSaved">已保存 {{ formatTime(lastSaved) }}</span>
-        </div>
-      </div>
-      
-      <!-- 实时预览 -->
-      <div class="preview-wrapper">
-        <div class="preview-header">
-          <span class="preview-title">👁️ 预览效果</span>
-          <button class="preview-toggle" @click="showPreview = !showPreview">
-            {{ showPreview ? '隐藏' : '显示' }}
-          </button>
-        </div>
-        <div v-show="showPreview" class="preview-content" v-html="renderedContent"></div>
-      </div>
-    </div>
-    
-    <!-- 底部操作栏 -->
-    <div class="editor-actions">
-      <button class="action-btn secondary" @click="emit('cancel')">取消</button>
-      <button class="action-btn secondary" @click="saveDraft">保存草稿</button>
-      <button class="action-btn primary" @click="publish" :disabled="!canPublish">
-        发布日记
-      </button>
-    </div>
-    
-    <!-- ========== AI 生成侧边面板 ========== -->
-    <div v-if="showAIPanel" class="ai-panel-overlay" @click.self="closeAIPanel">
-      <div class="ai-panel" :class="{ 'panel-open': showAIPanel }">
-        <!-- 面板头部 -->
-        <div class="ai-panel-header">
-          <div class="ai-title">
-            <span class="ai-icon">🤖</span>
-            <span>AI 智能助手</span>
+    <!-- 分屏布局：桌面端 -->
+    <div class="editor-layout" :class="{ 'mobile': isMobile }">
+      <!-- 左侧：编辑区 -->
+      <div class="edit-section">
+        <!-- Magic Input 区域 -->
+        <div class="magic-input-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <span class="title-icon">✨</span>
+              魔法输入
+            </h3>
+            <p class="section-desc">随意记录你的旅行点滴，AI会帮你整理成精美的日记</p>
           </div>
-          <button class="close-btn" @click="closeAIPanel">×</button>
-        </div>
-        
-        <!-- 输入区域 -->
-        <div class="ai-input-section">
-          <label class="input-label">
-            <span class="label-icon">💡</span>
-            输入你的灵感或关键词
-          </label>
-          <textarea 
-            v-model="aiInput"
-            class="ai-input"
-            placeholder="例如：今天在上海吃到了一家超赞的本帮菜，红烧肉肥而不腻..."
-            rows="4"
-          ></textarea>
           
-          <!-- 快捷提示词 -->
-          <div class="quick-prompts">
-            <span class="prompt-label">快捷输入：</span>
-            <button 
-              v-for="prompt in quickPrompts" 
-              :key="prompt"
-              class="prompt-chip"
-              @click="aiInput = prompt"
-            >
-              {{ prompt.length > 15 ? prompt.slice(0, 15) + '...' : prompt }}
-            </button>
-          </div>
-        </div>
-        
-        <!-- 风格选择 -->
-        <div class="ai-style-section">
-          <label class="input-label">选择写作风格</label>
-          <div class="style-options">
-            <button 
-              v-for="style in writingStyles" 
-              :key="style.key"
-              class="style-chip"
-              :class="{ active: selectedStyle === style.key }"
-              @click="selectedStyle = style.key"
-            >
-              <span class="style-emoji">{{ style.emoji }}</span>
-              <span class="style-name">{{ style.name }}</span>
-            </button>
-          </div>
-        </div>
-        
-        <!-- 生成按钮 -->
-        <button 
-          class="generate-btn"
-          :disabled="!aiInput.trim() || aiGenerating"
-          @click="generateWithAI"
-        >
-          <span v-if="!aiGenerating" class="btn-content">
-            <span class="btn-icon">✨</span>
-            <span>生成日记内容</span>
-          </span>
-          <span v-else class="btn-content">
-            <span class="loading-spinner"></span>
-            <span>AI 创作中...</span>
-          </span>
-        </button>
-        
-        <!-- 生成结果 -->
-        <div v-if="aiGeneratedContent" class="ai-result-section">
-          <div class="result-header">
-            <span class="result-title">🎉 AI 生成结果</span>
-            <div class="result-actions">
-              <button class="action-icon-btn" @click="regenerate" title="重新生成">
-                🔄
+          <div class="input-wrapper">
+            <textarea
+              v-model="rawInput"
+              class="magic-textarea"
+              placeholder="在这里随意写下你的旅行笔记...
+
+例如：
+今天早上9点到了京都站，天气很好。先去酒店放了行李，然后去了清水寺，人很多但是景色超美。中午在二年坂吃了拉面，下午去了岚山看竹林。晚上回酒店休息。
+
+或者上传图片，让AI帮你识别地点和场景！"
+              @input="handleInput"
+            ></textarea>
+            
+            <!-- 图片上传 -->
+            <div class="upload-area" v-if="!uploadedImages.length">
+              <input
+                type="file"
+                ref="fileInput"
+                multiple
+                accept="image/*"
+                @change="handleImageUpload"
+                class="file-input"
+              />
+              <button class="upload-btn" @click="$refs.fileInput.click()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>添加图片</span>
               </button>
-              <button class="action-icon-btn" @click="copyResult" title="复制">
-                📋
+            </div>
+            
+            <!-- 已上传图片预览 -->
+            <div class="image-preview-list" v-else>
+              <div v-for="(img, index) in uploadedImages" :key="index" class="preview-item">
+                <img :src="img" alt="预览" />
+                <button class="remove-btn" @click="removeImage(index)">×</button>
+              </div>
+              <button class="add-more-btn" @click="$refs.fileInput.click()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
               </button>
             </div>
           </div>
           
-          <div class="result-content">
-            <div class="content-preview">{{ aiGeneratedContent }}</div>
+          <!-- AI 整理按钮 -->
+          <button
+            class="ai-organize-btn"
+            :class="{ 'loading': isOrganizing, 'has-content': rawInput.trim() }"
+            :disabled="!rawInput.trim() || isOrganizing"
+            @click="organizeWithAI"
+          >
+            <span v-if="!isOrganizing" class="btn-content">
+              <svg class="sparkle-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L14.09 8.26L20 9.27L15.55 13.14L16.82 19.02L12 15.77L7.18 19.02L8.45 13.14L4 9.27L9.91 8.26L12 2Z"/>
+              </svg>
+              <span>AI 智能整理</span>
+            </span>
+            <span v-else class="btn-content">
+              <span class="loading-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <span>AI 正在整理...</span>
+            </span>
+          </button>
+        </div>
+        
+        <!-- 手动编辑区（展开后显示） -->
+        <div class="manual-edit-section" v-if="showManualEdit">
+          <div class="section-header">
+            <h3 class="section-title">手动编辑</h3>
+            <button class="toggle-btn" @click="showManualEdit = false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="18 15 12 9 6 15"/>
+              </svg>
+            </button>
           </div>
-          
-          <!-- 使用按钮 -->
-          <div class="result-footer">
-            <button class="use-btn" @click="useGeneratedContent">
-              <span>✅ 使用这段内容</span>
+          <div class="manual-inputs">
+            <div class="input-group">
+              <label>标题</label>
+              <input v-model="diaryTitle" type="text" placeholder="给你的日记起个标题" />
+            </div>
+            <div class="input-row">
+              <div class="input-group">
+                <label>预算</label>
+                <input v-model="diaryBudget" type="text" placeholder="¥3,000" />
+              </div>
+              <div class="input-group">
+                <label>同伴</label>
+                <input v-model="diaryCompanion" type="text" placeholder="朋友" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧：预览区 -->
+      <div class="preview-section">
+        <div class="preview-header">
+          <h3 class="preview-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            实时预览
+          </h3>
+          <div class="preview-actions">
+            <button class="action-btn" @click="showManualEdit = !showManualEdit">
+              {{ showManualEdit ? '收起' : '编辑' }}
             </button>
           </div>
         </div>
         
-        <!-- 空状态提示 -->
-        <div v-else-if="!aiGenerating" class="ai-empty-state">
-          <div class="empty-icon">✨</div>
-          <p class="empty-title">AI 帮你写日记</p>
-          <p class="empty-desc">输入关键词，选择风格，一键生成精美日记</p>
+        <div class="preview-content">
+          <!-- 空状态 -->
+          <div v-if="!structuredData.length && !isOrganizing" class="empty-state">
+            <div class="empty-illustration">
+              <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                <circle cx="60" cy="60" r="50" fill="#F3F4F6"/>
+                <path d="M40 70L50 55L60 65L75 45L85 60" stroke="#6366F1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="45" cy="45" r="5" fill="#6366F1"/>
+                <circle cx="75" cy="40" r="4" fill="#8B5CF6"/>
+                <circle cx="85" cy="55" r="3" fill="#A78BFA"/>
+              </svg>
+            </div>
+            <h4 class="empty-title">开始你的旅行记录</h4>
+            <p class="empty-desc">
+              在左侧输入你的旅行笔记<br>
+              点击"AI 智能整理"按钮，见证魔法发生 ✨
+            </p>
+            <div class="empty-tips">
+              <div class="tip-item">
+                <span class="tip-icon">📝</span>
+                <span>支持自然语言描述</span>
+              </div>
+              <div class="tip-item">
+                <span class="tip-icon">🖼️</span>
+                <span>上传图片自动识别</span>
+              </div>
+              <div class="tip-item">
+                <span class="tip-icon">⚡</span>
+                <span>一键生成时间轴</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 加载状态 -->
+          <div v-else-if="isOrganizing" class="loading-state">
+            <div class="loading-animation">
+              <div class="loading-circle"></div>
+              <div class="loading-circle"></div>
+              <div class="loading-circle"></div>
+            </div>
+            <p class="loading-text">AI 正在分析你的旅行笔记...</p>
+            <p class="loading-subtext">识别时间、地点、活动</p>
+          </div>
+          
+          <!-- 预览卡片 -->
+          <div v-else class="preview-card">
+            <!-- Hero 区域 -->
+            <div class="preview-hero" v-if="uploadedImages.length">
+              <img :src="uploadedImages[0]" alt="封面" />
+              <div class="hero-overlay"></div>
+              <div class="hero-content">
+                <h2 class="hero-title">{{ diaryTitle || '未命名日记' }}</h2>
+                <div class="hero-meta">
+                  <span>{{ formatDate(new Date()) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 信息标签 -->
+            <div class="info-pills">
+              <div class="pill budget-pill" v-if="diaryBudget">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>{{ diaryBudget }}</span>
+              </div>
+              <div class="pill companion-pill" v-if="diaryCompanion">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span>{{ diaryCompanion }}</span>
+              </div>
+            </div>
+            
+            <!-- 时间轴 -->
+            <div class="timeline-section">
+              <h4 class="timeline-title">行程安排</h4>
+              <div class="timeline">
+                <div
+                  v-for="(day, dayIndex) in structuredData"
+                  :key="dayIndex"
+                  class="timeline-day"
+                >
+                  <div class="day-header">
+                    <div class="day-badge">Day {{ day.day }}</div>
+                    <span class="day-theme">{{ day.theme || '精彩一天' }}</span>
+                  </div>
+                  <div class="day-content">
+                    <div
+                      v-for="(activity, actIndex) in day.activities"
+                      :key="actIndex"
+                      class="timeline-item"
+                    >
+                      <div class="timeline-marker">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line" v-if="actIndex < day.activities.length - 1"></div>
+                      </div>
+                      <div class="timeline-card">
+                        <div class="card-time">{{ activity.time }}</div>
+                        <div class="card-content">
+                          <h5 class="card-title">{{ activity.title }}</h5>
+                          <p class="card-location" v-if="activity.location">
+                            <span class="location-pin">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                              </svg>
+                            </span>
+                            <span class="location-name">{{ activity.location }}</span>
+                          </p>
+                          <p class="card-insight" v-if="activity.insight">
+                            <span class="insight-dot">✦</span>
+                            {{ activity.insight }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 图片画廊 -->
+            <div class="gallery-section" v-if="uploadedImages.length > 1">
+              <h4 class="gallery-title">旅行相册</h4>
+              <div class="gallery-grid">
+                <div
+                  v-for="(img, index) in uploadedImages.slice(1)"
+                  :key="index"
+                  class="gallery-item"
+                >
+                  <img :src="img" alt="旅行照片" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     
-    <!-- 心情选择弹窗 -->
-    <div v-if="showMoodPicker" class="mood-picker-modal" @click.self="showMoodPicker = false">
-      <div class="mood-picker-content">
-        <h3>选择今天的心情</h3>
-        <div class="mood-grid">
-          <button 
-            v-for="mood in moods" 
-            :key="mood.emoji"
-            class="mood-item"
-            @click="insertMoodText(mood)"
-          >
-            <span class="mood-emoji">{{ mood.emoji }}</span>
-            <span class="mood-label">{{ mood.label }}</span>
-          </button>
-        </div>
-      </div>
+    <!-- 底部操作栏 -->
+    <div class="editor-footer-bar">
+      <button class="footer-btn secondary" @click="emit('cancel')">取消</button>
+      <button
+        class="footer-btn primary"
+        :disabled="!canPublish"
+        @click="publishDiary"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        发布日记
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-
-const props = defineProps({
-  initialTitle: { type: String, default: '' },
-  initialContent: { type: String, default: '' },
-  initialType: { type: String, default: 'travel' }
-})
 
 const emit = defineEmits(['save', 'publish', 'cancel'])
 
-// 编辑器状态
-const title = ref(props.initialTitle)
-const content = ref(props.initialContent)
-const editorRef = ref(null)
-const lastSaved = ref(null)
-const showPreview = ref(true)
-const showMoodPicker = ref(false)
+// 响应式状态
+const isMobile = ref(window.innerWidth < 768)
+const rawInput = ref('')
+const isOrganizing = ref(false)
+const uploadedImages = ref([])
+const showManualEdit = ref(false)
 
-// AI面板状态
-const showAIPanel = ref(false)
-const aiInput = ref('')
-const aiGenerating = ref(false)
-const aiGeneratedContent = ref('')
-const selectedStyle = ref('healing')
+// 日记元数据
+const diaryTitle = ref('')
+const diaryBudget = ref('')
+const diaryCompanion = ref('')
 
-// 快捷提示词
-const quickPrompts = [
-  '今天去了故宫，人很多但景色很美',
-  '发现一家藏在巷子里的火锅店',
-  '在西湖边散步，看到了很美的日落',
-  '第一次尝试跳伞，太刺激了'
-]
+// 结构化数据
+const structuredData = ref([])
 
-// 写作风格
-const writingStyles = [
-  { key: 'healing', name: '治愈系', emoji: '🌸' },
-  { key: 'humorous', name: '幽默风', emoji: '😄' },
-  { key: 'documentary', name: '纪实风', emoji: '📰' },
-  { key: 'poetic', name: '诗意风', emoji: '🌙' },
-  { key: 'concise', name: '简洁风', emoji: '✨' }
-]
-
-// 心情选项
-const moods = [
-  { emoji: '😄', label: '开心', text: '今天心情超级棒！' },
-  { emoji: '😋', label: '满足', text: '吃得满足，玩得尽兴！' },
-  { emoji: '😲', label: '震撼', text: '被眼前的景色深深震撼了！' },
-  { emoji: '🥰', label: '幸福', text: '幸福感爆棚的一天！' },
-  { emoji: '😫', label: '疲惫', text: '虽然很累，但很值得！' },
-  { emoji: '😢', label: '感动', text: '被这份美好感动到了...' },
-  { emoji: '🤩', label: '兴奋', text: '太兴奋了，简直不敢相信！' },
-  { emoji: '😌', label: '平静', text: '内心无比平静祥和。' }
-]
-
-// 模板定义
-const templates = {
-  travel: `【今日行程】
-━━━━━━━━━━━━━━━━━━
-📍 目的地：
-⏰ 出发时间：
-👥 同行伙伴：
-🌤️ 天气情况：
-
-【路线规划】
-起点 → 途经点 → 终点
-📏 总距离：约 __ 公里
-⏱️ 总时长：约 __ 小时
-
-【行程亮点】
-1. 
-2. 
-3. 
-
-【实用贴士】
-• 交通：
-• 门票：
-• 注意事项：
-
-【今日花费】
-💰 交通：¥
-💰 餐饮：¥
-💰 门票：¥
-💰 其他：¥
-━━━━━━━━━━━━━━━━━━`,
-
-  food: `【美食探店】
-━━━━━━━━━━━━━━━━━━
-🍽️ 店名：
-📍 地址：
-⏰ 营业时间：
-💰 人均消费：¥
-
-【必点菜品】
-1. ⭐⭐⭐⭐⭐ 
-   评价：
-   
-2. ⭐⭐⭐⭐⭐ 
-   评价：
-   
-3. ⭐⭐⭐⭐⭐ 
-   评价：
-
-【环境服务】
-• 环境：
-• 服务：
-• 等位时长：
-
-【探店心得】
-
-【推荐指数】
-⭐⭐⭐⭐⭐
-━━━━━━━━━━━━━━━━━━`,
-
-  photo: `【摄影记录】
-━━━━━━━━━━━━━━━━━━
-📍 拍摄地点：
-📅 拍摄时间：
-🌤️ 天气状况：
-
-【器材参数】
-📷 相机：
-🔭 镜头：
-⚙️ 参数：光圈__ 快门__ ISO__
-
-【拍摄心得】
-• 最佳机位：
-• 拍摄技巧：
-• 后期思路：
-
-【作品展示】
-[插入照片]
-
-【拍摄建议】
-━━━━━━━━━━━━━━━━━━`
-}
+// 监听窗口大小变化
+onMounted(() => {
+  window.addEventListener('resize', () => {
+    isMobile.value = window.innerWidth < 768
+  })
+})
 
 // 计算属性
 const canPublish = computed(() => {
-  return title.value.trim() && content.value.trim().length > 10
+  return structuredData.value.length > 0 || rawInput.value.trim().length > 10
 })
 
-// 渲染预览内容
-const renderedContent = computed(() => {
-  return renderMarkdown(content.value)
-})
-
-// ========== AI 面板功能 ==========
-
-// 打开AI面板
-const openAIPanel = () => {
-  showAIPanel.value = true
-  aiInput.value = content.value.slice(0, 200) // 预填充当前内容的前200字
+// 处理输入
+const handleInput = () => {
+  // 可以在这里添加实时分析逻辑
 }
 
-// 关闭AI面板
-const closeAIPanel = () => {
-  showAIPanel.value = false
-  // 清空状态
-  aiInput.value = ''
-  aiGeneratedContent.value = ''
-  aiGenerating.value = false
+// 处理图片上传
+const handleImageUpload = (event) => {
+  const files = event.target.files
+  if (!files.length) return
+
+  Array.from(files).forEach(file => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      uploadedImages.value.push(e.target.result)
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
-// AI生成内容
-const generateWithAI = async () => {
-  if (!aiInput.value.trim()) {
-    ElMessage.warning('请输入一些关键词或灵感')
+// 移除图片
+const removeImage = (index) => {
+  uploadedImages.value.splice(index, 1)
+}
+
+// AI 整理功能
+const organizeWithAI = async () => {
+  if (!rawInput.value.trim()) {
+    ElMessage.warning('请先输入一些旅行笔记')
     return
   }
-  
-  aiGenerating.value = true
-  aiGeneratedContent.value = ''
-  
+
+  isOrganizing.value = true
+
   try {
-    // 模拟API调用（实际使用时替换为真实API）
+    // 模拟 AI 处理延迟
     await new Promise(resolve => setTimeout(resolve, 2000))
+
+    // 解析输入文本
+    const parsed = parseTravelNotes(rawInput.value)
+    structuredData.value = parsed.timeline
     
-    // 模拟生成结果
-    const styleMap = {
-      healing: '温柔治愈',
-      humorous: '轻松幽默',
-      documentary: '客观纪实',
-      poetic: '诗意优美',
-      concise: '简洁明了'
+    // 自动提取标题
+    if (!diaryTitle.value) {
+      diaryTitle.value = extractDiaryTitle(rawInput.value)
     }
     
-    aiGeneratedContent.value = generateMockContent(aiInput.value, styleMap[selectedStyle.value])
-    
-    ElMessage.success('AI生成完成！')
+    // 自动提取预算
+    if (!diaryBudget.value) {
+      diaryBudget.value = extractBudget(rawInput.value)
+    }
+
+    ElMessage.success('AI 整理完成！')
   } catch (error) {
-    ElMessage.error('生成失败，请重试')
+    console.error('整理失败:', error)
+    ElMessage.error('整理失败，请重试')
   } finally {
-    aiGenerating.value = false
+    isOrganizing.value = false
   }
 }
 
-// 模拟生成内容
-const generateMockContent = (input, style) => {
-  const contents = {
-    healing: `${input}...
+// ========== 智能解析旅行笔记 ==========
 
-🌸 今天的旅程，像是一首温柔的诗。
-
-阳光正好，微风不燥。走在陌生的街道上，心里却异常平静。那些平日里烦扰心头的琐事，在这一刻都烟消云散了。
-
-或许，这就是旅行的意义吧。不是为了逃离，而是为了更好地回来。
-
-愿每一个在路上的人，都能找到属于自己的那份宁静。✨`,
-
-    humorous: `${input}...
-
-😄 今天这趟出行，简直是一部喜剧片！
-
-先说这个导航，明明说左转，结果转进去是个死胡同。我都怀疑它是不是在跟我开玩笑。
-
-然后排队的时候，前面的大哥一直在跟店员砍价，我在后面数了数，整整砍了15分钟！最后便宜了5块钱...大哥，您的时薪这么低的吗？
-
-不过说真的，虽然一路波折，但回想起来还挺有意思的。毕竟，没有这些意外，怎么叫旅行呢？
-
-下次出门，我决定带个指南针。📱`,
-
-    documentary: `${input}...
-
-📍 时间：${new Date().toLocaleDateString()}
-📍 地点：待补充
-📍 天气：晴，22°C
-
-今日行程按计划进行。上午9时出发，途经主要景点3处，总步行距离约8公里。
-
-主要观察：
-• 人流量较平日增加约40%
-• 景点设施维护良好
-• 餐饮价格处于正常区间
-
-建议：
-• 避开上午10-11时高峰时段
-• 提前预订可节省等候时间
-• 携带便携充电宝`,
-
-    poetic: `${input}...
-
-🌙 暮色四合，华灯初上。
-
-这座城市的夜，像是一幅泼墨山水画。霓虹是点睛的朱砂，车流是流动的墨色。
-
-我站在桥头，看万家灯火次第亮起。每一盏灯下，都有一个故事正在发生。
-
-风从江面吹来，带着水汽和远方的气息。这一刻，忽然明白了古人为何总爱登高望远——
-
-原来，站得高一些，不是为了看得更远，而是为了把心放得更宽。
-
-今夜，愿好梦。🌙`,
-
-    concise: `${input}...
-
-✨ 今日要点：
-
-📍 地点：待补充
-⏱️ 时长：约X小时
-💰 花费：约X元
-
-✅ 完成事项：
-• 
-• 
-• 
-
-⭐ 评分：X/10
-
-💡 下次改进：
-• 
-• `}
+// 去噪：移除填充词
+const denoiseText = (text) => {
+  const fillerWords = [
+    '哎呀', '我觉得', '大概', '可能', '好像', '那个', '这个',
+    '然后', '接着', '之后', '后来', '最后', '首先', '其实',
+    '说实话', '说真的', '怎么说呢', '总之', '反正', '就是'
+  ]
   
-  return contents[selectedStyle.value] || contents.healing
+  let cleaned = text
+  fillerWords.forEach(word => {
+    cleaned = cleaned.replace(new RegExp(word, 'g'), '')
+  })
+  
+  // 移除多余的空格和标点
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+  
+  return cleaned
 }
 
-// 重新生成
-const regenerate = () => {
-  generateWithAI()
-}
-
-// 复制结果
-const copyResult = () => {
-  navigator.clipboard.writeText(aiGeneratedContent.value)
-  ElMessage.success('已复制到剪贴板')
-}
-
-// 使用生成的内容
-const useGeneratedContent = () => {
-  content.value = aiGeneratedContent.value
-  closeAIPanel()
-  ElMessage.success('已应用到编辑器')
-}
-
-// ========== 一键排版功能 ==========
-const autoFormat = () => {
-  let text = content.value
-  if (!text.trim()) {
-    ElMessage.warning('先写点什么再排版吧~')
-    return
-  }
-
-  // 1. 智能分段（每2-4句一段）
-  text = smartParagraph(text)
-  
-  // 2. 添加时间emoji
-  text = addTimeEmoji(text)
-  
-  // 3. 添加地点标记
-  text = addLocationMarker(text)
-  
-  // 4. 添加情绪emoji
-  text = addEmotionEmoji(text)
-  
-  // 5. 格式化标题和分隔线
-  text = formatHeaders(text)
-  
-  // 6. 美化列表
-  text = beautifyLists(text)
-
-  content.value = text
-  ElMessage.success('✨ 排版完成！日记变美了~')
-}
-
-// 智能分段
-const smartParagraph = (text) => {
-  const sentences = text.split(/([。！？；\.\!\?\;]+)/)
-  let result = []
-  let currentPara = []
-  
-  for (let i = 0; i < sentences.length; i += 2) {
-    const sentence = sentences[i] + (sentences[i + 1] || '')
-    if (sentence.trim()) {
-      currentPara.push(sentence.trim())
-      if (currentPara.length >= 2 && (currentPara.length >= 4 || Math.random() > 0.5)) {
-        result.push(currentPara.join(''))
-        currentPara = []
-      }
-    }
-  }
-  
-  if (currentPara.length > 0) {
-    result.push(currentPara.join(''))
-  }
-  
-  return result.join('\n\n')
-}
-
-// 添加时间emoji
-const addTimeEmoji = (text) => {
+// 时间标准化映射
+const normalizeTime = (text) => {
   const timeMap = {
-    '早上': '🌅 早上',
-    '上午': '☀️ 上午',
-    '中午': '🌤️ 中午',
-    '下午': '☀️ 下午',
-    '傍晚': '🌆 傍晚',
-    '晚上': '🌙 晚上',
-    '深夜': '🌃 深夜',
-    '凌晨': '🌌 凌晨'
+    // 早上
+    '早上六七点': '06:30',
+    '早上七八点': '07:30',
+    '早上八九点': '08:30',
+    '早上九点多': '09:30',
+    '早上十点': '10:00',
+    '早上十点多': '10:30',
+    '早上': '08:00',
+    // 上午
+    '上午': '10:00',
+    '上午九点多': '09:30',
+    '上午十点': '10:00',
+    '上午十点多': '10:30',
+    '上午十一点': '11:00',
+    // 中午
+    '中午': '12:00',
+    '中午十二点多': '12:30',
+    '中午一点': '13:00',
+    // 下午
+    '下午': '14:00',
+    '下午一两点': '13:30',
+    '下午两点多': '14:30',
+    '下午三四点': '15:30',
+    '下午四点': '16:00',
+    '傍晚': '17:30',
+    // 晚上
+    '晚上': '19:00',
+    '晚上六七点': '18:30',
+    '晚上七八点': '19:30',
+    '晚上八点': '20:00',
+    '晚上八点多': '20:30',
+    '晚上九点': '21:00',
+    '深夜': '23:00',
+    '凌晨': '05:00'
   }
   
-  Object.entries(timeMap).forEach(([key, value]) => {
-    text = text.replace(new RegExp(`^${key}|\\n${key}`, 'g'), (match) => {
-      return match.startsWith('\n') ? `\n${value}` : value
-    })
-  })
+  // 先尝试匹配完整短语
+  for (const [phrase, time] of Object.entries(timeMap)) {
+    if (text.includes(phrase)) {
+      return { time, matchedPhrase: phrase }
+    }
+  }
   
-  return text
+  // 匹配数字时间格式
+  const numMatch = text.match(/(\d{1,2})[点:：](\d{0,2})?/)
+  if (numMatch) {
+    const hour = numMatch[1].padStart(2, '0')
+    const minute = (numMatch[2] || '00').padStart(2, '0')
+    return { time: `${hour}:${minute}`, matchedPhrase: numMatch[0] }
+  }
+  
+  return { time: '09:00', matchedPhrase: '' }
 }
 
-// 添加地点标记
-const addLocationMarker = (text) => {
+// 提取地点
+const extractLocation = (text) => {
+  // 地点关键词模式
   const locationPatterns = [
-    /([^，。！？\n]{2,10})(公园|景区|景点|博物馆|美术馆|餐厅|酒店|机场|车站|广场|大街|路|街|巷|胡同)/g
+    /在([\u4e00-\u9fa5]{2,8})(?:站|寺|宫|社|园|馆|店|场|街|路|巷|阁|塔|桥|山|湖|海|岛|村|镇|城|区)/,
+    /去([\u4e00-\u9fa5]{2,8})(?:站|寺|宫|社|园|馆|店|场|街|路|巷|阁|塔|桥|山|湖|海|岛|村|镇|城|区)?/,
+    /([\u4e00-\u9fa5]{2,8})(?:火锅|餐厅|饭店|酒店|民宿|客栈|机场|车站|地铁站|公交站|景区|景点|博物馆|美术馆|公园|广场|商场|超市)/,
+    /([\u4e00-\u9fa5]{2,6})(?:家|个)?(?:店|馆|厅|吧|屋|坊)/
   ]
   
-  locationPatterns.forEach(pattern => {
-    text = text.replace(pattern, '📍$1$2')
-  })
-  
-  return text
-}
-
-// 添加情绪emoji
-const addEmotionEmoji = (text) => {
-  const emotionMap = {
-    '好吃': '😋好吃',
-    '美味': '🤤美味',
-    '推荐': '👍推荐',
-    '不错': '👍不错',
-    '棒': '👍棒',
-    '累': '😫累',
-    '疲惫': '😮‍💨疲惫',
-    '走': '🚶走',
-    '逛': '🚶逛',
-    '拍照': '📸拍照',
-    '照片': '🖼️照片',
-    '风景': '🏞️风景',
-    '景色': '✨景色',
-    '美': '😍美',
-    '漂亮': '✨漂亮',
-    '震撼': '😲震撼',
-    '壮观': '✨壮观',
-    '开心': '😄开心',
-    '高兴': '🥳高兴',
-    '喜欢': '❤️喜欢',
-    '爱': '❤️爱',
-    '感动': '🥺感动',
-    '幸福': '🥰幸福',
-    '兴奋': '🤩兴奋',
-    '惊讶': '😲惊讶',
-    '舒服': '😌舒服',
-    '惬意': '😌惬意'
+  for (const pattern of locationPatterns) {
+    const match = text.match(pattern)
+    if (match) {
+      return match[1] || match[0]
+    }
   }
   
-  Object.entries(emotionMap).forEach(([word, emojiWord]) => {
-    if (!text.includes(emojiWord)) {
-      text = text.replace(new RegExp(word, 'g'), emojiWord)
-    }
-  })
-  
-  return text
+  return ''
 }
 
-// 格式化标题
-const formatHeaders = (text) => {
-  const headerPatterns = [
-    { pattern: /^(【.+?】|Day \d+|[一二三四五六七八九十]+、.+?)$/gm, prefix: '\n━━━━━━━━━━━━━━━━━━\n', suffix: '\n━━━━━━━━━━━━━━━━━━\n' },
-    { pattern: /^(早上|上午|中午|下午|晚上).+?$/gm, prefix: '\n📝 ' },
-    { pattern: /^(早餐|午餐|晚餐|美食|景点|住宿|交通).+?$/gm, prefix: '\n📍 ' }
+// 提取活动标题（简短动作）
+const extractTitle = (text, location) => {
+  // 动作关键词
+  const actionPatterns = [
+    /(?:吃|品尝|尝试)(?:了)?([\u4e00-\u9fa5]{2,8})/,
+    /(?:去|到|逛|游览|参观|打卡)(?:了)?([\u4e00-\u9fa5]{2,8})/,
+    /(?:住|入住|住在)(?:了)?([\u4e00-\u9fa5]{2,8})/,
+    /(?:拍|拍照|拍摄)(?:了)?([\u4e00-\u9fa5]{2,8})/,
+    /(?:买|购买|逛)(?:了)?([\u4e00-\u9fa5]{2,8})/,
+    /(?:看|观看|欣赏)(?:了)?([\u4e00-\u9fa5]{2,8})/
   ]
   
-  headerPatterns.forEach(({ pattern, prefix, suffix }) => {
-    text = text.replace(pattern, (match) => {
-      return `${prefix || ''}${match}${suffix || ''}`
-    })
-  })
+  for (const pattern of actionPatterns) {
+    const match = text.match(pattern)
+    if (match) {
+      const action = match[0].replace(/了/g, '')
+      return action
+    }
+  }
   
-  return text
+  // 如果没有匹配到动作，返回简化描述
+  return text.slice(0, 12).replace(/[，,。！!]/g, '')
 }
 
-// 美化列表
-const beautifyLists = (text) => {
-  text = text.replace(/^[•·\-]\s*/gm, '• ')
-  text = text.replace(/^(\d+[\.、])\s*/gm, '$1 ')
-  text = text.replace(/\n([•·\-\d])/g, '\n\n$1')
+// 提取Insight（氛围/感受）
+const extractInsight = (text) => {
+  // 感受关键词
+  const insightPatterns = [
+    /(?:感觉|觉得|体验)(?:很|特别|超级|真的)?([\u4e00-\u9fa5]{3,20})/,
+    /(?:景色|风景|环境|氛围|服务|味道)(?:很|特别|超级|真的)?([\u4e00-\u9fa5]{3,20})/,
+    /(?:推荐|值得|不错|很棒|超赞|绝美|震撼)([\u4e00-\u9fa5]{0,15})/,
+    /([\u4e00-\u9fa5]{3,20})(?:拍照|出片|打卡|必去|必吃)/
+  ]
   
-  return text
-}
-
-// ========== 一键插入功能 ==========
-
-const insertWeather = async () => {
-  const weatherTemplate = `🌤️ 今日天气
-━━━━━━━━━━━━━━━━━━
-📍 地点：北京
-🌡️ 温度：22°C / 15°C
-☁️ 天气：晴转多云
-💨 风力：东北风 2级
-💧 湿度：45%
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(weatherTemplate)
-  ElMessage.success('已插入天气模板')
-}
-
-const insertLocation = () => {
-  const locationTemplate = `📍 当前位置
-━━━━━━━━━━━━━━━━━━
-🏠 地点名称：
-🗺️ 详细地址：
-⏰ 到达时间：
-⏱️ 停留时长：
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(locationTemplate)
-}
-
-const insertStats = () => {
-  const statsTemplate = `📊 今日数据
-━━━━━━━━━━━━━━━━━━
-👣 步数：____ 步
-📏 距离：____ 公里
-⏱️ 时长：____ 小时
-💰 消费：¥____
-📷 照片：____ 张
-⭐ 评分：____ / 10
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(statsTemplate)
-}
-
-const insertMood = () => {
-  showMoodPicker.value = true
-}
-
-const insertMoodText = (mood) => {
-  const moodTemplate = `${mood.emoji} 今日心情
-━━━━━━━━━━━━━━━━━━
-${mood.text}
-
-具体描述：
-
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(moodTemplate)
-  showMoodPicker.value = false
-}
-
-const insertFood = () => {
-  const foodTemplate = `🍜 美食记录
-━━━━━━━━━━━━━━━━━━
-🍽️ 店名：
-📍 地址：
-💰 人均：¥
-⭐ 评分：
-
-【必点菜品】
-• 
-• 
-• 
-
-【口味评价】
-
-【推荐指数】⭐⭐⭐⭐⭐
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(foodTemplate)
-  ElMessage.success('已插入美食模板')
-}
-
-const insertTransport = () => {
-  const transportTemplate = `🚗 交通信息
-━━━━━━━━━━━━━━━━━━
-🚆 交通方式：
-📍 出发地：
-📍 目的地：
-⏰ 出发时间：
-⏱️ 行程时长：
-💰 费用：¥
-
-【交通体验】
-
-【实用贴士】
-• 
-• 
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(transportTemplate)
-  ElMessage.success('已插入交通模板')
-}
-
-const insertHotel = () => {
-  const hotelTemplate = `🏨 住宿信息
-━━━━━━━━━━━━━━━━━━
-🏠 酒店名称：
-📍 地址：
-💰 价格：¥/晚
-⭐ 评分：
-
-【房型设施】
-• 
-• 
-• 
-
-【入住体验】
-
-【周边便利】
-• 
-• 
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(hotelTemplate)
-  ElMessage.success('已插入住宿模板')
-}
-
-const insertCost = () => {
-  const costTemplate = `💰 今日花费
-━━━━━━━━━━━━━━━━━━
-🚗 交通：¥
-🍜 餐饮：¥
-🏨 住宿：¥
-🎫 门票：¥
-🛍️ 购物：¥
-🎁 其他：¥
-
-━━━━━━━━━━━━━━━━━━
-💵 总计：¥
-━━━━━━━━━━━━━━━━━━`
-  
-  insertAtCursor(costTemplate)
-  ElMessage.success('已插入花费模板')
-}
-
-const applyTemplate = (type) => {
-  const template = templates[type]
-  if (template) {
-    if (content.value.trim()) {
-      if (!confirm('当前内容将被替换，确定使用模板吗？')) {
-        return
+  for (const pattern of insightPatterns) {
+    const match = text.match(pattern)
+    if (match) {
+      let insight = match[0]
+      // 限制长度
+      if (insight.length > 20) {
+        insight = insight.slice(0, 20) + '...'
       }
+      return insight
     }
-    content.value = template
+  }
+  
+  // 默认返回简化描述
+  return text.slice(0, 18) + (text.length > 18 ? '...' : '')
+}
+
+// 主解析函数
+const parseTravelNotes = (text) => {
+  // 1. 去噪
+  const cleanedText = denoiseText(text)
+  
+  // 2. 按句子分割
+  const sentences = cleanedText
+    .split(/[。！!\n]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 3)
+  
+  const timeline = []
+  let currentDay = {
+    day: 1,
+    theme: '精彩一天',
+    activities: []
+  }
+  
+  sentences.forEach((sentence, index) => {
+    // 检测是否是新一天的开始
+    if (sentence.includes('第') && sentence.includes('天')) {
+      if (currentDay.activities.length > 0) {
+        timeline.push({ ...currentDay })
+        currentDay = {
+          day: currentDay.day + 1,
+          theme: '精彩一天',
+          activities: []
+        }
+      }
+      return
+    }
     
-    const titles = {
-      travel: '我的旅行日记',
-      food: '美食探店记录',
-      photo: '摄影随拍笔记'
-    }
-    if (!title.value) {
-      title.value = titles[type]
-    }
+    // 提取时间
+    const { time, matchedPhrase } = normalizeTime(sentence)
     
-    ElMessage.success(`已应用${type === 'travel' ? '行程' : type === 'food' ? '美食' : '摄影'}模板`)
-  }
-}
-
-const aiPolish = async () => {
-  if (!content.value.trim()) {
-    ElMessage.warning('先写点什么再润色吧~')
-    return
-  }
-  
-  // 打开AI面板并预填充内容
-  openAIPanel()
-}
-
-const insertAtCursor = (text) => {
-  const textarea = editorRef.value
-  if (!textarea) return
-  
-  const start = textarea.selectionStart
-  const end = textarea.selectionEnd
-  const before = content.value.substring(0, start)
-  const after = content.value.substring(end)
-  
-  content.value = before + '\n' + text + '\n' + after
-  
-  setTimeout(() => {
-    const newPos = start + text.length + 2
-    textarea.setSelectionRange(newPos, newPos)
-    textarea.focus()
-  }, 0)
-}
-
-const renderMarkdown = (text) => {
-  if (!text) return ''
-  
-  // 先处理HTML转义
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-  
-  // 处理分隔线（使用CSS样式替代特殊字符）
-  html = html.replace(/━{10,}/g, '<div class="divider-line"></div>')
-  
-  // 处理标题
-  html = html.replace(/^(【.+?】)$/gm, '<h3 class="preview-header">$1</h3>')
-  
-  // 处理Markdown风格的标题
-  html = html.replace(/^###\s+(.+)$/gm, '<h4 class="preview-subheader">$1</h4>')
-  html = html.replace(/^##\s+(.+)$/gm, '<h3 class="preview-header">$1</h3>')
-  html = html.replace(/^#\s+(.+)$/gm, '<h2 class="preview-title">$1</h2>')
-  
-  // 处理列表项
-  html = html.replace(/^•\s+(.+)$/gm, '<div class="list-item">• $1</div>')
-  html = html.replace(/^(\d+[.、])\s+(.+)$/gm, '<div class="list-item num">$1 $2</div>')
-  
-  // 处理引用块
-  html = html.replace(/^>\s+(.+)$/gm, '<blockquote class="quote-block">$1</blockquote>')
-  
-  // 处理高亮文本
-  html = html.replace(/==(.+?)==/g, '<mark class="highlight">$1</mark>')
-  
-  // 处理粗体和斜体
-  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
-  
-  // 处理emoji - 使用更广泛的匹配
-  // 匹配常见的emoji范围
-  html = html.replace(
-    /([\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F100}-\u{1F1FF}]|[\u{1F200}-\u{1F2FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[⭐✨❤️������❣️�������])/gu,
-    '<span class="big-emoji">$1</span>'
-  )
-  
-  // 处理换行
-  html = html.replace(/\n/g, '<br>')
-  
-  return html
-}
-
-const handleKeydown = (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault()
-    saveDraft()
-  }
-  
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    e.preventDefault()
-    if (canPublish.value) {
-      publish()
+    // 提取地点
+    const location = extractLocation(sentence)
+    
+    // 提取标题
+    const title = extractTitle(sentence, location)
+    
+    // 提取Insight
+    const insight = extractInsight(sentence)
+    
+    // 只有当有实质内容时才添加
+    if (title || location) {
+      currentDay.activities.push({
+        time,
+        title: title || '旅行活动',
+        location: location || '',
+        insight: insight || sentence.slice(0, 20)
+      })
     }
+  })
+  
+  // 添加最后一天
+  if (currentDay.activities.length > 0) {
+    timeline.push(currentDay)
   }
+  
+  // 如果没有解析出任何内容，创建一个默认的
+  if (timeline.length === 0 || timeline[0].activities.length === 0) {
+    timeline.push({
+      day: 1,
+      theme: '精彩一天',
+      activities: [{
+        time: '09:00',
+        title: '开始旅行',
+        location: '',
+        insight: cleanedText.slice(0, 20) || '期待已久的旅程'
+      }]
+    })
+  }
+  
+  return { timeline }
 }
 
-const saveDraft = () => {
-  const draft = {
-    title: title.value,
-    content: content.value,
-    savedAt: new Date().toISOString()
+// 提取日记主标题
+const extractDiaryTitle = (text) => {
+  const lines = text.split('\n')
+  for (const line of lines) {
+    if (line.includes('京都')) return '京都之旅'
+    if (line.includes('东京')) return '东京漫步'
+    if (line.includes('大阪')) return '大阪美食行'
+    if (line.includes('北海道')) return '北海道之旅'
+    if (line.includes('成都')) return '成都美食行'
+    if (line.includes('重庆')) return '山城漫步'
   }
-  localStorage.setItem('diary_draft', JSON.stringify(draft))
-  lastSaved.value = new Date()
-  ElMessage.success('草稿已保存')
-  emit('save', draft)
+  return '我的旅行日记'
 }
 
-const autoSave = () => {
-  if (content.value.trim()) {
-    saveDraft()
+// 提取预算
+const extractBudget = (text) => {
+  const budgetMatch = text.match(/(\d{3,5})元?/)
+  if (budgetMatch) {
+    return `¥${budgetMatch[1]}`
   }
+  return '¥3,000'
 }
 
-const publish = () => {
+// 格式化日期
+const formatDate = (date) => {
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+// 发布日记
+const publishDiary = () => {
   if (!canPublish.value) {
-    ElMessage.warning('标题和内容不能为空哦~')
+    ElMessage.warning('请先输入内容并整理')
     return
   }
-  
+
   const diary = {
-    title: title.value,
-    content: content.value,
+    title: diaryTitle.value || '我的旅行日记',
+    content: rawInput.value,
+    budget: diaryBudget.value,
+    companion: diaryCompanion.value,
+    images: uploadedImages.value,
+    timeline: structuredData.value,
     createdAt: new Date().toISOString()
   }
-  
+
   emit('publish', diary)
-  localStorage.removeItem('diary_draft')
   ElMessage.success('日记发布成功！')
 }
-
-const formatTime = (date) => {
-  const now = new Date()
-  const diff = now - date
-  
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  return `${Math.floor(diff / 86400000)}天前`
-}
-
-const loadDraft = () => {
-  const draft = localStorage.getItem('diary_draft')
-  if (draft) {
-    const data = JSON.parse(draft)
-    title.value = data.title || ''
-    content.value = data.content || ''
-    lastSaved.value = new Date(data.savedAt)
-  }
-}
-
-let autoSaveTimer = null
-watch(content, () => {
-  clearTimeout(autoSaveTimer)
-  autoSaveTimer = setTimeout(() => {
-    autoSave()
-  }, 30000)
-})
-
-loadDraft()
 </script>
 
 <style scoped>
 .smart-editor {
-  background: linear-gradient(180deg, #0a0a1a 0%, #12121f 100%);
-  border-radius: 16px;
-  padding: 20px;
-  color: #fff;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #F8F9FC 0%, #FFFFFF 50%, #F0F4F8 100%);
   position: relative;
 }
 
-/* 工具栏 */
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.group-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-right: 4px;
-  white-space: nowrap;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.tool-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.tool-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-}
-
-.tool-btn.primary {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(123, 44, 191, 0.2));
-  border-color: rgba(0, 212, 255, 0.3);
-}
-
-.tool-btn.primary:hover {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(123, 44, 191, 0.3));
-  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
-}
-
-.tool-btn.ai-btn {
-  background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 217, 61, 0.2));
-  border-color: rgba(255, 107, 107, 0.3);
-}
-
-.tool-btn.ai-btn:hover {
-  background: linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(255, 217, 61, 0.3));
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2);
-}
-
-.btn-icon {
-  font-size: 16px;
-}
-
-/* 编辑区域 */
-.editor-container {
+/* 分屏布局 */
+.editor-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
+  min-height: calc(100vh - 80px);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  gap: 24px;
 }
 
-@media (max-width: 900px) {
-  .editor-container {
-    grid-template-columns: 1fr;
-  }
+.editor-layout.mobile {
+  grid-template-columns: 1fr;
+  padding: 16px;
 }
 
-.editor-wrapper {
+/* 左侧编辑区 */
+.edit-section {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+/* Magic Input 区域 */
+.magic-input-section {
+  background: white;
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.section-header {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0 0 8px 0;
+}
+
+.title-icon {
+  font-size: 1.5rem;
+}
+
+.section-desc {
+  font-size: 0.9375rem;
+  color: #6B7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.magic-textarea {
+  width: 100%;
+  min-height: 280px;
+  padding: 20px;
+  border: 2px solid #E5E7EB;
+  border-radius: 16px;
+  font-size: 1rem;
+  line-height: 1.7;
+  resize: vertical;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  color: #374151;
+}
+
+.magic-textarea:focus {
+  outline: none;
+  border-color: #6366F1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.magic-textarea::placeholder {
+  color: #9CA3AF;
+}
+
+/* 上传区域 */
+.upload-area {
+  border: 2px dashed #D1D5DB;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+  border-color: #6366F1;
+  background: rgba(99, 102, 241, 0.02);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  color: #6B7280;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-btn:hover {
+  color: #6366F1;
+}
+
+.upload-btn svg {
+  stroke: currentColor;
+}
+
+/* 图片预览 */
+.image-preview-list {
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-.title-input {
-  width: 100%;
-  padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.preview-item {
+  position: relative;
+  width: 80px;
+  height: 80px;
   border-radius: 12px;
-  color: #fff;
-  font-size: 18px;
+  overflow: hidden;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-btn:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.add-more-btn {
+  width: 80px;
+  height: 80px;
+  border: 2px dashed #D1D5DB;
+  border-radius: 12px;
+  background: transparent;
+  color: #9CA3AF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.add-more-btn:hover {
+  border-color: #6366F1;
+  color: #6366F1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* AI 整理按钮 */
+.ai-organize-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 1rem;
   font-weight: 600;
-  transition: all 0.3s;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  position: relative;
+  overflow: hidden;
 }
 
-.title-input:focus {
-  outline: none;
-  border-color: rgba(0, 212, 255, 0.4);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.title-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.content-editor {
+.ai-organize-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
   width: 100%;
-  min-height: 400px;
-  padding: 18px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  color: #fff;
-  font-size: 15px;
-  line-height: 1.8;
-  resize: vertical;
-  font-family: inherit;
-  transition: all 0.3s;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
 }
 
-.content-editor:focus {
-  outline: none;
-  border-color: rgba(0, 212, 255, 0.3);
+.ai-organize-btn:hover::before {
+  left: 100%;
 }
 
-.content-editor::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+.ai-organize-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
 }
 
-.editor-footer {
+.ai-organize-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-organize-btn.loading {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.sparkle-icon {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.1) rotate(10deg); }
+}
+
+.loading-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite both;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* 手动编辑区 */
+.manual-edit-section {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.manual-edit-section .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 20px;
 }
 
-/* 预览区域 */
-.preview-wrapper {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+.toggle-btn {
+  width: 32px;
+  height: 32px;
+  background: #F3F4F6;
+  border: none;
+  border-radius: 8px;
+  color: #6B7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.toggle-btn:hover {
+  background: #E5E7EB;
+  color: #374151;
+}
+
+.manual-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input-group input {
+  padding: 12px 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  transition: all 0.2s ease;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* 右侧预览区 */
+.preview-section {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -1195,559 +1027,504 @@ loadDraft()
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 24px;
+  border-bottom: 1px solid #F3F4F6;
 }
 
 .preview-title {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.preview-toggle {
-  padding: 4px 12px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.preview-content {
-  padding: 20px;
-  min-height: 400px;
-  max-height: 500px;
-  overflow-y: auto;
-  line-height: 1.8;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.preview-content :deep(.divider-line) {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  margin: 16px 0;
-}
-
-.preview-content :deep(.preview-title) {
-  color: #00d4ff;
-  font-size: 20px;
-  font-weight: 700;
-  margin: 16px 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid rgba(0, 212, 255, 0.3);
-}
-
-.preview-content :deep(.preview-header) {
-  color: #00d4ff;
-  font-size: 16px;
-  font-weight: 600;
-  margin: 12px 0 8px;
-}
-
-.preview-content :deep(.preview-subheader) {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  font-weight: 600;
-  margin: 10px 0 6px;
-}
-
-.preview-content :deep(.big-emoji) {
-  font-size: 1.3em;
-  margin: 0 2px;
-  display: inline-block;
-}
-
-.preview-content :deep(.list-item) {
-  padding: 4px 0;
-  padding-left: 8px;
-  border-left: 2px solid rgba(0, 212, 255, 0.3);
-  margin: 4px 0;
-}
-
-.preview-content :deep(.list-item.num) {
-  border-left-color: rgba(123, 44, 191, 0.3);
-}
-
-.preview-content :deep(.quote-block) {
-  border-left: 3px solid rgba(255, 107, 107, 0.5);
-  padding: 8px 12px;
-  margin: 8px 0;
-  background: rgba(255, 107, 107, 0.05);
-  border-radius: 0 8px 8px 0;
-  font-style: italic;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.preview-content :deep(.highlight) {
-  background: linear-gradient(120deg, rgba(255, 217, 61, 0.3), rgba(255, 217, 61, 0.1));
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #ffd93d;
-}
-
-.preview-content :deep(strong) {
-  color: #fff;
-  font-weight: 600;
-}
-
-.preview-content :deep(em) {
-  color: rgba(255, 255, 255, 0.9);
-  font-style: italic;
-}
-
-/* 底部操作 */
-.editor-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.preview-title svg {
+  stroke: #6366F1;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .action-btn {
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.action-btn.secondary {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.action-btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.action-btn.primary {
-  background: linear-gradient(135deg, #00d4ff, #7b2cbf);
-  border: none;
-  color: #fff;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ========== AI 侧边面板 ========== */
-.ai-panel-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.ai-panel {
-  width: 420px;
-  max-width: 100%;
-  height: 100%;
-  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  animation: slideIn 0.3s ease;
-  overflow-y: auto;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.ai-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.ai-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.ai-icon {
-  font-size: 24px;
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  background: #F3F4F6;
   border: none;
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 20px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-}
-
-/* AI输入区域 */
-.ai-input-section {
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.input-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 12px;
-}
-
-.label-icon {
-  font-size: 16px;
-}
-
-.ai-input {
-  width: 100%;
-  padding: 14px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  color: #fff;
-  font-size: 14px;
-  line-height: 1.6;
-  resize: vertical;
-  font-family: inherit;
-  transition: all 0.3s;
-}
-
-.ai-input:focus {
-  outline: none;
-  border-color: rgba(0, 212, 255, 0.5);
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.ai-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* 快捷提示词 */
-.quick-prompts {
-  margin-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.prompt-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.prompt-chip {
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  color: #374151;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
-.prompt-chip:hover {
-  background: rgba(0, 212, 255, 0.1);
-  border-color: rgba(0, 212, 255, 0.3);
-  color: rgba(255, 255, 255, 0.9);
+.action-btn:hover {
+  background: #E5E7EB;
 }
 
-/* 风格选择 */
-.ai-style-section {
-  padding: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.style-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.style-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.style-chip:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.style-chip.active {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), rgba(123, 44, 191, 0.3));
-  border-color: rgba(0, 212, 255, 0.5);
-  color: #fff;
-}
-
-.style-emoji {
-  font-size: 16px;
-}
-
-/* 生成按钮 */
-.generate-btn {
-  margin: 0 24px 24px;
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.generate-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-}
-
-.generate-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.loading-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 生成结果区域 */
-.ai-result-section {
+.preview-content {
   flex: 1;
-  margin: 0 24px 24px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.result-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.result-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.action-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.result-content {
-  flex: 1;
-  padding: 20px;
   overflow-y: auto;
-  max-height: 400px;
-}
-
-.content-preview {
-  font-size: 14px;
-  line-height: 1.8;
-  color: rgba(255, 255, 255, 0.85);
-  white-space: pre-wrap;
-}
-
-.result-footer {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.use-btn {
-  width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #00d4ff, #7b2cbf);
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.use-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+  padding: 24px;
 }
 
 /* 空状态 */
-.ai-empty-state {
-  flex: 1;
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
   text-align: center;
+  padding: 48px 24px;
+  min-height: 400px;
 }
 
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.8;
+.empty-illustration {
+  margin-bottom: 24px;
 }
 
 .empty-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 8px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0 0 12px 0;
 }
 
 .empty-desc {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9375rem;
+  color: #6B7280;
+  margin: 0 0 32px 0;
   line-height: 1.6;
 }
 
-/* 心情选择弹窗 */
-.mood-picker-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+.empty-tips {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1001;
-}
-
-.mood-picker-content {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 28px;
-  max-width: 400px;
-  width: 90%;
-}
-
-.mood-picker-content h3 {
-  text-align: center;
-  margin-bottom: 24px;
-  font-size: 18px;
-  color: #fff;
-}
-
-.mood-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  flex-direction: column;
   gap: 12px;
 }
 
-.mood-item {
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #F9FAFB;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: #4B5563;
+}
+
+.tip-icon {
+  font-size: 1.125rem;
+}
+
+/* 加载状态 */
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  min-height: 400px;
+}
+
+.loading-animation {
+  display: flex;
   gap: 8px;
-  padding: 16px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+}
+
+.loading-circle {
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border-radius: 50%;
+  animation: pulse 1.4s ease-in-out infinite both;
+}
+
+.loading-circle:nth-child(1) { animation-delay: -0.32s; }
+.loading-circle:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.loading-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0 0 8px 0;
+}
+
+.loading-subtext {
+  font-size: 0.875rem;
+  color: #6B7280;
+  margin: 0;
+}
+
+/* 预览卡片 */
+.preview-card {
+  background: white;
+}
+
+/* Hero 区域 */
+.preview-hero {
+  position: relative;
+  aspect-ratio: 16/9;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.preview-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 100%);
+}
+
+.hero-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 32px;
+  color: white;
+}
+
+.hero-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+
+.hero-meta {
+  font-size: 0.9375rem;
+  opacity: 0.9;
+}
+
+/* 信息标签 */
+.info-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.budget-pill {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #059669;
+}
+
+.companion-pill {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: #4F46E5;
+}
+
+/* 时间轴 */
+.timeline-section {
+  margin-bottom: 32px;
+}
+
+.timeline-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0 0 20px 0;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.timeline-day {
+  position: relative;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.day-badge {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.day-theme {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.day-content {
+  padding-left: 8px;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 3px solid #6366F1;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(to bottom, #E0E7FF, #C7D2FE);
+  margin-top: 4px;
+}
+
+.timeline-card {
+  flex: 1;
+  background: #F9FAFB;
   border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #F3F4F6;
+}
+
+.card-time {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6366F1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0 0 6px 0;
+}
+
+.card-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px 0;
+}
+
+.location-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.location-pin svg {
+  stroke: white;
+  width: 12px;
+  height: 12px;
+}
+
+.location-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4B5563;
+}
+
+.card-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: #8B5CF6;
+  line-height: 1.5;
+  margin: 0;
+  padding: 8px 10px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(167, 139, 250, 0.08));
+  border-radius: 8px;
+  border-left: 3px solid #8B5CF6;
+}
+
+.insight-dot {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* 图片画廊 */
+.gallery-section {
+  margin-top: 32px;
+}
+
+.gallery-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0 0 16px 0;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.gallery-item {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.gallery-item:hover img {
+  transform: scale(1.05);
+}
+
+/* 底部操作栏 */
+.editor-footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  background: white;
+  border-top: 1px solid #E5E7EB;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
-.mood-item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-4px);
+.footer-btn.secondary {
+  background: #F3F4F6;
+  border: none;
+  color: #4B5563;
 }
 
-.mood-emoji {
-  font-size: 32px;
+.footer-btn.secondary:hover {
+  background: #E5E7EB;
 }
 
-.mood-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+.footer-btn.primary {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  border: none;
+  color: white;
+}
+
+.footer-btn.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.footer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .magic-input-section {
+    padding: 20px;
+  }
+  
+  .magic-textarea {
+    min-height: 200px;
+  }
+  
+  .preview-content {
+    padding: 16px;
+  }
+  
+  .hero-content {
+    padding: 20px;
+  }
+  
+  .hero-title {
+    font-size: 1.375rem;
+  }
+  
+  .timeline-card {
+    padding: 12px;
+  }
+  
+  .editor-footer-bar {
+    padding: 12px 16px;
+  }
+  
+  .footer-btn {
+    padding: 10px 18px;
+    font-size: 0.875rem;
+  }
 }
 </style>

@@ -104,6 +104,18 @@
       </div>
     </section>
 
+    <!-- 校园/园区导航入口 -->
+    <section v-if="hasInternalMap" class="nav-entry-section">
+      <button class="nav-entry-btn" @click="goInternalNav">
+        <span class="nav-icon">🗺️</span>
+        <div class="nav-entry-text">
+          <span class="nav-entry-title">{{ internalNavTitle }}</span>
+          <span class="nav-entry-sub">{{ internalNavSubtitle }}</span>
+        </div>
+        <span class="nav-arrow">›</span>
+      </button>
+    </section>
+
     <!-- 添加到行程 -->
     <section class="add-to-trip">
       <button class="collect-btn" :class="{ collected: isCollected }" @click="toggleCollect">
@@ -190,7 +202,10 @@ const showAddPhoto = ref(false)
 const showAddReview = ref(false)
 const isCollected = ref(false)
 const hasReviewed = ref(false)
+const hasInternalMap = ref(false)
 const userId = computed(() => localStorage.getItem('userId'))
+const internalNavTitle = computed(() => spot.value?.type === 'campus' ? '校园内导航' : '景区内部导航')
+const internalNavSubtitle = computed(() => spot.value?.type === 'campus' ? '校园路网 · 多目标路线规划' : '内部路网 · 多目标路线规划')
 
 const userTrips = ref([
   { id: 1, title: '北京三日游', days: 3 },
@@ -208,6 +223,7 @@ onMounted(async () => {
     await loadReviews(spotId)
     await checkIfReviewed(spotId)
     await loadPhotoSpots(spotId)
+    await checkInternalMap(spotId)
   }
 })
 
@@ -298,6 +314,22 @@ const formatDate = (dateStr) => {
 }
 
 const goBack = () => router.back()
+
+const checkInternalMap = async (spotId) => {
+  try {
+    const res = await fetch(`http://localhost:8000/api/route/nodes/${spotId}`)
+    if (res.ok) {
+      const data = await res.json()
+      hasInternalMap.value = (data.nodes || []).length > 0
+    }
+  } catch {
+    hasInternalMap.value = false
+  }
+}
+
+const goInternalNav = () => {
+  router.push({ path: '/internal-nav', query: { id: spot.value.id } })
+}
 
 const addToTrip = (tripId) => {
   showTripSelector.value = false
@@ -795,6 +827,57 @@ const submitPhoto = async () => {
   border-color: #ff6b6b;
   background: rgba(255, 107, 107, 0.1);
   color: #ff6b6b;
+}
+
+/* 校园导航入口 */
+.nav-entry-section {
+  padding: 15px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nav-entry-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(123, 44, 191, 0.08));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 16px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.nav-entry-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.18), rgba(123, 44, 191, 0.18));
+  border-color: rgba(0, 212, 255, 0.5);
+}
+
+.nav-icon { font-size: 28px; }
+
+.nav-entry-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.nav-entry-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #00d4ff;
+}
+
+.nav-entry-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nav-arrow {
+  font-size: 22px;
+  color: rgba(0, 212, 255, 0.6);
 }
 
 .add-trip-btn {

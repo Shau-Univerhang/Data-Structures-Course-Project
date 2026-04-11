@@ -1,4 +1,4 @@
-<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="comments-ratings-section">
     <!-- 评分区域 -->
     <div class="rating-section">
@@ -68,7 +68,14 @@
         
         <div class="comment-content">
           <div class="comment-header">
-            <span class="comment-username">{{ comment.username }}</span>
+            <div class="user-info">
+              <span class="comment-username">{{ comment.username }}</span>
+              <!-- 显示用户评分 -->
+              <span v-if="comment.user_rating" class="user-rating-badge">
+                <span class="star-icon">⭐</span>
+                <span class="rating-value">{{ comment.user_rating }}</span>
+              </span>
+            </div>
             <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
           </div>
           
@@ -166,50 +173,6 @@ const replyContent = ref('')
 const replyingTo = ref(null)
 const submitting = ref(false)
 
-// Mock 评论数据
-const mockComments = ref([
-  {
-    id: 1,
-    diary_id: props.diaryId,
-    user_id: 2,
-    username: '旅行达人',
-    parent_id: null,
-    content: '写得太棒了！京都的红叶季确实美不胜收，清水寺的日出我去年也去看过，真的值得早起。',
-    like_count: 12,
-    is_deleted: false,
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updated_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    replies: [
-      {
-        id: 2,
-        diary_id: props.diaryId,
-        user_id: 3,
-        username: '摄影师小王',
-        parent_id: 1,
-        content: '同意！尤其是岚山的竹林，清晨去几乎没人，拍照绝绝子！',
-        like_count: 5,
-        is_deleted: false,
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        updated_at: new Date(Date.now() - 86400000).toISOString(),
-        replies: []
-      }
-    ]
-  },
-  {
-    id: 3,
-    diary_id: props.diaryId,
-    user_id: 4,
-    username: '美食探索者',
-    parent_id: null,
-    content: '收藏了！正好计划明年去京都，你的攻略很详细，特别是住宿推荐部分。',
-    like_count: 8,
-    is_deleted: false,
-    created_at: new Date(Date.now() - 43200000).toISOString(),
-    updated_at: new Date(Date.now() - 43200000).toISOString(),
-    replies: []
-  }
-])
-
 // 格式化日期
 const formatDate = (dateStr) => {
   const date = new Date(dateStr)
@@ -227,21 +190,28 @@ const formatDate = (dateStr) => {
 // 加载评分
 const loadRatings = async () => {
   try {
-    const response = await fetch(`http://localhost:8000/api/diaries/${props.diaryId}/rating?user_id=${userId.value || ''}`)
+    const url = userId.value 
+      ? `/api/diaries/${props.diaryId}/rating?user_id=${userId.value}`
+      : `/api/diaries/${props.diaryId}/rating`
+    const response = await fetch(url)
     if (response.ok) {
       const data = await response.json()
       avgRating.value = data.avg_rating || 0
       ratingCount.value = data.rating_count || 0
+      // 设置当前用户的评分
+      if (data.user_rating) {
+        userRating.value = data.user_rating
+      }
     } else {
-      // 使用 Mock 数据
-      avgRating.value = 4.8
-      ratingCount.value = 156
+      // API 请求失败，重置为 0
+      avgRating.value = 0
+      ratingCount.value = 0
     }
   } catch (error) {
     console.error('加载评分失败:', error)
-    // 使用 Mock 数据
-    avgRating.value = 4.8
-    ratingCount.value = 156
+    // API 请求失败，重置为 0
+    avgRating.value = 0
+    ratingCount.value = 0
   }
 }
 
@@ -253,7 +223,7 @@ const submitRating = async (rating) => {
   }
   
   try {
-    const response = await fetch(`http://localhost:8000/api/diaries/${props.diaryId}/rating?user_id=${userId.value}`, {
+    const response = await fetch(`/api/diaries/${props.diaryId}/rating?user_id=${userId.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -294,17 +264,17 @@ const submitRating = async (rating) => {
 // 加载评论
 const loadComments = async () => {
   try {
-    const response = await fetch(`http://localhost:8000/api/diaries/${props.diaryId}/comments`)
+    const response = await fetch(`/api/diaries/${props.diaryId}/comments`)
     if (response.ok) {
       comments.value = await response.json()
     } else {
-      // 使用 Mock 数据
-      comments.value = mockComments.value
+      // API 请求失败，显示空评论列表
+      comments.value = []
     }
   } catch (error) {
     console.error('加载评论失败:', error)
-    // 使用 Mock 数据
-    comments.value = mockComments.value
+    // API 请求失败，显示空评论列表
+    comments.value = []
   }
 }
 
@@ -322,7 +292,7 @@ const submitComment = async () => {
 
   try {
     submitting.value = true
-    const response = await fetch(`http://localhost:8000/api/diaries/${props.diaryId}/comments?user_id=${userId.value}`, {
+    const response = await fetch(`/api/diaries/${props.diaryId}/comments?user_id=${userId.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -399,7 +369,7 @@ const submitReply = async (parentId) => {
   
   try {
     submitting.value = true
-    const response = await fetch(`http://localhost:8000/api/diaries/${props.diaryId}/comments?user_id=${userId.value}`, {
+    const response = await fetch(`/api/diaries/${props.diaryId}/comments?user_id=${userId.value}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -432,7 +402,7 @@ const submitReply = async (parentId) => {
 // 点赞评论
 const likeComment = async (comment) => {
   try {
-    const response = await fetch(`http://localhost:8000/api/comments/${comment.id}/like`, {
+    const response = await fetch(`/api/diaries/${props.diaryId}/comments/${comment.id}/like`, {
       method: 'POST'
     })
 
@@ -457,7 +427,7 @@ const deleteComment = async (commentId) => {
   if (!confirm('确定要删除这条评论吗？')) return
 
   try {
-    const response = await fetch(`http://localhost:8000/api/comments/${commentId}?user_id=${userId.value}`, {
+    const response = await fetch(`/api/diaries/${props.diaryId}/comments/${commentId}?user_id=${userId.value}`, {
       method: 'DELETE'
     })
 
@@ -609,6 +579,33 @@ onMounted(() => {
 
 .star.clickable.active {
   color: #f59e0b;
+}
+
+/* 用户评分徽章 */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.user-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.star-icon {
+  font-size: 0.7rem;
+}
+
+.rating-value {
+  font-size: 0.75rem;
 }
 
 /* 评论区标题 */
@@ -824,3 +821,6 @@ onMounted(() => {
   margin-top: 0.5rem;
 }
 </style>
+
+
+

@@ -27,11 +27,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true
-      },
-      '/images': {
-        target: 'http://localhost:8000',
-        changeOrigin: true
       }
+      // 注意：/images 不代理，由前端 public 目录直接提供
     }
   },
   build: {

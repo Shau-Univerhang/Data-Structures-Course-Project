@@ -101,17 +101,20 @@
 
     <!-- 导入行程弹窗 -->
     <div v-if="showImportModal" class="modal-overlay" @click.self="showImportModal = false">
-      <div class="modal-content">
+      <div class="modal-content import-modal">
         <h3>📥 导入小红书行程</h3>
-        <p class="modal-desc">粘贴小红书分享链接，AI自动提取行程信息</p>
-        <input 
-          type="text" 
-          class="tech-input" 
-          placeholder="粘贴小红书链接..."
-          v-model="importLink"
-        />
-        <button class="import-btn" @click="importFromXiaohongshu" :disabled="!importLink || isTyping">
-          {{ isTyping ? '解析中...' : '开始导入' }}
+        <p class="modal-desc">粘贴小红书笔记内容，AI自动提取行程信息</p>
+        
+        <textarea 
+          class="tech-textarea content-input" 
+          placeholder="请复制小红书笔记的标题和正文内容，粘贴到这里..."
+          v-model="importContent"
+          rows="8"
+        ></textarea>
+        <p class="input-tip">💡 复制笔记时建议包含：标题、行程安排、景点名称、美食推荐等信息</p>
+        
+        <button class="import-btn" @click="importFromXiaohongshu" :disabled="isImportDisabled">
+          {{ isTyping ? 'AI解析中...' : '开始导入' }}
         </button>
       </div>
     </div>
@@ -222,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { marked } from 'marked'
 import Navbar from '../components/Navbar.vue'
@@ -237,12 +240,18 @@ const showFoodModal = ref(false)
 const showSessionItineraryModal = ref(false)  // 会话内行程弹窗
 const showHistoryModal = ref(false)  // 对话历史弹窗
 const showNewChatConfirm = ref(false)  // 新对话确认弹窗
-const importLink = ref('')
+const importContent = ref('')  // 用户粘贴的笔记内容
 const chatSection = ref(null)
 const conversationHistory = ref([])  // 对话历史，用于上下文记忆
 const sessionItinerary = ref(null)  // 会话内的行程
 const chatHistoryList = ref([])  // 历史对话列表
 const spotImagesMap = ref({})  // 景点图片映射
+
+// 计算属性：判断导入按钮是否禁用
+const isImportDisabled = computed(() => {
+  if (isTyping.value) return true
+  return !importContent.value.trim() || importContent.value.trim().length < 10
+})
 
 // 页面加载时恢复对话历史
 onMounted(() => {
@@ -348,17 +357,18 @@ const sendMessage = async () => {
     const data = await response.json()
 
     if (data.reply) {
+      // 再次调用AI API，让AI提取行程信息
+      const itinerary = await extractItineraryWithAI(data.reply, question)
+
       // 添加到消息列表
       const msg = {
         role: 'assistant',
-        content: data.reply
+        content: data.reply,
+        itinerary: itinerary  // 附加行程数据，如果有的话
       }
       messages.value.push(msg)
       // 添加到对话历史
       conversationHistory.value.push({ role: 'assistant', content: data.reply })
-
-      // 再次调用AI API，让AI提取行程信息
-      await extractItineraryWithAI(data.reply, question)
 
       // 保存对话历史
       saveChatHistory()
@@ -375,13 +385,14 @@ const sendMessage = async () => {
     console.error('AI API Error:', error)
     // 如果API调用失败，使用本地响应
     const localReply = getLocalResponse(question)
+    // 从本地响应中提取行程
+    const itinerary = await extractItineraryWithAI(localReply, question)
     messages.value.push({
       role: 'assistant',
-      content: localReply
+      content: localReply,
+      itinerary: itinerary  // 附加行程数据，如果有的话
     })
     conversationHistory.value.push({ role: 'assistant', content: localReply })
-    // 从本地响应中提取行程
-    await extractItineraryWithAI(localReply, question)
   }
 
   isTyping.value = false
@@ -391,23 +402,25 @@ const sendMessage = async () => {
 
 // 导入小红书行程
 const importFromXiaohongshu = async () => {
-  if (!importLink.value || isTyping.value) return
-  
-  const link = importLink.value
-  messages.value.push({ role: 'user', content: `导入链接：${link}` })
+  if (isImportDisabled.value) return
+
+  const content = importContent.value.trim()
+
+  const userMsg = { role: 'user', content: '📋 导入小红书笔记内容' }
+  messages.value.push(userMsg)
+  conversationHistory.value.push(userMsg)
   showImportModal.value = false
-  importLink.value = ''
   isTyping.value = true
   
   await nextTick()
   scrollToBottom()
   
   try {
-    // 调用后端的导入小红书API
-    const response = await fetch('http://localhost:8000/api/xiaohongshu/parse', {
+    // 调用后端API分析笔记内容
+    const response = await fetch('http://localhost:8000/api/xiaohongshu/extract-itinerary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: link })
+      body: JSON.stringify({ content })
     })
     
     const data = await response.json()
@@ -417,62 +430,80 @@ const importFromXiaohongshu = async () => {
       const itinerary = data.itinerary
       sessionItinerary.value = itinerary
       
-      messages.value.push({ 
-        role: 'assistant', 
-        content: `✅ 解析成功！已提取行程信息：
+      // 构建景点列表显示
+      const spotsList = itinerary.spots && itinerary.spots.length > 0
+        ? itinerary.spots.map((spot, idx) => `${idx + 1}. ${spot}`).join('\n')
+        : '暂无具体景点'
+      
+      // 构建美食列表
+      const foodList = itinerary.food && itinerary.food.length > 0
+        ? itinerary.food.join('、')
+        : '暂无推荐'
+      
+      const assistantMsg = {
+        role: 'assistant',
+        content: `✅ **解析成功！** 已从笔记内容提取行程信息：
 
-<b>${itinerary.title || '行程'}</b>
-📍 目的地：${itinerary.destination || '未知'}
+📍 **${itinerary.title || '行程'}**
+🗺️ 目的地：${itinerary.destination || '未知'}
 📅 天数：${itinerary.days || '未知'}天
 
-💡 行程已同步到上方的"会话内的行程"，点击即可保存！`
-      })
+🏛️ **景点安排**：
+${spotsList}
+
+🍜 **美食推荐**：${foodList}
+
+💡 行程已同步到上方的"会话内的行程"，点击即可查看详情并保存！`,
+        itinerary: itinerary
+      }
+      messages.value.push(assistantMsg)
+      conversationHistory.value.push({ role: 'assistant', content: assistantMsg.content })
+
+      // 保存对话历史
+      saveChatHistory()
+
+      // 清空输入
+      importContent.value = ''
     } else {
-      messages.value.push({ 
-        role: 'assistant', 
-        content: `📥 正在解析链接...
+      // 显示调试信息
+      const debugInfo = data.debug_info ? JSON.stringify(data.debug_info, null, 2) : '无调试信息'
+      const errorMsg = {
+        role: 'assistant',
+        content: `❌ 解析失败
 
-🔍 正在分析小红书内容...
+${data.error || '无法从内容中识别行程信息'}
 
-${data.content ? `标题：${data.content.title || ''}\n` : ''}
-${data.content ? `摘要：${(data.content.summary || '').slice(0, 100)}...` : ''}
+💡 **建议**：
+- 确保粘贴的内容包含具体的行程信息
+- 包含城市名称、景点名称、天数等关键信息
+- 内容越详细，识别效果越好
 
-✅ 解析完成！是否将此行程导入到你的行程中？`
-      })
+**调试信息**：
+\`\`\`
+${debugInfo}
+\`\`\``
+      }
+      messages.value.push(errorMsg)
+      conversationHistory.value.push({ role: 'assistant', content: errorMsg.content })
+
+      // 保存对话历史
+      saveChatHistory()
     }
   } catch (error) {
     console.error('Import Error:', error)
-    // 模拟成功响应
-    messages.value.push({ 
-      role: 'assistant', 
-      content: `📥 正在解析链接...
+    const networkErrorMsg = {
+      role: 'assistant',
+      content: `❌ 导入失败
 
-🔍 正在分析小红书内容...
+网络错误或服务器异常，请稍后重试。
 
-✅ 解析成功！已提取行程信息：
-
-<b>北京3日游攻略</b>
-📍 目的地：北京
-📅 天数：3天
-📍 行程安排：
-- Day1: 故宫 → 天安门 → 景山公园
-- Day2: 颐和园 → 圆明园 → 北大
-- Day3: 长城 → 南锣鼓巷
-
-是否将此行程导入到你的行程中？`
-    })
-    
-    // 尝试创建行程
-    try {
-      await createTripFromItinerary({
-        title: '北京3日游攻略',
-        destination: '北京',
-        days: 3,
-        spots: ['故宫', '天坛', '颐和园', '长城']
-      })
-    } catch (e) {
-      console.error('Create trip error:', e)
+如果问题持续存在，你可以直接和AI对话，描述你想去的城市和天数，让AI帮你规划行程。`
     }
+    messages.value.push(networkErrorMsg)
+    conversationHistory.value.push({ role: 'assistant', content: networkErrorMsg.content })
+
+    // 保存对话历史
+    saveChatHistory()
   }
   
   isTyping.value = false
@@ -653,7 +684,7 @@ ${aiReply}
             console.log('Final daySpots:', splitDaySpots)
             console.log('All spots:', splitSpots)
 
-            sessionItinerary.value = {
+            const itinerary = {
               title: extracted.title || `${extracted.destination}${days}日游`,
               destination: extracted.destination,
               days: days,
@@ -662,9 +693,13 @@ ${aiReply}
               food: extracted.food || ['当地特色美食'],
               preferences: ['必玩景点']
             }
+
+            sessionItinerary.value = itinerary
+            return itinerary
           } else {
             // 没有路线，清空会话行程
             sessionItinerary.value = null
+            return null
           }
         }
       } catch (parseError) {
@@ -673,6 +708,7 @@ ${aiReply}
         const fallbackItinerary = extractItineraryFromReply(aiReply, originalQuestion)
         if (fallbackItinerary) {
           sessionItinerary.value = fallbackItinerary
+          return fallbackItinerary
         }
       }
     }
@@ -682,8 +718,10 @@ ${aiReply}
     const fallbackItinerary = extractItineraryFromReply(aiReply, originalQuestion)
     if (fallbackItinerary) {
       sessionItinerary.value = fallbackItinerary
+      return fallbackItinerary
     }
   }
+  return null
 }
 
 // 备用：从AI回答中提取行程信息（正则提取）
@@ -1428,6 +1466,45 @@ const viewItineraryDetail = async (itinerary) => {
 }
 
 .import-btn:disabled { opacity: 0.5; }
+
+/* 导入弹窗样式 */
+.import-modal {
+  max-width: 480px;
+}
+
+.tech-textarea {
+  width: 100%;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.tech-textarea.content-input {
+  min-height: 150px;
+}
+
+.tech-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.tech-textarea:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+.input-tip {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 15px 0;
+  line-height: 1.4;
+}
 
 /* 行程卡片样式 */
 .itinerary-card {

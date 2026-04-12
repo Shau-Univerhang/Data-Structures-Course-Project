@@ -102,55 +102,73 @@ const showRenameModal = ref(false)
 const tripToRename = ref(null)
 const newTitle = ref('')
 
-// 从 localStorage 加载行程列表
-const loadTrips = () => {
-  const savedTripsStr = localStorage.getItem('savedTrips')
-  console.log('从 localStorage 读取的原始数据:', savedTripsStr)
+// 从数据库加载行程列表
+const loadTrips = async () => {
+  const userId = localStorage.getItem('userId') || '1'
   
-  const savedTrips = JSON.parse(savedTripsStr || '[]')
-  
-  console.log('解析后的行程数据:', savedTrips)
-  console.log('行程数量:', savedTrips.length)
-  
-  // 转换数据格式以适配页面显示
-  trips.value = savedTrips.map((trip, index) => {
-    console.log(`处理第${index + 1}个行程:`, trip?.title, 'daySpots:', trip?.daySpots)
-    // 计算总景点数
-    let spotCount = trip.totalSpots || 0
-    if (!spotCount && trip.daySpots) {
-      spotCount = Object.values(trip.daySpots).reduce((sum, day) => sum + (day?.length || 0), 0)
+  try {
+    // 从数据库获取行程
+    const response = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`)
+    if (!response.ok) {
+      throw new Error('获取行程失败')
     }
     
-    // 格式化日期
-    const createDate = new Date(trip.createTime)
-    const dateStr = `${createDate.getFullYear()}-${String(createDate.getMonth() + 1).padStart(2, '0')}-${String(createDate.getDate()).padStart(2, '0')}`
+    const dbTrips = await response.json()
+    console.log('从数据库读取的行程:', JSON.stringify(dbTrips, null, 2))
+    console.log('行程数量:', dbTrips.length)
+    console.log('dbTrips 类型:', typeof dbTrips)
+    console.log('dbTrips 是数组?', Array.isArray(dbTrips))
     
-    // 获取第一张图片作为行程封面
-    let image = ''
-    // 按天数顺序获取第一天的景点
-    const daySpotsMap = trip.daySpots || {}
-    const firstDayKey = Object.keys(daySpotsMap).sort((a, b) => parseInt(a) - parseInt(b))[0]
-    if (firstDayKey && daySpotsMap[firstDayKey] && daySpotsMap[firstDayKey].length > 0) {
-      image = daySpotsMap[firstDayKey][0].image || ''
-    }
-    // 如果没有景点图片，使用城市默认图片
-    if (!image) {
-      image = getCityImage(trip.city)
+    // 检查第一个行程的数据
+    if (dbTrips.length > 0) {
+      console.log('第一个行程:', dbTrips[0])
+      console.log('第一个行程的键:', Object.keys(dbTrips[0]))
+      console.log('spot_count:', dbTrips[0].spot_count, '类型:', typeof dbTrips[0].spot_count)
+      console.log('created_at:', dbTrips[0].created_at, '类型:', typeof dbTrips[0].created_at)
     }
     
-    return {
-      id: trip.id,
-      title: trip.title || `${trip.city}${trip.days}日游`,
-      city: trip.city,
-      days: trip.days,
-      spotCount: spotCount,
-      date: dateStr,
-      status: 'planned',
-      statusText: '已规划',
-      image: image,
-      rawData: trip // 保存原始数据以便查看详情时使用
-    }
-  }).reverse() // 最新的排在前面
+    // 转换数据格式以适配页面显示
+    trips.value = dbTrips.map((trip, index) => {
+      console.log(`处理第${index + 1}个行程:`, trip)
+      
+      // 格式化日期
+      let dateStr = '未知日期'
+      try {
+        if (trip.created_at) {
+          const createDate = new Date(trip.created_at)
+          if (!isNaN(createDate.getTime())) {
+            dateStr = `${createDate.getFullYear()}-${String(createDate.getMonth() + 1).padStart(2, '0')}-${String(createDate.getDate()).padStart(2, '0')}`
+          }
+        }
+      } catch (e) {
+        console.error('日期格式化失败:', e)
+      }
+      
+      // 使用城市默认图片
+      const image = getCityImage(trip.destination)
+      
+      // 获取景点数量
+      const spotCount = trip.spot_count !== undefined ? trip.spot_count : 0
+      
+      return {
+        id: trip.id,
+        title: trip.title || `${trip.destination}${trip.total_days}日游`,
+        city: trip.destination,
+        days: trip.total_days,
+        spotCount: spotCount,
+        date: dateStr,
+        status: trip.status || 'planned',
+        statusText: trip.status === 'completed' ? '已完成' : '已规划',
+        image: image,
+        rawData: trip // 保存原始数据以便查看详情时使用
+      }
+    }).reverse() // 最新的排在前面
+    
+  } catch (error) {
+    console.error('加载行程失败:', error)
+    ElMessage.error('加载行程失败')
+    trips.value = []
+  }
 }
 
 // 获取城市默认图片
@@ -183,12 +201,57 @@ const getCityImage = (city) => {
 
 const createTrip = () => router.push('/create-trip')
 
-const viewTrip = (trip) => {
-  // 将当前行程数据保存到 localStorage 以便 TripDetail 页面读取
-  localStorage.setItem('currentTrip', JSON.stringify(trip.rawData))
-  
-  // 跳转到行程详情页，使用 path 参数
-  router.push(`/trip/${trip.id}?city=${trip.city}&days=${trip.days}`)
+const viewTrip = async (trip) => {
+  try {
+    // 从后端获取完整的行程数据（包含每日安排）
+    const response = await fetch(`http://localhost:8000/api/trips/${trip.id}`)
+    if (!response.ok) {
+      throw new Error('获取行程详情失败')
+    }
+    
+    const tripData = await response.json()
+    console.log('获取到的行程详情:', tripData)
+    
+    // 将后端数据转换为前端需要的格式
+    const formattedTrip = {
+      id: tripData.id,
+      title: tripData.title,
+      city: tripData.destination,
+      days: tripData.total_days,
+      preferences: tripData.travel_preferences || [],
+      daySpots: {},
+      createTime: tripData.created_at
+    }
+    
+    // 将 schedules 转换为 daySpots 格式
+    if (tripData.schedules && tripData.schedules.length > 0) {
+      tripData.schedules.forEach(schedule => {
+        const dayKey = String(schedule.day_number)
+        if (!formattedTrip.daySpots[dayKey]) {
+          formattedTrip.daySpots[dayKey] = []
+        }
+        
+        formattedTrip.daySpots[dayKey].push({
+          id: schedule.spot_id,
+          name: schedule.spot_name,
+          image: schedule.spot_image,
+          rating: schedule.spot_rating,
+          location: schedule.spot_location_lng && schedule.spot_location_lat 
+            ? [schedule.spot_location_lng, schedule.spot_location_lat] 
+            : null
+        })
+      })
+    }
+    
+    // 将转换后的数据保存到 localStorage 以便 TripDetail 页面读取
+    localStorage.setItem('currentTrip', JSON.stringify(formattedTrip))
+    
+    // 跳转到行程详情页
+    router.push(`/trip/${trip.id}?city=${trip.city}&days=${trip.days}`)
+  } catch (error) {
+    console.error('加载行程详情失败:', error)
+    ElMessage.error('加载行程详情失败')
+  }
 }
 
 // 删除行程
@@ -204,32 +267,46 @@ const cancelDelete = () => {
 }
 
 // 确认删除
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (!tripToDelete.value) return
   
-  // 从 localStorage 读取保存的行程
-  const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
-  
-  // 过滤掉要删除的行程
-  const updatedTrips = savedTrips.filter(t => t.id !== tripToDelete.value.id)
-  
-  // 保存回 localStorage
-  localStorage.setItem('savedTrips', JSON.stringify(updatedTrips))
-  
-  // 如果删除的是当前行程，也清除 currentTrip
-  const currentTrip = JSON.parse(localStorage.getItem('currentTrip') || '{}')
-  if (currentTrip.id === tripToDelete.value.id) {
-    localStorage.removeItem('currentTrip')
+  try {
+    // 1. 先删除数据库中的行程
+    const response = await fetch(`http://localhost:8000/api/trips/${tripToDelete.value.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (!response.ok) {
+      console.error('删除数据库行程失败')
+    }
+    
+    // 2. 从 localStorage 读取保存的行程
+    const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+    
+    // 3. 过滤掉要删除的行程
+    const updatedTrips = savedTrips.filter(t => t.id !== tripToDelete.value.id)
+    
+    // 4. 保存回 localStorage
+    localStorage.setItem('savedTrips', JSON.stringify(updatedTrips))
+    
+    // 5. 如果删除的是当前行程，也清除 currentTrip
+    const currentTrip = JSON.parse(localStorage.getItem('currentTrip') || '{}')
+    if (currentTrip.id === tripToDelete.value.id) {
+      localStorage.removeItem('currentTrip')
+    }
+    
+    // 6. 刷新列表
+    loadTrips()
+    
+    // 7. 关闭弹窗
+    showDeleteModal.value = false
+    tripToDelete.value = null
+    
+    ElMessage.success('行程已删除')
+  } catch (error) {
+    console.error('删除行程失败:', error)
+    ElMessage.error('删除失败')
   }
-  
-  // 刷新列表
-  loadTrips()
-  
-  // 关闭弹窗
-  showDeleteModal.value = false
-  tripToDelete.value = null
-  
-  ElMessage.success('行程已删除')
 }
 
 // 重命名行程
@@ -247,31 +324,50 @@ const cancelRename = () => {
 }
 
 // 确认重命名
-const confirmRename = () => {
+const confirmRename = async () => {
   if (!tripToRename.value || !newTitle.value.trim()) return
   
-  // 从 localStorage 读取保存的行程
-  const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+  const newTitleStr = newTitle.value.trim()
+  const tripId = tripToRename.value.id
   
-  // 找到要重命名的行程并更新
-  const tripIndex = savedTrips.findIndex(t => t.id === tripToRename.value.id)
-  if (tripIndex !== -1) {
-    savedTrips[tripIndex].title = newTitle.value.trim()
+  try {
+    // 1. 更新数据库
+    // 检查ID类型：数字ID是数据库行程，字符串ID是localStorage行程
+    if (typeof tripId === 'number' || !isNaN(parseInt(tripId))) {
+      const numericId = typeof tripId === 'number' ? tripId : parseInt(tripId)
+      const response = await fetch(`http://localhost:8000/api/trips/${numericId}?title=${encodeURIComponent(newTitleStr)}`, {
+        method: 'PUT'
+      })
+      
+      if (!response.ok) {
+        console.error('更新数据库失败')
+      } else {
+        console.log('数据库更新成功')
+      }
+    }
     
-    // 保存回 localStorage
-    localStorage.setItem('savedTrips', JSON.stringify(savedTrips))
+    // 2. 更新 localStorage
+    const savedTrips = JSON.parse(localStorage.getItem('savedTrips') || '[]')
+    const tripIndex = savedTrips.findIndex(t => t.id === tripId)
+    if (tripIndex !== -1) {
+      savedTrips[tripIndex].title = newTitleStr
+      localStorage.setItem('savedTrips', JSON.stringify(savedTrips))
+    }
     
-    // 如果重命名的是当前行程，也更新 currentTrip
+    // 3. 如果重命名的是当前行程，也更新 currentTrip
     const currentTrip = JSON.parse(localStorage.getItem('currentTrip') || '{}')
-    if (currentTrip.id === tripToRename.value.id) {
-      currentTrip.title = newTitle.value.trim()
+    if (currentTrip.id === tripId) {
+      currentTrip.title = newTitleStr
       localStorage.setItem('currentTrip', JSON.stringify(currentTrip))
     }
     
-    // 刷新列表
-    loadTrips()
+    // 4. 刷新列表
+    await loadTrips()
     
     ElMessage.success('行程已重命名')
+  } catch (error) {
+    console.error('重命名失败:', error)
+    ElMessage.error('重命名失败')
   }
   
   // 关闭弹窗
@@ -287,7 +383,7 @@ const initDefaultTrips = () => {
 }
 
 // 页面加载时读取行程列表
-onMounted(() => {
+onMounted(async () => {
   // 检查 localStorage 是否可用
   try {
     localStorage.setItem('test', 'test')
@@ -301,7 +397,7 @@ onMounted(() => {
   initDefaultTrips()
   
   // 加载行程列表
-  loadTrips()
+  await loadTrips()
 })
 </script>
 

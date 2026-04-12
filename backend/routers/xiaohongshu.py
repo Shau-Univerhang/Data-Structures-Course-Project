@@ -350,7 +350,8 @@ def extract_itinerary_with_ai(content: str) -> dict:
 - 只返回JSON格式，不要返回其他文字
 - 景点名称要简洁，不要包含时间、价格等额外信息
 - 天数根据内容中的"Day X"、"第X天"、"第X日"等信息判断
-- 目的地根据内容中的城市名判断"""
+- 目的地根据内容中的城市名判断
+- **重要：如果景点名称中包含"/"、"\"或"、"（如"鸟巢/水立方"），请将其拆分为多个独立景点（如["鸟巢", "水立方"]）**"""
 
     # 调用MiniMax API - 使用travel-chat相同的配置
     result = call_minimax(extract_prompt, temperature=0.3)

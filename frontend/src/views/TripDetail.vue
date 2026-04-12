@@ -295,9 +295,12 @@ const currentDaySpots = computed({
     return daySpotsMap.value[selectedDay.value] || [];
   },
   set(value) {
-    // 使用 Vue 的响应式方式更新数组
+    // 使用 Vue 的响应式方式更新数组 - 必须创建新对象触发响应式
     const dayKey = selectedDay.value;
-    daySpotsMap.value[dayKey] = [...value];
+    daySpotsMap.value = {
+      ...daySpotsMap.value,
+      [dayKey]: [...value]
+    };
   },
 });
 
@@ -346,11 +349,22 @@ onMounted(async () => {
   if (tripId && tripId !== "new") {
     isFromAI.value = fromAI;
 
-    // 检查 ID 格式，如果是字符串格式（如 trip_xxx），从 localStorage 读取
-    if (typeof tripId === "string" && tripId.startsWith("trip_")) {
+    // 检查 ID 格式，如果是字符串格式（如 trip_xxx 或 ai_temp_xxx），从 localStorage 读取
+    if (typeof tripId === "string" && (tripId.startsWith("trip_") || tripId.startsWith("ai_temp_"))) {
       console.log("Loading trip from localStorage:", tripId);
-      const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
-      const tripData = savedTrips.find((t) => t.id === tripId);
+      
+      // 对于 ai_temp_ 开头的临时行程，从 currentTrip 读取
+      let tripData = null;
+      if (tripId.startsWith("ai_temp_")) {
+        const currentTrip = JSON.parse(localStorage.getItem("currentTrip") || "{}");
+        if (currentTrip.id === tripId) {
+          tripData = currentTrip;
+        }
+      } else {
+        // 对于 trip_ 开头的行程，从 savedTrips 读取
+        const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+        tripData = savedTrips.find((t) => t.id === tripId);
+      }
 
       if (tripData) {
         city.value = tripData.city;
@@ -360,12 +374,18 @@ onMounted(async () => {
           tripData.title || `${tripData.city}${tripData.days}日游`;
 
         // 恢复每天的景点分配
+        console.log('从localStorage加载的tripData:', tripData);
+        console.log('daySpots:', tripData.daySpots);
         if (tripData.daySpots) {
           daySpotsMap.value = tripData.daySpots;
           allSpots.value = Object.values(tripData.daySpots).flat();
+          console.log('设置后的daySpotsMap:', daySpotsMap.value);
+          console.log('allSpots:', allSpots.value);
 
           // 检查景点是否有坐标，如果没有，重新从 API 获取
           await ensureSpotsHaveCoordinates();
+        } else {
+          console.warn('tripData.daySpots 为空');
         }
       } else {
         alert("行程数据不存在");
@@ -734,11 +754,14 @@ const distributeSpotsToDays = () => {
   const spots = [...allSpots.value];
   const spotsPerDay = Math.ceil(spots.length / days.value);
 
+  // 创建新的 daySpotsMap 对象以触发响应式
+  const newDaySpotsMap = { ...daySpotsMap.value };
   for (let day = 1; day <= days.value; day++) {
     const startIndex = (day - 1) * spotsPerDay;
     const endIndex = Math.min(startIndex + spotsPerDay, spots.length);
-    daySpotsMap.value[day] = spots.slice(startIndex, endIndex);
+    newDaySpotsMap[day] = spots.slice(startIndex, endIndex);
   }
+  daySpotsMap.value = newDaySpotsMap;
 };
 
 // 初始化高德地图
@@ -1209,7 +1232,8 @@ const closeModal = () => {
 
 // 添加景点
 const addSpot = (spot) => {
-  currentDaySpots.value.push(spot);
+  // 创建新数组而不是直接修改，以触发响应式更新
+  currentDaySpots.value = [...currentDaySpots.value, spot];
   closeModal();
   nextTick(() => {
     updateMapRoute();
@@ -1220,7 +1244,10 @@ const addSpot = (spot) => {
 // 删除景点
 const removeSpot = (index) => {
   const spot = currentDaySpots.value[index];
-  currentDaySpots.value.splice(index, 1);
+  // 创建新数组而不是直接修改，以触发响应式更新
+  const newSpots = [...currentDaySpots.value];
+  newSpots.splice(index, 1);
+  currentDaySpots.value = newSpots;
   nextTick(() => {
     updateMapRoute();
   });
@@ -1238,47 +1265,117 @@ const goBack = () => {
 };
 
 // 保存行程
-const saveTrip = () => {
-  // 生成唯一ID
-  const tripId = "trip_" + Date.now();
+const saveTrip = async () => {
+  // 获取用户ID
+  const userId = localStorage.getItem('userId') || '1';
 
-  const tripData = {
-    id: tripId,
-    title: tripTitle.value,
-    city: city.value,
-    days: days.value,
-    preferences: preferences.value,
-    daySpots: daySpotsMap.value,
-    totalSpots: totalSpots.value,
-    createTime: new Date().toISOString(),
-    updateTime: new Date().toISOString(),
-  };
+  try {
+    // 1. 保存行程基本信息到数据库
+    const dbTripData = {
+      title: tripTitle.value,
+      destination: city.value,
+      total_days: days.value,
+      travel_preferences: preferences.value,
+    };
 
-  // 保存到本地存储
-  const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+    const response = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dbTripData)
+    });
 
-  // 检查是否已存在相同行程（根据城市、天数、创建时间判断）
-  const existingIndex = savedTrips.findIndex(
-    (t) =>
-      t.city === tripData.city &&
-      t.days === tripData.days &&
-      t.createTime === tripData.createTime,
-  );
+    if (!response.ok) {
+      throw new Error('保存行程基本信息失败');
+    }
 
-  if (existingIndex > -1) {
-    // 更新已有行程
-    savedTrips[existingIndex] = tripData;
-    ElMessage.success("行程已更新");
-  } else {
-    // 添加新行程
-    savedTrips.push(tripData);
-    ElMessage.success("行程已保存");
+    const result = await response.json();
+    const newTripId = result.id;
+    console.log('行程已保存到数据库，ID:', newTripId);
+
+    // 2. 保存每日安排的景点到数据库
+    const savePromises = [];
+    
+    console.log('保存行程时的 daySpotsMap:', JSON.stringify(daySpotsMap.value, null, 2));
+    console.log('daySpotsMap keys:', Object.keys(daySpotsMap.value));
+    
+    for (const [dayNumber, spots] of Object.entries(daySpotsMap.value)) {
+      console.log(`处理第${dayNumber}天，景点数量:`, spots?.length);
+      if (spots && spots.length > 0) {
+        for (let i = 0; i < spots.length; i++) {
+          const spot = spots[i];
+          console.log(`  景点${i}:`, spot.name, 'ID:', spot.id);
+          const spotData = {
+            spot_id: spot.id,
+            day_number: parseInt(dayNumber),
+            order_index: i
+          };
+          
+          const promise = fetch(`http://localhost:8000/api/trips/${newTripId}/spots`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(spotData)
+          });
+          
+          savePromises.push(promise);
+        }
+      }
+    }
+    
+    console.log(`准备保存 ${savePromises.length} 个景点到数据库`);
+    
+    // 等待所有景点保存完成
+    if (savePromises.length > 0) {
+      const results = await Promise.all(savePromises);
+      console.log(`已保存 ${savePromises.length} 个景点到数据库`, results);
+    } else {
+      console.warn('没有景点需要保存');
+    }
+
+    // 3. 生成前端用的 tripData
+    const tripId = "trip_" + Date.now();
+    const tripData = {
+      id: tripId,
+      title: tripTitle.value,
+      city: city.value,
+      days: days.value,
+      preferences: preferences.value,
+      daySpots: daySpotsMap.value,
+      totalSpots: totalSpots.value,
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+    };
+
+    // 4. 如果是从AI助手跳转过来的，同时保存到 localStorage
+    if (isFromAI.value) {
+      const savedTrips = JSON.parse(localStorage.getItem("savedTrips") || "[]");
+
+      // 检查是否已存在相同行程
+      const existingIndex = savedTrips.findIndex(
+        (t) =>
+          t.city === tripData.city &&
+          t.days === tripData.days &&
+          t.createTime === tripData.createTime,
+      );
+
+      if (existingIndex > -1) {
+        savedTrips[existingIndex] = tripData;
+      } else {
+        savedTrips.push(tripData);
+      }
+
+      localStorage.setItem("savedTrips", JSON.stringify(savedTrips));
+      ElMessage.success("行程已保存到我的行程");
+    } else {
+      ElMessage.success("行程已保存");
+    }
+
+    // 5. 保存为当前行程
+    localStorage.setItem("currentTrip", JSON.stringify(tripData));
+
+  } catch (error) {
+    console.error('保存行程失败:', error);
+    ElMessage.error('保存失败，请重试');
   }
-
-  localStorage.setItem("savedTrips", JSON.stringify(savedTrips));
-
-  // 同时保存为当前行程
-  localStorage.setItem("currentTrip", JSON.stringify(tripData));
 };
 
 // 监听当前天变化，更新地图

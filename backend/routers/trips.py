@@ -33,6 +33,8 @@ class TripResponse(BaseModel):
     travel_preferences: List[str] = []
     accommodation_address: Optional[str] = None
     status: str
+    created_at: Optional[str] = None
+    spot_count: int = 0
 
     class Config:
         from_attributes = True
@@ -91,7 +93,7 @@ def list_trips(
     status: Optional[str] = Query(None, description="状态筛选"),
     db: Session = Depends(get_db)
 ):
-    """获取用户行程列表"""
+    """获取用户行程列表（包含景点数量）"""
     query = db.query(Trip).filter(Trip.user_id == user_id)
     if status:
         query = query.filter(Trip.status == status)
@@ -100,6 +102,11 @@ def list_trips(
     
     result = []
     for trip in trips:
+        # 获取该行程的景点数量
+        spot_count = db.query(TripDailySchedule).filter(
+            TripDailySchedule.trip_id == trip.id
+        ).count()
+        
         result.append({
             'id': trip.id,
             'title': trip.title,
@@ -107,7 +114,8 @@ def list_trips(
             'total_days': trip.total_days,
             'status': trip.status,
             'created_at': trip.created_at,
-            'preferences': trip.travel_preferences or []
+            'preferences': trip.travel_preferences or [],
+            'spot_count': spot_count  # 添加景点数量
         })
     
     return result
@@ -235,6 +243,31 @@ def update_trip_status(
         trip.status = status
         db.commit()
     return {"success": True}
+
+
+@router.put("/{trip_id}")
+def update_trip(
+    trip_id: int,
+    title: Optional[str] = Query(None, description="行程标题"),
+    destination: Optional[str] = Query(None, description="目的地"),
+    total_days: Optional[int] = Query(None, description="总天数"),
+    db: Session = Depends(get_db)
+):
+    """更新行程信息"""
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        return {"error": "行程不存在"}
+    
+    if title is not None:
+        trip.title = title
+    if destination is not None:
+        trip.destination = destination
+    if total_days is not None:
+        trip.total_days = total_days
+    
+    db.commit()
+    db.refresh(trip)
+    return {"success": True, "trip": {"id": trip.id, "title": trip.title}}
 
 
 @router.delete("/{trip_id}")

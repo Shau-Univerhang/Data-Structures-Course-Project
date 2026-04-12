@@ -947,6 +947,21 @@ const deleteHistoryItem = (id, event) => {
 // 景点详细信息缓存
 const spotDetailsMap = ref({})
 
+// 景点别名映射表 - 与后端保持一致
+const SPOT_ALIAS_MAP = {
+  '国家博物院': '国家博物馆',
+  '博物院': '博物馆',
+  '鸟巢/水立方': '鸟巢',
+  '水立方/鸟巢': '鸟巢',
+  '王府井小吃街': '王府井',
+  '故宫博物院': '故宫',
+}
+
+// 根据别名获取标准名称
+const getStandardSpotName = (spotName) => {
+  return SPOT_ALIAS_MAP[spotName] || spotName
+}
+
 // 加载景点详细信息 - 使用与 TripDetail.vue 相同的数据源
 const loadSpotDetails = async (spots, destination) => {
   if (!spots || !destination) return
@@ -979,6 +994,15 @@ const loadSpotDetails = async (spots, destination) => {
           // 在数据中查找匹配的景点
           let spotData = spotsDataMap[spot]
           
+          // 如果没有精确匹配，尝试别名映射
+          if (!spotData) {
+            const standardName = getStandardSpotName(spot)
+            if (standardName !== spot) {
+              spotData = spotsDataMap[standardName]
+              console.log(`Alias mapping: ${spot} -> ${standardName}`, spotData ? 'found' : 'not found')
+            }
+          }
+          
           // 如果没有精确匹配，尝试部分匹配
           if (!spotData) {
             for (const [name, data] of Object.entries(spotsDataMap)) {
@@ -993,11 +1017,15 @@ const loadSpotDetails = async (spots, destination) => {
           if (spotData) {
             console.log('Found spot data for', spot, ':', spotData)
             spotDetailsMap.value[spot] = {
+              id: spotData.id,  // 添加 id 字段！
               name: spotData.name,
               image: spotData.images && spotData.images.length > 0 ? spotData.images[0] : '/images/default-spot.jpg',
               rating: spotData.rating || 0,
               duration: '2小时',
-              tags: spotData.tags || []
+              tags: spotData.tags || [],
+              location: spotData.location_lng && spotData.location_lat 
+                ? [spotData.location_lng, spotData.location_lat] 
+                : null
             }
           } else {
             console.log('Spot not found in city database, ignoring:', spot)
@@ -1031,7 +1059,7 @@ const showSessionItineraryPreview = async () => {
   showSessionItineraryModal.value = true
 }
 
-// 点击会话内的行程按钮 - 直接跳转到虚拟行程页面
+// 点击会话内的行程按钮 - 只保存到localStorage，不保存到数据库
 const goToSessionItinerary = async () => {
   if (!sessionItinerary.value) {
     // 如果没有行程数据，显示提示
@@ -1042,6 +1070,9 @@ const goToSessionItinerary = async () => {
   try {
     console.log('sessionItinerary:', sessionItinerary.value)
     
+    // 首先确保加载了景点详细信息（包含别名映射）
+    await loadSpotDetails(sessionItinerary.value.spots, sessionItinerary.value.destination)
+    
     // 过滤掉不在该城市景点列表中的景点
     const validSpots = sessionItinerary.value.spots.filter(spot => spotDetailsMap.value[spot])
     
@@ -1050,56 +1081,86 @@ const goToSessionItinerary = async () => {
       return
     }
     
-    // 过滤 daySpots 中不存在的景点
-    let filteredDaySpots = {}
-    if (sessionItinerary.value.daySpots) {
+    // 构建包含完整信息的 daySpots（包含图片、评分等）
+    let enrichedDaySpots = {}
+    
+    // 如果有原始的 daySpots，使用它来构建
+    if (sessionItinerary.value.daySpots && Object.keys(sessionItinerary.value.daySpots).length > 0) {
       Object.entries(sessionItinerary.value.daySpots).forEach(([day, spots]) => {
         const validDaySpots = spots.filter(spot => spotDetailsMap.value[spot])
         if (validDaySpots.length > 0) {
-          filteredDaySpots[day] = validDaySpots
+          // 将景点名称转换为包含完整信息的对象
+          enrichedDaySpots[day] = validDaySpots.map(spotName => {
+            const spotDetail = spotDetailsMap.value[spotName]
+            return {
+              id: spotDetail.id || spotName,
+              name: spotDetail.name || spotName,
+              image: spotDetail.image || '/images/default-spot.jpg',
+              rating: spotDetail.rating || 4.5,
+              duration: spotDetail.duration || '2小时',
+              tags: spotDetail.tags || [],
+              location: spotDetail.location || null
+            }
+          })
         }
       })
     }
     
     // 如果没有有效的 daySpots，重新创建
-    if (Object.keys(filteredDaySpots).length === 0) {
-      filteredDaySpots = null
+    if (Object.keys(enrichedDaySpots).length === 0) {
+      // 按天数平均分配景点
+      const days = sessionItinerary.value.days || 3
+      const spotsPerDay = Math.ceil(validSpots.length / days)
+      
+      for (let i = 1; i <= days; i++) {
+        const startIdx = (i - 1) * spotsPerDay
+        const endIdx = Math.min(startIdx + spotsPerDay, validSpots.length)
+        const daySpotNames = validSpots.slice(startIdx, endIdx)
+        
+        enrichedDaySpots[i] = daySpotNames.map(spotName => {
+          const spotDetail = spotDetailsMap.value[spotName]
+          return {
+            id: spotDetail?.id || spotName,
+            name: spotDetail?.name || spotName,
+            image: spotDetail?.image || '/images/default-spot.jpg',
+            rating: spotDetail?.rating || 4.5,
+            duration: spotDetail?.duration || '2小时',
+            tags: spotDetail?.tags || [],
+            location: spotDetail?.location || null
+          }
+        })
+      }
+    }
+
+    console.log('Enriched daySpots:', enrichedDaySpots)
+
+    // 生成临时ID，只保存到localStorage，不保存到数据库
+    const tempTripId = 'ai_temp_' + Date.now()
+    const tripData = {
+      id: tempTripId,
+      title: sessionItinerary.value.title,
+      city: sessionItinerary.value.destination || sessionItinerary.value.city,
+      days: sessionItinerary.value.days,
+      preferences: sessionItinerary.value.preferences || [],
+      daySpots: enrichedDaySpots,  // 现在包含完整的景点信息
+      totalSpots: validSpots.length,
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      isAITemp: true // 标记为AI临时行程
     }
     
-    const itineraryWithDaySpots = filteredDaySpots 
-      ? { ...sessionItinerary.value, spots: validSpots, daySpots: filteredDaySpots }
-      : createItineraryWithDaySpots({ ...sessionItinerary.value, spots: validSpots })
-
-    console.log('Sending itinerary to backend:', itineraryWithDaySpots)
-    console.log('daySpots:', itineraryWithDaySpots.daySpots)
-    console.log('Has daySpots:', !!itineraryWithDaySpots.daySpots)
-    console.log('daySpots keys:', itineraryWithDaySpots.daySpots ? Object.keys(itineraryWithDaySpots.daySpots) : 'none')
-
-    // 调用API创建行程
-    const response = await fetch('http://localhost:8000/api/xiaohongshu/create-trip', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: 'ai-session',
-        content: JSON.stringify(itineraryWithDaySpots)
-      })
-    })
-
-    const data = await response.json()
-    console.log('Create trip response:', data)
-
-    if (data.trip_id) {
-      // 保存当前AI会话状态，以便返回时恢复
-      saveChatHistory()
-      // 跳转到行程预览页面
-      router.push(`/trip/${data.trip_id}?from=ai`)
-    } else {
-      console.error('Create trip failed:', data)
-      alert('创建行程失败，请重试')
-    }
+    // 保存到localStorage作为当前行程
+    localStorage.setItem('currentTrip', JSON.stringify(tripData))
+    
+    // 保存当前AI会话状态，以便返回时恢复
+    saveChatHistory()
+    
+    // 跳转到行程预览页面（临时ID）
+    router.push(`/trip/${tempTripId}?from=ai`)
+    
   } catch (error) {
-    console.error('创建行程失败:', error)
-    alert('创建行程失败，请重试')
+    console.error('预览行程失败:', error)
+    alert('预览行程失败，请重试')
   }
 }
 
@@ -1127,30 +1188,97 @@ const createItineraryWithDaySpots = (itinerary) => {
 const startNewTrip = () => router.push('/create-trip')
 const goBack = () => router.back()
 
-// 查看行程详情 - 先创建临时行程，然后跳转到预览页面
+// 查看行程详情 - 只保存到localStorage，不保存到数据库
 const viewItineraryDetail = async (itinerary) => {
   try {
-    // 调用API创建行程
-    const response = await fetch('http://localhost:8000/api/xiaohongshu/create-trip', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: 'ai-generated',
-        content: JSON.stringify(itinerary)
-      })
-    })
-
-    const data = await response.json()
-
-    if (data.trip_id) {
-      // 跳转到行程详情页面
-      router.push(`/trip/${data.trip_id}`)
-    } else {
-      alert('创建行程失败，请重试')
+    // 首先确保加载了景点详细信息（包含别名映射）
+    await loadSpotDetails(itinerary.spots, itinerary.destination)
+    
+    // 过滤掉不在该城市景点列表中的景点
+    const validSpots = itinerary.spots.filter(spot => spotDetailsMap.value[spot])
+    
+    if (validSpots.length === 0) {
+      alert('该城市暂无推荐的景点，请尝试其他城市')
+      return
     }
+    
+    // 构建包含完整信息的 daySpots（包含图片、评分等）
+    let enrichedDaySpots = {}
+    
+    // 如果有原始的 daySpots，使用它来构建
+    if (itinerary.daySpots && Object.keys(itinerary.daySpots).length > 0) {
+      Object.entries(itinerary.daySpots).forEach(([day, spots]) => {
+        const validDaySpots = spots.filter(spot => spotDetailsMap.value[spot])
+        if (validDaySpots.length > 0) {
+          // 将景点名称转换为包含完整信息的对象
+          enrichedDaySpots[day] = validDaySpots.map(spotName => {
+            const spotDetail = spotDetailsMap.value[spotName]
+            return {
+              id: spotDetail.id || spotName,
+              name: spotDetail.name || spotName,
+              image: spotDetail.image || '/images/default-spot.jpg',
+              rating: spotDetail.rating || 4.5,
+              duration: spotDetail.duration || '2小时',
+              tags: spotDetail.tags || [],
+              location: spotDetail.location || null
+            }
+          })
+        }
+      })
+    }
+    
+    // 如果没有有效的 daySpots，重新创建
+    if (Object.keys(enrichedDaySpots).length === 0) {
+      // 按天数平均分配景点
+      const days = itinerary.days || 3
+      const spotsPerDay = Math.ceil(validSpots.length / days)
+      
+      for (let i = 1; i <= days; i++) {
+        const startIdx = (i - 1) * spotsPerDay
+        const endIdx = Math.min(startIdx + spotsPerDay, validSpots.length)
+        const daySpotNames = validSpots.slice(startIdx, endIdx)
+        
+        enrichedDaySpots[i] = daySpotNames.map(spotName => {
+          const spotDetail = spotDetailsMap.value[spotName]
+          return {
+            id: spotDetail?.id || spotName,
+            name: spotDetail?.name || spotName,
+            image: spotDetail?.image || '/images/default-spot.jpg',
+            rating: spotDetail?.rating || 4.5,
+            duration: spotDetail?.duration || '2小时',
+            tags: spotDetail?.tags || [],
+            location: spotDetail?.location || null
+          }
+        })
+      }
+    }
+
+    console.log('Preview itinerary from card - enriched:', enrichedDaySpots)
+
+    // 生成临时ID，只保存到localStorage，不保存到数据库
+    const tempTripId = 'ai_temp_' + Date.now()
+    const tripData = {
+      id: tempTripId,
+      title: itinerary.title,
+      city: itinerary.destination || itinerary.city,
+      days: itinerary.days,
+      preferences: itinerary.preferences || [],
+      daySpots: enrichedDaySpots,  // 现在包含完整的景点信息
+      totalSpots: validSpots.length,
+      createTime: new Date().toISOString(),
+      updateTime: new Date().toISOString(),
+      isAITemp: true // 标记为AI临时行程
+    }
+    
+    // 保存到localStorage作为当前行程
+    localStorage.setItem('currentTrip', JSON.stringify(tripData))
+    
+    // 跳转到行程预览页面（临时ID）
+    router.push(`/trip/${tempTripId}?from=ai`)
+    
   } catch (error) {
-    console.error('创建行程失败:', error)
-    alert('创建行程失败，请重试')
+    console.error('预览行程失败:', error)
+    alert('预览行程失败，请重试')
   }
 }
 </script>

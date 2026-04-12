@@ -50,25 +50,24 @@ def get_photos(
     user_id: int = Query(..., description="用户ID"),
     db: Session = Depends(get_db)
 ):
-    """获取用户照片（按行程分组）"""
+    """获取用户照片（按行程分组）- 返回所有行程，包括没有照片的"""
     # 获取用户的所有行程
-    trips = db.query(Trip).filter(Trip.user_id == user_id).all()
+    trips = db.query(Trip).filter(Trip.user_id == user_id).order_by(Trip.created_at.desc()).all()
     
     result = []
     for trip in trips:
         photos = db.query(TripPhoto).filter(TripPhoto.trip_id == trip.id).all()
-        if photos:
-            result.append({
-                'trip_id': trip.id,
-                'trip_title': trip.title,
-                'photos': [{
-                    'id': p.id,
-                    'trip_id': p.trip_id,
-                    'photo_url': p.photo_url,
-                    'description': p.description,
-                    'created_at': p.created_at
-                } for p in photos]
-            })
+        result.append({
+            'trip_id': trip.id,
+            'trip_title': trip.title,
+            'photos': [{
+                'id': p.id,
+                'trip_id': p.trip_id,
+                'photo_url': p.photo_url,
+                'description': p.description,
+                'created_at': p.created_at
+            } for p in photos]
+        })
     
     return result
 

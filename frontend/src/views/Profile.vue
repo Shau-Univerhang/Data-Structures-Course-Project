@@ -6,7 +6,7 @@
     <!-- 用户信息 -->
     <section class="user-section">
       <div class="user-avatar">
-        <img v-if="user.avatar_url" :src="user.avatar_url" alt="头像" />
+        <img v-if="user.avatar_url" :src="getFullImageUrl(user.avatar_url)" alt="头像" />
         <span v-else>{{ user.username?.charAt(0) || '游' }}</span>
       </div>
       <div class="user-info">
@@ -91,6 +91,15 @@ const user = ref({
   username: '',
   avatar_url: ''
 })
+
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
 
 const stats = ref({
   trips: 0,

@@ -7,9 +7,12 @@
       </button>
       <h1 class="page-title">旅行相册</h1>
       <div class="header-actions">
-        <button class="view-toggle-btn" @click="toggleViewMode">
-          <span v-if="viewMode === 'trip'">📅</span>
-          <span v-else>🗂️</span>
+        <button 
+          class="view-toggle-btn" 
+          @click="toggleViewMode"
+        >
+          <span v-if="viewMode === 'trip'">按时间展示</span>
+          <span v-else>按行程展示</span>
         </button>
       </div>
     </header>
@@ -79,7 +82,7 @@
                 :style="{ animationDelay: index * 0.05 + 's' }"
                 @click="openPhotoPreview(photo)"
               >
-                <img :src="photo.photo_url" :alt="photo.description || ''" />
+                <img :src="getFullImageUrl(photo.photo_url)" :alt="photo.description || ''" />
                 <div class="photo-overlay">
                   <button class="delete-btn" @click.stop="deletePhoto(photo.id)">
                     <span>🗑️</span>
@@ -113,10 +116,15 @@
             <div class="timeline-dot"></div>
             <div class="timeline-content">
               <div class="photo-card" @click="openPhotoPreview(photo)">
-                <img :src="photo.photo_url" :alt="photo.description || ''" />
+                <div class="photo-image-wrapper">
+                  <img :src="getFullImageUrl(photo.photo_url)" :alt="photo.description || ''" />
+                </div>
                 <div class="photo-info">
-                  <span class="photo-trip">{{ photo.trip_title }}</span>
-                  <span class="photo-date">{{ formatDate(photo.created_at) }}</span>
+                  <div class="photo-meta">
+                    <span class="photo-trip">{{ photo.trip_title }}</span>
+                    <span class="photo-date">{{ formatDate(photo.created_at) }}</span>
+                  </div>
+                  <p v-if="photo.description" class="photo-description">{{ photo.description }}</p>
                 </div>
               </div>
             </div>
@@ -229,7 +237,7 @@
     <div v-if="previewPhoto" class="modal-overlay preview-modal" @click.self="closePhotoPreview">
       <div class="preview-content">
         <button class="close-preview" @click="closePhotoPreview">×</button>
-        <img :src="previewPhoto.photo_url" :alt="previewPhoto.description || ''" />
+        <img :src="getFullImageUrl(previewPhoto.photo_url)" :alt="previewPhoto.description || ''" />
         <div v-if="previewPhoto.description" class="preview-desc">
           {{ previewPhoto.description }}
         </div>
@@ -257,6 +265,16 @@ const fileInput = ref(null)
 const uploading = ref(false)
 const isDragging = ref(false)
 const previewPhoto = ref(null)
+
+// API基础URL
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
 
 // 计算属性
 const totalTrips = computed(() => tripPhotos.value.length)
@@ -386,19 +404,18 @@ const uploadPhotos = async () => {
     for (const file of selectedFiles.value) {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('user_id', userId)
-      formData.append('trip_id', currentTripId.value)
       if (photoDescription.value) {
         formData.append('description', photoDescription.value)
       }
 
-      const response = await fetch('http://localhost:8000/api/photos', {
+      const response = await fetch(`http://localhost:8000/api/photos?user_id=${userId}&trip_id=${currentTripId.value}`, {
         method: 'POST',
         body: formData
       })
 
       if (!response.ok) {
-        throw new Error('上传失败')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `上传失败: ${response.status}`)
       }
     }
 
@@ -514,18 +531,20 @@ const goToCreateTrip = () => {
 }
 
 .view-toggle-btn {
-  width: 40px;
   height: 40px;
-  border-radius: 12px;
+  padding: 0 16px;
+  border-radius: 20px;
   border: none;
   background: rgba(0, 212, 255, 0.1);
   color: #00d4ff;
-  font-size: 18px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
+  white-space: nowrap;
 }
 
 .view-toggle-btn:hover {
@@ -867,19 +886,44 @@ const goToCreateTrip = () => {
 
 .photo-card {
   cursor: pointer;
+  display: flex;
+  gap: 16px;
+  padding: 16px;
 }
 
-.photo-card img {
+.photo-image-wrapper {
+  flex-shrink: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.photo-image-wrapper img {
   width: 100%;
-  aspect-ratio: 16/10;
+  height: 100%;
   object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.photo-card:hover .photo-image-wrapper img {
+  transform: scale(1.05);
 }
 
 .photo-info {
-  padding: 12px 16px;
+  flex: 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.photo-meta {
+  display: flex;
   align-items: center;
+  gap: 12px;
 }
 
 .photo-trip {
@@ -891,6 +935,17 @@ const goToCreateTrip = () => {
 .photo-date {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
+}
+
+.photo-description {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 空状态 */

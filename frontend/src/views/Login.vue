@@ -359,6 +359,10 @@ const handleLogin = async () => {
     const user = await response.json()
     localStorage.setItem('user', JSON.stringify(user))
     localStorage.setItem('userId', user.id)
+    localStorage.setItem('username', user.username || user.name || user.email || '用户' + user.id)
+    if (user.avatar_url) {
+      localStorage.setItem('avatar_url', user.avatar_url)
+    }
     ElMessage.success('登录成功!')
     router.push('/')
   } catch (error) {

@@ -16,8 +16,8 @@ from models.database import get_db, User
 
 router = APIRouter()
 
-# 头像上传目录
-AVATAR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "images", "avatars")
+# 头像上传目录 - 使用项目根目录的images/avatars，与main.py中的静态文件挂载保持一致
+AVATAR_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "images", "avatars")
 os.makedirs(AVATAR_DIR, exist_ok=True)
 
 

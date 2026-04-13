@@ -16,7 +16,7 @@
           @click="goToSpot(spot)"
         >
           <div class="spot-image">
-            <img v-if="spot.images && spot.images.length" :src="spot.images[0]" :alt="spot.name" />
+            <img v-if="spot.images && spot.images.length" :src="getFullImageUrl(spot.images[0])" :alt="spot.name" />
             <div v-else class="image-placeholder">🏞️</div>
           </div>
           <div class="spot-info">
@@ -52,6 +52,14 @@ import { ElMessage } from 'element-plus'
 const router = useRouter()
 
 const collections = ref([])
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
 
 onMounted(() => {
   const userId = localStorage.getItem('userId')
@@ -64,9 +72,11 @@ onMounted(() => {
 
 const fetchCollections = async (userId) => {
   try {
-    const response = await fetch(`http://localhost:8000/api/collections?user_id=${userId}`)
+    const response = await fetch(`http://localhost:8000/api/collections?user_id=${userId}&_t=${Date.now()}`)
     if (response.ok) {
-      collections.value = await response.json()
+      const data = await response.json()
+      console.log('收藏数据:', data)
+      collections.value = data
     }
   } catch (error) {
     console.error('获取收藏失败:', error)

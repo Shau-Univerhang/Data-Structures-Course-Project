@@ -1,7 +1,7 @@
 """
 行程照片API
 """
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -15,8 +15,8 @@ from models.database import get_db, TripPhoto, Trip
 
 router = APIRouter()
 
-# 照片上传目录
-PHOTO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "images", "photos")
+# 照片上传目录 - 使用项目根目录的images/photos，与main.py中的静态文件挂载保持一致
+PHOTO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "images", "photos")
 os.makedirs(PHOTO_DIR, exist_ok=True)
 
 
@@ -93,7 +93,7 @@ def get_photos_by_trip(
 async def upload_photo(
     user_id: int = Query(..., description="用户ID"),
     trip_id: int = Query(..., description="行程ID"),
-    description: Optional[str] = Query(None, description="照片描述"),
+    description: Optional[str] = Form(None, description="照片描述"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):

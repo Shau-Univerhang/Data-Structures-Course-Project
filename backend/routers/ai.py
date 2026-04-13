@@ -12,6 +12,7 @@ import re
 sys.path.append("..")
 
 from models.database import get_db, ScenicSpot, Trip, TripDailySchedule
+from routers.spots import parse_tags
 
 router = APIRouter()
 
@@ -502,7 +503,7 @@ def generate_travel_guide(
                 'name': spot.name,
                 'description': spot.description[:100] if spot.description else '',
                 'rating': spot.rating,
-                'tags': spot.tags or [],
+                'tags': parse_tags(spot.tags),
                 'open_time': spot.open_time,
                 'ticket_price': spot.ticket_price
             })

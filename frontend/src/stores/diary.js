@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-const API_BASE_URL = ''
+const API_BASE_URL = 'http://localhost:8000'
 
 export const useDiaryStore = defineStore('diary', () => {
   // State
@@ -25,12 +25,28 @@ export const useDiaryStore = defineStore('diary', () => {
   // 从 localStorage 加载用户
   const loadUserFromStorage = () => {
     const userId = localStorage.getItem('userId')
-    const username = localStorage.getItem('username')
+    let username = localStorage.getItem('username')
+    let avatar_url = localStorage.getItem('avatar_url') || ''
+    
+    // 如果没有 username，尝试从 user 对象中解析（兼容旧版本）
+    if (!username) {
+      try {
+        const userStr = localStorage.getItem('user')
+        if (userStr) {
+          const user = JSON.parse(userStr)
+          username = user.username || user.name || user.email
+          avatar_url = user.avatar_url || ''
+        }
+      } catch (e) {
+        console.error('解析 user 失败:', e)
+      }
+    }
+    
     if (userId && username) {
       currentUser.value = {
         id: parseInt(userId),
         username: username,
-        avatar_url: localStorage.getItem('avatar_url') || ''
+        avatar_url: avatar_url
       }
       return true
     }

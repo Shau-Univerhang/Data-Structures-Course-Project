@@ -18,12 +18,11 @@
       <h2 class="spot-name">{{ spot.name }}</h2>
       <div class="spot-meta">
         <span class="meta-item">📍 {{ spot.city }}</span>
-        <span class="meta-item">🏷️ {{ spot.category }}</span>
       </div>
       <p class="spot-desc">{{ spot.description }}</p>
       
       <div class="spot-tags">
-        <span v-for="tag in (spot.tags || [])" :key="tag" class="tag">{{ tag }}</span>
+        <span v-for="tag in filteredTags" :key="tag" class="tag">{{ tag }}</span>
       </div>
 
       <div class="spot-details">
@@ -92,7 +91,7 @@
       </div>
       <div class="photo-spots-grid" v-if="photoSpots.length > 0">
         <div v-for="ps in photoSpots" :key="ps.id" class="photo-spot-card">
-          <img :src="ps.image" :alt="ps.name" />
+          <img :src="getFullImageUrl(ps.image)" :alt="ps.name" />
           <div class="photo-info">
             <h4>{{ ps.name }}</h4>
             <p>{{ ps.description }}</p>
@@ -207,6 +206,27 @@ const userId = computed(() => localStorage.getItem('userId'))
 const internalNavTitle = computed(() => spot.value?.type === 'campus' ? '校园内导航' : '景区内部导航')
 const internalNavSubtitle = computed(() => spot.value?.type === 'campus' ? '校园路网 · 多目标路线规划' : '内部路网 · 多目标路线规划')
 
+// 允许的tag列表
+const ALLOWED_TAGS = [
+  '必玩景点',
+  '历史文化',
+  '地标建筑',
+  '非遗体验',
+  '风景名胜',
+  '逛吃逛喝',
+  '博物展览',
+  'citywalk',
+  '拍照出片',
+  '市井烟火',
+  '休闲娱乐'
+]
+
+// 过滤后的tags
+const filteredTags = computed(() => {
+  if (!spot.value.tags || !Array.isArray(spot.value.tags)) return []
+  return spot.value.tags.filter(tag => ALLOWED_TAGS.includes(tag))
+})
+
 const userTrips = ref([
   { id: 1, title: '北京三日游', days: 3 },
   { id: 2, title: '上海周末游', days: 2 }
@@ -215,6 +235,14 @@ const newPhoto = ref({ name: '', description: '', image: '' })
 const photoFile = ref(null)
 const newReview = ref({ rating: 0, content: '' })
 const defaultImage = 'https://images.unsplash.com/photo-1599571234909-29ed5d1321d6?w=800'
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
 
 onMounted(async () => {
   const spotId = route.query.id

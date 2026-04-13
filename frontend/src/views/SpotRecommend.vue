@@ -51,13 +51,13 @@
             </div>
 
             <!-- 标签匹配度 -->
-            <div class="tag-match" v-if="getMatchCount(spot) > 0">
-              <span class="match-badge">匹配 {{ getMatchCount(spot) }} 个偏好</span>
+            <div class="tag-match" v-if="spot.match_count > 0">
+              <span class="match-badge">匹配 {{ spot.match_count }} 个偏好</span>
             </div>
 
             <!-- 景点标签 -->
             <div class="spot-tags">
-              <span v-for="tag in (spot.tags || []).slice(0, 3)" :key="tag" class="tag">
+              <span v-for="tag in (spot.tags || [])" :key="tag" class="tag">
                 {{ tag }}
               </span>
             </div>
@@ -113,21 +113,6 @@ const spots = ref([])
 const selectedSpots = ref([])
 const loading = ref(false)
 
-// 偏好映射（标签ID到标签名称的映射）
-const prefTagMap = {
-  'must_visit': ['必玩景点', '地标', '热门'],
-  'history': ['历史', '文化', '古迹', '博物馆'],
-  'landmark': ['地标', '建筑', '地标建筑'],
-  'heritage': ['非遗', '传统', '文化'],
-  'scenery': ['风景', '名胜', '自然', '山水'],
-  'food': ['美食', '小吃', '特色'],
-  'museum': ['博物馆', '展览', '文化'],
-  'citywalk': ['步行街', '街区', 'citywalk'],
-  'photo': ['拍照', '打卡', '出片'],
-  'local_life': ['市井', '生活', '烟火'],
-  'leisure': ['休闲', '娱乐', '放松']
-}
-
 // 城市图片映射
 const getCityImageName = (cityName) => {
   const cityMap = {
@@ -152,75 +137,33 @@ const formatNumber = (num) => {
   return num.toString()
 }
 
-// 计算标签匹配数量
+// 计算标签匹配数量 - 直接使用后端返回的match_count
 const getMatchCount = (spot) => {
-  if (!spot.tags || preferences.value.length === 0) return 0
-  
-  let count = 0
-  const spotTags = spot.tags.map(t => t.toLowerCase())
-  
-  preferences.value.forEach(pref => {
-    const relatedTags = prefTagMap[pref] || []
-    if (relatedTags.some(tag => spotTags.some(st => st.includes(tag)))) {
-      count++
-    }
-  })
-  
-  return count
+  return spot.match_count || 0
 }
 
-// 推荐排序算法
-const calculateScore = (spot) => {
-  let score = 0
-  
-  // 1. 标签匹配加分（大量加分）
-  const matchCount = getMatchCount(spot)
-  score += matchCount * 100  // 每个匹配标签加100分
-  
-  // 2. 收藏人数加分（中量加分）
-  const favorites = spot.favorites || 0
-  score += Math.min(favorites / 100, 50)  // 最多加50分
-  
-  // 3. 评分加分（少量加分）
-  const rating = spot.rating || 4.5
-  score += (rating - 3) * 10  // 评分越高加分越多
-  
-  return score
-}
-
-// 排序后的景点列表
+// 排序后的景点列表 - 后端已经排序好，只需添加排名
 const sortedSpots = computed(() => {
-  const scoredSpots = spots.value.map((spot, index) => ({
+  // 后端返回的spots已经按分数排序
+  return spots.value.map((spot, index) => ({
     ...spot,
-    score: calculateScore(spot),
-    rank: 0 // 稍后计算
+    rank: index + 1
   }))
-  
-  // 按分数降序排序
-  scoredSpots.sort((a, b) => b.score - a.score)
-  
-  // 添加排名
-  scoredSpots.forEach((spot, index) => {
-    spot.rank = index + 1
-    // 生成推荐理由
-    if (spot.score >= 150) {
-      spot.recommendReason = '高度匹配您的偏好'
-    } else if (spot.favorites > 5000) {
-      spot.recommendReason = '热门必玩景点'
-    } else if (spot.rating >= 4.8) {
-      spot.recommendReason = '评分超高好评'
-    }
-  })
-  
-  return scoredSpots
 })
 
 // 加载景点数据
 const loadSpots = async () => {
   loading.value = true
   try {
-    const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=50`)
+    // 构建URL，包含偏好参数
+    let url = `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=50`
+    if (preferences.value.length > 0) {
+      url += `&preferences=${encodeURIComponent(preferences.value.join(','))}`
+    }
+    console.log('请求URL:', url)
+    const response = await fetch(url)
     const data = await response.json()
+    console.log('返回数据前3个:', data.spots?.slice(0, 3).map(s => ({name: s.name, match_count: s.match_count, tags: s.tags})))
     
     if (data.spots) {
       spots.value = data.spots.map(spot => ({
@@ -560,11 +503,16 @@ onMounted(() => {
   const prefStr = route.query.preferences || ''
   preferences.value = prefStr.split(',').filter(p => p)
   
+  console.log('初始化 - 城市:', city.value, '偏好:', preferences.value)
+  
   loadSpots()
 })
 
 // 当页面重新激活时刷新数据
 onActivated(() => {
+  // 重新从route获取preferences，防止丢失
+  const prefStr = route.query.preferences || ''
+  preferences.value = prefStr.split(',').filter(p => p)
   loadSpots()
 })
 </script>

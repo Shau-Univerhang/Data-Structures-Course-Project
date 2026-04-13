@@ -16,16 +16,16 @@
       </div>
     </section>
 
-    <!-- 景点筛选 -->
+    <!-- 景点筛选 - 使用tag分类 -->
     <section class="filter-bar">
       <button 
-        v-for="cat in categories" 
-        :key="cat"
+        v-for="tag in allTags" 
+        :key="tag"
         class="filter-tag"
-        :class="{ active: selectedCategory === cat }"
-        @click="selectedCategory = cat"
+        :class="{ active: selectedTag === tag }"
+        @click="selectedTag = tag"
       >
-        {{ cat }}
+        {{ tag }}
       </button>
     </section>
 
@@ -53,16 +53,12 @@
                 <span>{{ formatNumber(spot.favorites_count || 0) }}</span>
               </div>
             </div>
-            <div class="spot-header">
-              <h3 class="spot-title">{{ spot.name }}</h3>
-              <span class="spot-category" v-if="spot.category">{{ spot.category }}</span>
-            </div>
+            <h3 class="spot-title">{{ spot.name }}</h3>
             <p class="spot-desc">{{ spot.description?.slice(0, 40) }}{{ spot.description?.length > 40 ? '...' : '' }}</p>
             <div class="spot-footer">
               <div class="spot-tags">
-                <span v-for="tag in (spot.tags || []).slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+                <span v-for="tag in filterSpotTags(spot.tags)" :key="tag" class="tag">{{ tag }}</span>
               </div>
-              <div class="spot-arrow">→</div>
             </div>
           </div>
         </div>
@@ -85,10 +81,45 @@ const route = useRoute()
 
 const cityName = ref('')
 const spots = ref([])
-const selectedCategory = ref('全部')
+const selectedTag = ref('全部')
 const defaultImage = '/images/cities/beijing.jpg'
 
-const categories = ['全部', '历史古迹', '风景名胜', '地标建筑', '博物展览', '休闲娱乐', '美食']
+// 允许的tag列表（按指定顺序）
+const ALLOWED_TAGS = [
+  '必玩景点',
+  '历史文化',
+  '地标建筑',
+  '非遗体验',
+  '风景名胜',
+  '逛吃逛喝',
+  '博物展览',
+  'citywalk',
+  '拍照出片',
+  '市井烟火',
+  '休闲娱乐'
+]
+
+// 过滤后的tag分类
+const allTags = computed(() => {
+  const tagSet = new Set()
+  spots.value.forEach(spot => {
+    if (spot.tags && Array.isArray(spot.tags)) {
+      spot.tags.forEach(tag => {
+        if (ALLOWED_TAGS.includes(tag)) {
+          tagSet.add(tag)
+        }
+      })
+    }
+  })
+  // 按ALLOWED_TAGS顺序返回存在的tag
+  return ['全部', ...ALLOWED_TAGS.filter(tag => tagSet.has(tag))]
+})
+
+// 过滤spot的tags，只保留允许的
+const filterSpotTags = (tags) => {
+  if (!tags || !Array.isArray(tags)) return []
+  return tags.filter(tag => ALLOWED_TAGS.includes(tag))
+}
 
 // 城市默认图片
 const cityImages = {
@@ -609,8 +640,8 @@ const getSpotImage = (spotName, city) => {
 const spotCount = computed(() => spots.value.length)
 
 const filteredSpots = computed(() => {
-  if (selectedCategory.value === '全部') return spots.value
-  return spots.value.filter(s => s.category === selectedCategory.value)
+  if (selectedTag.value === '全部') return spots.value
+  return spots.value.filter(s => s.tags && s.tags.includes(selectedTag.value))
 })
 
 onMounted(async () => {
@@ -884,29 +915,12 @@ const goToSpot = (spot) => {
   padding: 16px;
 }
 
-.spot-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
 .spot-title {
   font-size: 15px;
   font-weight: 600;
   color: #fff;
   line-height: 1.3;
-  flex: 1;
-}
-
-.spot-category {
-  font-size: 11px;
-  padding: 3px 8px;
-  background: rgba(0, 212, 255, 0.15);
-  border-radius: 6px;
-  color: #00d4ff;
-  white-space: nowrap;
+  margin-bottom: 8px;
 }
 
 .spot-desc {
@@ -934,16 +948,6 @@ const goToSpot = (spot) => {
   background: rgba(0, 212, 255, 0.1);
   border-radius: 10px;
   color: #00d4ff;
-}
-
-.spot-arrow {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
 }
 
 .empty-state {

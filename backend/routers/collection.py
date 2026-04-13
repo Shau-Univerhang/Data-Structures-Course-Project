@@ -13,6 +13,9 @@ sys.path.append("..")
 
 from models.database import get_db, Collection, TripPhoto, ScenicSpot, Trip, SpotReview
 
+# 导入spots路由中的图片获取函数
+from routers.spots import get_spot_image
+
 router = APIRouter()
 
 # 照片上传目录
@@ -258,19 +261,21 @@ def get_collections(
 ):
     """获取用户收藏的景点"""
     collections = db.query(Collection).filter(Collection.user_id == user_id).all()
-    
+
     result = []
     for col in collections:
         spot = db.query(ScenicSpot).filter(ScenicSpot.id == col.spot_id).first()
         if spot:
+            # 使用get_spot_image获取景点图片（与景点推荐API一致）
+            spot_images = get_spot_image(spot.name, spot.city)
             result.append({
                 'id': spot.id,
                 'name': spot.name,
                 'city': spot.city,
                 'rating': spot.rating,
-                'images': spot.images or []
+                'images': spot_images if spot_images else []
             })
-    
+
     return result
 
 

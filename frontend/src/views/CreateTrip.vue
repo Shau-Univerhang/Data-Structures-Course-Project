@@ -215,13 +215,19 @@ const submitTrip = async () => {
   // 保存到本地存储（后续会调用API）
   localStorage.setItem('createTripForm', JSON.stringify(form.value))
   
+  // 将英文偏好ID转换为中文名称
+  const prefNames = form.value.preferences.map(prefId => {
+    const tag = preferenceTags.find(t => t.id === prefId)
+    return tag ? tag.name : prefId
+  })
+  
   // 跳转到推荐页面
   router.push({
     path: '/spot-recommend',
     query: {
       city: form.value.destinations[0],
       days: form.value.days,
-      preferences: form.value.preferences.join(',')
+      preferences: prefNames.join(',')
     }
   })
 }

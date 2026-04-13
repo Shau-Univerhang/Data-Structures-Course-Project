@@ -11,7 +11,7 @@
       <section class="user-section">
         <div class="avatar-section">
           <div class="avatar-wrapper" @click="triggerUpload">
-            <img v-if="user.avatar_url" :src="user.avatar_url" alt="头像" class="avatar-img" />
+            <img v-if="user.avatar_url" :src="getFullImageUrl(user.avatar_url)" alt="头像" class="avatar-img" />
             <div v-else class="avatar-placeholder">{{ user.username?.charAt(0) || '游' }}</div>
             <div class="avatar-edit">
               <span>编辑</span>
@@ -138,6 +138,15 @@ const user = reactive({
   created_at: ''
 })
 
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
+
 const showUsernameModal = ref(false)
 const showAboutModal = ref(false)
 const newUsername = ref('')
@@ -239,20 +248,29 @@ const handleAvatarChange = async (event) => {
   try {
     // 显示上传中提示
     ElMessage.info('正在上传头像...')
+    console.log('开始上传头像，用户ID:', userId)
+    console.log('原始文件:', file.name, file.size, file.type)
 
     // 压缩图片
     const compressedFile = await compressImage(file)
+    console.log('压缩后文件:', compressedFile.name, compressedFile.size, compressedFile.type)
     
     const formData = new FormData()
     formData.append('file', compressedFile)
 
-    const response = await fetch(`http://localhost:8000/api/auth/avatar?user_id=${userId}`, {
+    const url = `http://localhost:8000/api/auth/avatar?user_id=${userId}`
+    console.log('请求URL:', url)
+
+    const response = await fetch(url, {
       method: 'POST',
       body: formData
     })
 
+    console.log('响应状态:', response.status, response.statusText)
+
     if (response.ok) {
       const data = await response.json()
+      console.log('响应数据:', data)
       user.avatar_url = data.avatar_url + '?t=' + Date.now() // 添加时间戳避免缓存
       
       // 更新本地存储的用户信息
@@ -262,7 +280,14 @@ const handleAvatarChange = async (event) => {
       
       ElMessage.success('头像上传成功')
     } else {
-      const error = await response.json()
+      const errorText = await response.text()
+      console.error('上传失败响应:', errorText)
+      let error
+      try {
+        error = JSON.parse(errorText)
+      } catch (e) {
+        error = { detail: errorText }
+      }
       ElMessage.error(error.detail || '头像上传失败')
     }
   } catch (error) {

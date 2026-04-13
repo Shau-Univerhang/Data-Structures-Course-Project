@@ -59,7 +59,7 @@
                 </div>
                 <div class="spot-order">{{ index + 1 }}</div>
                 <div class="spot-image">
-                  <img :src="spot.image" :alt="spot.name" />
+                  <img :src="getFullImageUrl(spot.image)" :alt="spot.name" />
                 </div>
                 <div class="spot-info">
                   <h4 class="spot-name">{{ spot.name }}</h4>
@@ -196,7 +196,7 @@
               :class="{ 'already-added': usedSpotIds.has(spot.id) }"
               @click="!usedSpotIds.has(spot.id) && addSpot(spot)"
             >
-              <img :src="spot.image" :alt="spot.name" class="spot-thumb" />
+              <img :src="getFullImageUrl(spot.image)" :alt="spot.name" class="spot-thumb" />
               <div class="spot-brief">
                 <h4>{{ spot.name }}</h4>
                 <span class="spot-rating-small"
@@ -229,6 +229,15 @@ import { solveTSP, buildCostMatrix } from "@/pathfinder/tsp.js";
 
 const router = useRouter();
 const route = useRoute();
+
+const API_BASE_URL = 'http://localhost:8000'
+
+// 获取完整图片URL
+const getFullImageUrl = (url) => {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `${API_BASE_URL}${url}`
+}
 
 // 数据
 const city = ref("");

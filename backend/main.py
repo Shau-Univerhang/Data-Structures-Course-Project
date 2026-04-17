@@ -41,7 +41,97 @@ app.mount("/images", StaticFiles(directory=images_dir), name="images")
 app.include_router(spots.router, prefix="/api/spots", tags=["景点"])
 app.include_router(trips.router, prefix="/api/trips", tags=["行程"])
 app.include_router(route.router, prefix="/api/route", tags=["路线"])
+
+# 先定义日记库路由（必须在 diary router 之前）
+from fastapi import Depends, Query
+from sqlalchemy.orm import Session
+from typing import Optional
+from models.database import get_db, TravelDiary, User, DiaryCity, DiaryCityTag, DiaryComment
+
+@app.get("/api/library/diaries/cities", tags=["日记库"])
+def get_library_cities(
+    min_count: int = Query(1, ge=0, description="最小日记数量"),
+    db: Session = Depends(get_db)
+):
+    """获取日记城市列表"""
+    cities = db.query(DiaryCity).filter(
+        DiaryCity.diary_count >= min_count
+    ).order_by(DiaryCity.diary_count.desc()).all()
+    
+    hot_cities = [c.name for c in cities if c.diary_count >= 10][:10]
+    
+    return {
+        "cities": [{"id": c.id, "name": c.name, "diary_count": c.diary_count} for c in cities],
+        "hot_cities": hot_cities
+    }
+
+@app.get("/api/library/diaries", tags=["日记库"])
+def get_diary_library(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=50, description="每页数量"),
+    city_id: Optional[int] = Query(None, description="城市ID筛选"),
+    diary_type: Optional[str] = Query(None, description="日记类型筛选"),
+    sort: str = Query("hot", description="排序方式: hot/new/rating"),
+    db: Session = Depends(get_db)
+):
+    """获取日记库列表"""
+    query = db.query(TravelDiary).filter(
+        TravelDiary.is_public == True,
+        TravelDiary.status == 'published'
+    )
+    
+    if city_id:
+        diary_ids = db.query(DiaryCityTag.diary_id).filter(
+            DiaryCityTag.city_id == city_id
+        ).distinct()
+        query = query.filter(TravelDiary.id.in_(diary_ids))
+    
+    if diary_type:
+        query = query.filter(TravelDiary.diary_type == diary_type)
+    
+    if sort == "new":
+        query = query.order_by(TravelDiary.created_at.desc())
+    elif sort == "rating":
+        query = query.order_by(TravelDiary.avg_rating.desc())
+    else:
+        query = query.order_by(
+            (TravelDiary.view_count * 0.7 + TravelDiary.avg_rating * TravelDiary.rating_count * 10).desc()
+        )
+    
+    total = query.count()
+    offset = (page - 1) * page_size
+    diaries = query.offset(offset).limit(page_size).all()
+    
+    result = []
+    for diary in diaries:
+        user = db.query(User).filter(User.id == diary.user_id).first()
+        city_tags = db.query(DiaryCity).join(
+            DiaryCityTag, DiaryCity.id == DiaryCityTag.city_id
+        ).filter(DiaryCityTag.diary_id == diary.id).all()
+        comment_count = db.query(DiaryComment).filter(
+            DiaryComment.diary_id == diary.id,
+            DiaryComment.is_deleted == False
+        ).count()
+        
+        result.append({
+            "id": diary.id,
+            "title": diary.title,
+            "cover": diary.images[0] if diary.images else None,
+            "author": user.username if user else "匿名用户",
+            "avatar": user.avatar_url if user else None,
+            "type": diary.diary_type,
+            "cities": [c.name for c in city_tags],
+            "rating": round(diary.avg_rating, 1) if diary.avg_rating else 0,
+            "view_count": diary.view_count,
+            "comment_count": comment_count,
+            "created_at": diary.created_at
+        })
+    
+    return {"total": total, "page": page, "page_size": page_size, "diaries": result}
+
+# 再注册 diary router（在日记库路由之后）
 app.include_router(diary.router, prefix="/api/diaries", tags=["日记"])
+
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(xiaohongshu.router, prefix="/api/xiaohongshu", tags=["小红书"])
 app.include_router(auth.router, prefix="/api/auth", tags=["认证"])

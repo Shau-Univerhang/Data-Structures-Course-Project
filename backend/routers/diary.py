@@ -10,10 +10,40 @@ from datetime import datetime
 import sys
 sys.path.append("..")
 
-from models.database import get_db, TravelDiary, DiaryRating, DiaryComment, User
+from models.database import get_db, TravelDiary, DiaryRating, DiaryComment, User, DiaryCity, DiaryCityTag
+from utils.city_extractor import CityExtractor, get_extractor
 from algorithms.core import compress_diary, decompress_diary
 
 router = APIRouter()
+
+
+# ============================================
+# 工具函数
+# ============================================
+
+def get_or_create_city(db: Session, city_name: str) -> DiaryCity:
+    """获取或创建城市标签"""
+    extractor = get_extractor()
+    
+    # 检查是否已存在
+    city = db.query(DiaryCity).filter(DiaryCity.name == city_name).first()
+    if city:
+        return city
+    
+    # 检查是否是别名
+    canonical_name = extractor.resolve_alias(city_name)
+    if canonical_name != city_name:
+        city = db.query(DiaryCity).filter(DiaryCity.name == canonical_name).first()
+        if city:
+            return city
+        city_name = canonical_name
+    
+    # 创建新城市
+    new_city = DiaryCity(name=city_name, diary_count=0)
+    db.add(new_city)
+    db.commit()
+    db.refresh(new_city)
+    return new_city
 
 
 # Pydantic模型
@@ -64,11 +94,12 @@ class CommentResponse(BaseModel):
     id: int
     diary_id: int
     user_id: int
-    username: str
-    parent_id: Optional[int]
+    username: Optional[str] = '已注销用户'  # 允许None，默认显示已注销用户
+    parent_id: Optional[int] = None
     content: str
     like_count: int
     is_deleted: bool
+    user_rating: Optional[int] = 0  # 用户对该日记的评分
     created_at: str
     replies: List[dict] = []
 
@@ -113,6 +144,47 @@ def create_diary(
     db.commit()
     db.refresh(diary)
     
+    # 自动提取城市标签（仅公开日记）
+    if diary.is_public:
+        try:
+            extractor = get_extractor()
+            cities = extractor.extract_cities(
+                title=diary.title,
+                content=request.content,  # 使用原始内容
+                itinerary=diary.itinerary
+            )
+            
+            for city_data in cities:
+                city_name = city_data['city']
+                confidence = city_data['confidence']
+                
+                # 获取或创建城市
+                city = get_or_create_city(db, city_name)
+                
+                # 检查是否已关联
+                existing = db.query(DiaryCityTag).filter_by(
+                    diary_id=diary.id,
+                    city_id=city.id
+                ).first()
+                
+                if not existing:
+                    # 创建关联
+                    tag = DiaryCityTag(
+                        diary_id=diary.id,
+                        city_id=city.id,
+                        confidence=confidence
+                    )
+                    db.add(tag)
+                    
+                    # 更新城市计数
+                    city.diary_count += 1
+            
+            db.commit()
+        except Exception as e:
+            # 城市提取失败不应影响日记创建
+            print(f"城市提取失败: {e}")
+            db.rollback()
+    
     # 获取用户名
     user = db.query(User).filter(User.id == diary.user_id).first()
     
@@ -156,11 +228,124 @@ def get_public_diaries(
             "title": diary.title,
             "cover": diary.images[0] if diary.images else None,
             "author": user.username if user else "匿名用户",
-            "likes": diary.avg_rating * 100,
             "rating": round(diary.avg_rating, 1) if diary.avg_rating else 0
         })
     
     return result
+
+
+# ============================================
+# 日记库功能（必须放在 / 和 /{diary_id} 之前）
+# ============================================
+
+@router.get("/explore/cities")
+def get_cities(
+    min_count: int = Query(1, ge=0, description="最小日记数量"),
+    db: Session = Depends(get_db)
+):
+    """获取日记城市列表"""
+    cities = db.query(DiaryCity).filter(
+        DiaryCity.diary_count >= min_count
+    ).order_by(DiaryCity.diary_count.desc()).all()
+    
+    # 热门城市（日记数 >= 10）
+    hot_cities = [c.name for c in cities if c.diary_count >= 10][:10]
+    
+    return {
+        "cities": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "diary_count": c.diary_count
+            }
+            for c in cities
+        ],
+        "hot_cities": hot_cities
+    }
+
+
+@router.get("/explore")
+def get_diary_library(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=50, description="每页数量"),
+    city_id: Optional[int] = Query(None, description="城市ID筛选"),
+    diary_type: Optional[str] = Query(None, description="日记类型筛选"),
+    sort: str = Query("hot", description="排序方式: hot/new/rating"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取日记库列表
+    
+    支持按城市和类型筛选，支持多种排序方式
+    """
+    query = db.query(TravelDiary).filter(
+        TravelDiary.is_public == True,
+        TravelDiary.status == 'published'
+    )
+    
+    # 城市筛选
+    if city_id:
+        diary_ids = db.query(DiaryCityTag.diary_id).filter(
+            DiaryCityTag.city_id == city_id
+        ).distinct()
+        query = query.filter(TravelDiary.id.in_(diary_ids))
+    
+    # 类型筛选
+    if diary_type:
+        query = query.filter(TravelDiary.diary_type == diary_type)
+    
+    # 排序
+    if sort == "new":
+        query = query.order_by(TravelDiary.created_at.desc())
+    elif sort == "rating":
+        query = query.order_by(TravelDiary.avg_rating.desc())
+    else:  # hot - 综合热度（浏览量+评分）
+        query = query.order_by(
+            (TravelDiary.view_count * 0.7 + TravelDiary.avg_rating * TravelDiary.rating_count * 10).desc()
+        )
+    
+    # 分页
+    total = query.count()
+    offset = (page - 1) * page_size
+    diaries = query.offset(offset).limit(page_size).all()
+    
+    # 构建响应
+    result = []
+    for diary in diaries:
+        # 获取作者信息
+        user = db.query(User).filter(User.id == diary.user_id).first()
+        
+        # 获取城市标签
+        city_tags = db.query(DiaryCity).join(
+            DiaryCityTag, DiaryCity.id == DiaryCityTag.city_id
+        ).filter(DiaryCityTag.diary_id == diary.id).all()
+        
+        # 获取评论数
+        comment_count = db.query(DiaryComment).filter(
+            DiaryComment.diary_id == diary.id,
+            DiaryComment.is_deleted == False
+        ).count()
+        
+        result.append({
+            "id": diary.id,
+            "title": diary.title,
+            "cover": diary.images[0] if diary.images else None,
+            "author": user.username if user else "匿名用户",
+            "avatar": user.avatar_url if user else None,
+            "type": diary.diary_type,
+            "cities": [c.name for c in city_tags],
+            "rating": round(diary.avg_rating, 1) if diary.avg_rating else 0,
+            "view_count": diary.view_count,
+            "comment_count": comment_count,
+            "created_at": diary.created_at
+        })
+    
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "diaries": result
+    }
 
 
 @router.get("/", response_model=List[DiaryResponse])
@@ -426,8 +611,8 @@ def get_comments(
     db: Session = Depends(get_db)
 ):
     """获取日记的评论列表（包括回复）"""
-    # 获取所有评论
-    all_comments = db.query(DiaryComment, User.username).join(
+    # 获取所有评论（使用 outerjoin 保留所有评论，即使用户不存在）
+    all_comments = db.query(DiaryComment, User.username).outerjoin(
         User, DiaryComment.user_id == User.id
     ).filter(
         DiaryComment.diary_id == diary_id
@@ -452,7 +637,7 @@ def get_comments(
             'id': comment.id,
             'diary_id': comment.diary_id,
             'user_id': comment.user_id,
-            'username': username,
+            'username': username if username else '已注销用户',
             'parent_id': comment.parent_id,
             'content': comment.content if not comment.is_deleted else '该评论已删除',
             'like_count': comment.like_count,
@@ -519,6 +704,7 @@ def create_comment(
         'content': comment.content,
         'like_count': comment.like_count,
         'is_deleted': comment.is_deleted,
+        'user_rating': 0,  # 新评论默认没有评分
         'created_at': comment.created_at,
         'replies': []
     }

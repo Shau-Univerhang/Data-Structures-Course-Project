@@ -2,7 +2,7 @@
 数据库模型定义
 使用 SQLite
 """
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, Text, Date, Time, JSON, BLOB, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, Text, Date, Time, JSON, BLOB, ForeignKey, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
@@ -290,6 +290,43 @@ class PhotoSpot(Base):
     description = Column(Text)  # 点位描述
     image = Column(String(255))  # 点位图片URL
     created_at = Column(String, default=datetime.now().isoformat)
+
+
+# ============================================
+# 日记城市标签功能（新增，完全独立）
+# ============================================
+
+class DiaryCity(Base):
+    """日记城市标签库"""
+    __tablename__ = "diary_cities"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False, unique=True)  # 城市名称
+    diary_count = Column(Integer, default=0)  # 该城市日记数量
+    created_at = Column(String, default=datetime.now().isoformat)
+    
+    # 关联：一个城市有多个标签记录
+    tags = relationship("DiaryCityTag", back_populates="city", cascade="all, delete-orphan")
+
+
+class DiaryCityTag(Base):
+    """日记-城市关联表"""
+    __tablename__ = "diary_city_tags"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    diary_id = Column(Integer, ForeignKey("travel_diaries.id", ondelete="CASCADE"))
+    city_id = Column(Integer, ForeignKey("diary_cities.id", ondelete="CASCADE"))
+    confidence = Column(Float, default=1.0)  # 识别置信度（0-1）
+    created_at = Column(String, default=datetime.now().isoformat)
+    
+    # 关联
+    diary = relationship("TravelDiary")
+    city = relationship("DiaryCity", back_populates="tags")
+    
+    # 唯一约束：避免重复关联
+    __table_args__ = (
+        UniqueConstraint('diary_id', 'city_id', name='unique_diary_city'),
+    )
 
 
 # 数据库初始化

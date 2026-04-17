@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-page">
     <Navbar />
     
@@ -72,12 +72,6 @@
               <h3 class="hero-title">{{ publicDiaries[currentSlide]?.title || '发现精彩旅程' }}</h3>
               <p class="hero-author">by {{ publicDiaries[currentSlide]?.author || '旅行者' }}</p>
               <div class="hero-stats">
-                <span class="hero-stat">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                  </svg>
-                  {{ publicDiaries[currentSlide]?.likes || 0 }}
-                </span>
                 <span class="hero-stat">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
@@ -287,6 +281,21 @@
             <div class="entry-info">
               <span class="entry-title">管理我的日记</span>
               <span class="entry-desc">查看、编辑和管理你的所有日记</span>
+            </div>
+            <svg class="entry-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 发现更多 - 日记库入口 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">🌍 发现更多</h3>
+          <button class="user-diary-entry library-entry" @click="goToDiaryLibrary">
+            <div class="entry-icon">🌐</div>
+            <div class="entry-info">
+              <span class="entry-title">探索日记库</span>
+              <span class="entry-desc">发现更多用户的出游日记</span>
             </div>
             <svg class="entry-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -625,6 +634,11 @@ const handleDelete = async (diaryId) => {
 // 跳转到用户日记管理页面
 const goToUserDiary = () => {
   router.push('/user-diary')
+}
+
+// 跳转到日记库页面
+const goToDiaryLibrary = () => {
+  router.push('/diary-library')
 }
 </script>
 

@@ -129,6 +129,19 @@
             <button class="action-btn" @click="showManualEdit = !showManualEdit">
               {{ showManualEdit ? '收起' : '编辑' }}
             </button>
+            <button
+              class="action-btn publish-btn"
+              :disabled="!canPublish"
+              @click="publishDiary"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              发布
+            </button>
+            <button class="action-btn cancel-btn" @click="emit('cancel')">取消</button>
           </div>
         </div>
         
@@ -192,6 +205,15 @@
             
             <!-- 信息标签 -->
             <div class="info-pills">
+              <!-- 日记类型选择 -->
+              <div class="pill type-pill">
+                <select v-model="diaryType" class="type-select">
+                  <option value="travel">🏃 行程</option>
+                  <option value="food">🍜 美食</option>
+                  <option value="photo">📸 摄影</option>
+                  <option value="notes">💭 随笔</option>
+                </select>
+              </div>
               <div class="pill budget-pill" v-if="diaryBudget">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -272,28 +294,13 @@
       </div>
     </div>
     
-    <!-- 底部操作栏 -->
-    <div class="editor-footer-bar">
-      <button class="footer-btn secondary" @click="emit('cancel')">取消</button>
-      <button
-        class="footer-btn primary"
-        :disabled="!canPublish"
-        @click="publishDiary"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
-        发布日记
-      </button>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import SmartTitleGenerator from '../utils/SmartTitleGenerator.js'
 
 const emit = defineEmits(['save', 'publish', 'cancel'])
 
@@ -308,6 +315,7 @@ const showManualEdit = ref(false)
 const diaryTitle = ref('')
 const diaryBudget = ref('')
 const diaryCompanion = ref('')
+const diaryType = ref('travel')  // 默认行程类型
 
 // 结构化数据
 const structuredData = ref([])
@@ -363,11 +371,25 @@ const organizeWithAI = async () => {
 
     // 解析输入文本
     const parsed = parseTravelNotes(rawInput.value)
-    structuredData.value = parsed.timeline
     
-    // 自动提取标题
+    // 使用智能标题生成器生成时间段小标题
+    const timelineWithTitles = parsed.timeline.map((day, index) => {
+      const activities = day.activities || []
+      // 使用新的智能标题生成器
+      const smartTitle = SmartTitleGenerator.generateSectionTitle(activities, index)
+      return {
+        ...day,
+        theme: smartTitle,
+        title: smartTitle
+      }
+    })
+    
+    structuredData.value = timelineWithTitles
+    
+    // 使用智能标题生成器生成主标题
     if (!diaryTitle.value) {
-      diaryTitle.value = extractDiaryTitle(rawInput.value)
+      const mainTitle = SmartTitleGenerator.generateMainTitle(rawInput.value, timelineWithTitles)
+      diaryTitle.value = mainTitle
     }
     
     // 自动提取预算
@@ -730,19 +752,7 @@ const parseTravelNotes = (text) => {
   return { timeline }
 }
 
-// 提取日记主标题
-const extractDiaryTitle = (text) => {
-  const lines = text.split('\n')
-  for (const line of lines) {
-    if (line.includes('京都')) return '京都之旅'
-    if (line.includes('东京')) return '东京漫步'
-    if (line.includes('大阪')) return '大阪美食行'
-    if (line.includes('北海道')) return '北海道之旅'
-    if (line.includes('成都')) return '成都美食行'
-    if (line.includes('重庆')) return '山城漫步'
-  }
-  return '我的旅行日记'
-}
+// 注意：日记主标题现在使用 SmartTitleGenerator.generateMainTitle() 生成
 
 // 提取预算
 const extractBudget = (text) => {
@@ -772,6 +782,7 @@ const publishDiary = () => {
   const diary = {
     title: diaryTitle.value || '我的旅行日记',
     content: rawInput.value,
+    diary_type: diaryType.value,
     budget: diaryBudget.value,
     companion: diaryCompanion.value,
     images: uploadedImages.value,
@@ -786,20 +797,24 @@ const publishDiary = () => {
 
 <style scoped>
 .smart-editor {
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(135deg, #F8F9FC 0%, #FFFFFF 50%, #F0F4F8 100%);
   position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 分屏布局 */
 .editor-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: calc(100vh - 80px);
+  flex: 1;
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
   gap: 24px;
+  overflow: hidden;
 }
 
 .editor-layout.mobile {
@@ -812,6 +827,25 @@ const publishDiary = () => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.edit-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.edit-section::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edit-section::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+
+.edit-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
 }
 
 /* Magic Input 区域 */
@@ -1142,6 +1176,7 @@ const publishDiary = () => {
   border-radius: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  height: 100%;
 }
 
 .preview-header {
@@ -1171,6 +1206,12 @@ const publishDiary = () => {
   gap: 8px;
 }
 
+.preview-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .action-btn {
   padding: 8px 16px;
   background: #F3F4F6;
@@ -1181,16 +1222,62 @@ const publishDiary = () => {
   color: #374151;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .action-btn:hover {
   background: #E5E7EB;
 }
 
+.action-btn.publish-btn {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+}
+
+.action-btn.publish-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+.action-btn.publish-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.cancel-btn {
+  background: transparent;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+}
+
+.action-btn.cancel-btn:hover {
+  background: #F3F4F6;
+  border-color: #D1D5DB;
+}
+
 .preview-content {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+.preview-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preview-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preview-content::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 3px;
+}
+
+.preview-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
 }
 
 /* 空状态 */
@@ -1559,62 +1646,23 @@ const publishDiary = () => {
   transform: scale(1.05);
 }
 
-/* 底部操作栏 */
-.editor-footer-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  background: white;
-  border-top: 1px solid #E5E7EB;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
-  z-index: 100;
-}
-
-.footer-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.footer-btn.secondary {
-  background: #F3F4F6;
-  border: none;
-  color: #4B5563;
-}
-
-.footer-btn.secondary:hover {
-  background: #E5E7EB;
-}
-
-.footer-btn.primary {
-  background: linear-gradient(135deg, #6366F1, #8B5CF6);
-  border: none;
-  color: white;
-}
-
-.footer-btn.primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
-}
-
-.footer-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* 响应式调整 */
 @media (max-width: 768px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  
+  .edit-section {
+    overflow-y: visible;
+    padding-right: 0;
+  }
+  
+  .preview-section {
+    height: auto;
+    min-height: 400px;
+  }
+  
   .magic-input-section {
     padding: 20px;
   }
@@ -1639,13 +1687,40 @@ const publishDiary = () => {
     padding: 12px;
   }
   
-  .editor-footer-bar {
-    padding: 12px 16px;
+  .preview-actions {
+    gap: 4px;
   }
   
-  .footer-btn {
-    padding: 10px 18px;
-    font-size: 0.875rem;
+  .action-btn {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
   }
+}
+
+/* 日记类型选择器 */
+.type-pill {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  padding: 4px 12px;
+}
+
+.type-select {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+}
+
+.type-select option {
+  background: white;
+  color: #374151;
 }
 </style>

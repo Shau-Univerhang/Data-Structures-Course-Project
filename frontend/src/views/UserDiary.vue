@@ -393,6 +393,7 @@ const handlePublish = async (diary) => {
       title: diary.title,
       content: diary.content,
       diary_type: diary.diary_type,
+      is_public: true,  // 默认公开发布，以便进入日记库
       images: diary.images || [],
       budget: diary.budget,
       companion: diary.companion,

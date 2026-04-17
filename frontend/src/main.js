@@ -14,6 +14,7 @@ import RoutePlan from './views/RoutePlan.vue'
 import Diary from './views/Diary.vue'
 import DiaryDetail from './views/DiaryDetail.vue'
 import UserDiary from './views/UserDiary.vue'
+import DiaryLibrary from './views/DiaryLibrary.vue'
 import City from './views/City.vue'
 import SpotDetail from './views/SpotDetail.vue'
 import AIAssistant from './views/AIAssistant.vue'
@@ -44,6 +45,7 @@ const routes = [
   { path: '/diary', name: 'Diary', component: Diary },
   { path: '/diary/:id', name: 'DiaryDetail', component: DiaryDetail },
   { path: '/user-diary', name: 'UserDiary', component: UserDiary },
+  { path: '/diary-library', name: 'DiaryLibrary', component: DiaryLibrary },
   { path: '/city', name: 'City', component: City },
   { path: '/spot', name: 'SpotDetail', component: SpotDetail },
   { path: '/internal-nav', name: 'InternalNav', component: InternalNav },

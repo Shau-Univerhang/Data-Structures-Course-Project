@@ -29,12 +29,21 @@
             </div>
             <div class="trip-status" :class="trip.status">{{ trip.statusText }}</div>
           </div>
-          <button class="rename-btn" @click.stop="renameTrip(trip)" title="重命名">
-            <span>✏️</span>
-          </button>
-          <button class="delete-btn" @click.stop="deleteTrip(trip)" title="删除行程">
-            <span>🗑️</span>
-          </button>
+          <div class="action-buttons">
+            <button class="action-btn rename" @click.stop="renameTrip(trip)" title="重命名">
+              <span>✏️</span>
+            </button>
+            <button 
+              class="action-btn export" 
+              @click.stop="exportToDiary(trip)"
+              :title="trip.status === 'completed' ? '已导出日记' : '导出为日记'"
+            >
+              <span>{{ trip.status === 'completed' ? '✅' : '📔' }}</span>
+            </button>
+            <button class="action-btn delete" @click.stop="deleteTrip(trip)" title="删除行程">
+              <span>🗑️</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -91,6 +100,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import Navbar from '../components/Navbar.vue'
+import { TripToDiaryConverter } from '../utils/tripToDiaryConverter.js'
+import { DiaryContentGenerator } from '../utils/diaryContentGenerator.js'
 
 const router = useRouter()
 
@@ -376,6 +387,49 @@ const confirmRename = async () => {
   newTitle.value = ''
 }
 
+/**
+ * 导出为日记
+ */
+const exportToDiary = async (trip) => {
+  try {
+    // 1. 获取完整行程数据
+    const response = await fetch(`http://localhost:8000/api/trips/${trip.id}`)
+    if (!response.ok) throw new Error('获取行程详情失败')
+
+    const tripData = await response.json()
+
+    // 2. 转换为日记数据（时间轴 + 图片）
+    const diaryData = TripToDiaryConverter.convert(tripData, {
+      generateContent: false, // 使用新的生成器
+      includeImages: true
+    })
+
+    // 3. 使用智能内容生成器生成游记文本
+    const richContent = DiaryContentGenerator.generate(tripData, {
+      style: 'narrative',
+      includeEmojis: true,
+      includeTips: true,
+      wordCount: 'medium'
+    })
+
+    // 4. 存储到 localStorage（用于跨页面传递）
+    localStorage.setItem('draftDiaryFromTrip', JSON.stringify({
+      ...diaryData,
+      content: richContent, // 使用生成的丰富内容
+      sourceTripId: trip.id,
+      sourceTripTitle: trip.title
+    }))
+
+    // 5. 跳转到日记编辑页
+    router.push('/diary')
+
+    ElMessage.success('正在跳转到日记编辑...')
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败，请重试')
+  }
+}
+
 // 初始化默认行程数据（如果没有数据）
 const initDefaultTrips = () => {
   // 不再自动创建默认数据，让用户自己创建行程
@@ -522,45 +576,57 @@ onMounted(async () => {
   color: #7b2cbf;
 }
 
-.rename-btn {
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn {
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 10px;
-  color: #00d4ff;
   font-size: 18px;
   cursor: pointer;
   transition: all 0.3s ease;
   flex-shrink: 0;
+  border: none;
 }
 
-.rename-btn:hover {
+.action-btn.rename {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #00d4ff;
+}
+
+.action-btn.rename:hover {
   background: rgba(0, 212, 255, 0.2);
   border-color: #00d4ff;
   transform: scale(1.05);
 }
 
-.delete-btn {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 71, 87, 0.1);
-  border: 1px solid rgba(255, 71, 87, 0.3);
-  border-radius: 10px;
-  color: #ff4757;
-  font-size: 18px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
+.action-btn.export {
+  background: rgba(123, 44, 191, 0.1);
+  border: 1px solid rgba(123, 44, 191, 0.3);
+  color: #7b2cbf;
 }
 
-.delete-btn:hover {
+.action-btn.export:hover {
+  background: rgba(123, 44, 191, 0.2);
+  border-color: #7b2cbf;
+  transform: scale(1.05);
+}
+
+.action-btn.delete {
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  color: #ff4757;
+}
+
+.action-btn.delete:hover {
   background: rgba(255, 71, 87, 0.2);
   border-color: #ff4757;
   transform: scale(1.05);

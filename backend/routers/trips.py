@@ -44,6 +44,8 @@ class AddSpotRequest(BaseModel):
     spot_id: int
     day_number: int = 1
     order_index: int = 0
+    visit_time_start: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class DailyScheduleResponse(BaseModel):
@@ -179,7 +181,9 @@ def add_spot_to_trip(
         trip_id=trip_id,
         day_number=request.day_number,
         spot_id=request.spot_id,
-        order_index=request.order_index
+        order_index=request.order_index,
+        visit_time_start=request.visit_time_start,
+        notes=request.notes
     )
     db.add(schedule)
     db.commit()

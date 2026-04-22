@@ -373,6 +373,10 @@ const props = defineProps({
   initialType: {
     type: String,
     default: 'travel'
+  },
+  initialItinerary: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -406,8 +410,8 @@ onMounted(() => {
   window.addEventListener('resize', () => {
     isMobile.value = window.innerWidth < 768
   })
-  
-  // 检查是否有来自行程的草稿
+
+  // 检查是否有来自行程的草稿（优先）
   const draftData = localStorage.getItem('draftDiaryFromTrip')
   if (draftData) {
     try {
@@ -418,6 +422,12 @@ onMounted(() => {
     } catch (e) {
       console.error('解析草稿失败:', e)
     }
+  } else if (props.initialItinerary && props.initialItinerary.length > 0) {
+    // 使用传入的初始时间轴数据
+    structuredData.value = props.initialItinerary
+    // 设置导入状态
+    hasTripImport.value = true
+    importedTripTitle.value = props.initialTitle || '导入的行程'
   }
 })
 

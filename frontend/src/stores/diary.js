@@ -27,7 +27,7 @@ export const useDiaryStore = defineStore('diary', () => {
     const userId = localStorage.getItem('userId')
     let username = localStorage.getItem('username')
     let avatar_url = localStorage.getItem('avatar_url') || ''
-    
+
     // 如果没有 username，尝试从 user 对象中解析（兼容旧版本）
     if (!username) {
       try {
@@ -41,7 +41,7 @@ export const useDiaryStore = defineStore('diary', () => {
         console.error('解析 user 失败:', e)
       }
     }
-    
+
     if (userId && username) {
       currentUser.value = {
         id: parseInt(userId),

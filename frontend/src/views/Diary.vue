@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-page">
     <Navbar />
     
@@ -319,6 +319,7 @@
           :initial-title="newDiary.title"
           :initial-content="newDiary.content"
           :initial-type="newDiary.diary_type"
+          :initial-itinerary="newDiary.itinerary"
           @save="handleSaveDraft"
           @publish="handlePublish"
           @cancel="closeModal"
@@ -497,7 +498,8 @@ onMounted(() => {
       newDiary.value = {
         title: parsed.title || '',
         content: parsed.content || '',
-        diary_type: parsed.diary_type || 'travel'
+        diary_type: parsed.diary_type || 'travel',
+        itinerary: parsed.itinerary || []
       }
       showCreateModal.value = true
       // 清除，避免重复加载
@@ -523,7 +525,8 @@ watch(() => route.path, (newPath) => {
 const newDiary = ref({
   title: '',
   content: '',
-  diary_type: 'travel'
+  diary_type: 'travel',
+  itinerary: []
 })
 
 // 使用 store 的日记列表

@@ -82,8 +82,10 @@
 ### 📁 新增文件
 - `frontend/src/views/DiaryDetail.vue` - 日记详情页
 - `frontend/src/components/CommentsRatings.vue` - 评分评论组件
-- `backend/routers/diary_api.py` - 日记 API 路由（评分、评论）
 - `backend/routers/diary_generator.py` - AI 日记生成 API
+
+### 🗑️ 移除文件
+- `backend/routers/diary_api.py` - 已合并到 `diary.py` 中
 
 ### 📝 修改文件
 - `frontend/src/views/Diary.vue` - 首页布局重构

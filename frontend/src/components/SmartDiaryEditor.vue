@@ -84,6 +84,37 @@
               <span>AI 正在整理...</span>
             </span>
           </button>
+          
+          <!-- 行程导入区域 -->
+          <div class="trip-import-section" v-if="!hasTripImport">
+            <div class="divider">
+              <span>或</span>
+            </div>
+            
+            <button 
+              class="trip-import-btn"
+              @click="showTripSelector = true"
+            >
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <span>提取已有行程生成日记</span>
+              <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- 已导入行程提示 -->
+          <div class="imported-trip-banner" v-else>
+            <div class="trip-info">
+              <span class="trip-icon">🗺️</span>
+              <span class="trip-name">来自：{{ importedTripTitle }}</span>
+            </div>
+            <button class="clear-btn" @click="clearTripImport">
+              <span>✕</span>
+            </button>
+          </div>
         </div>
         
         <!-- 手动编辑区（展开后显示） -->
@@ -228,6 +259,20 @@
               </div>
             </div>
             
+            <!-- 生成游记文本按钮 -->
+            <div v-if="structuredData.length > 0 && !rawInput" class="generate-content-section">
+              <button 
+                class="generate-content-btn"
+                @click="generateDiaryContentFromTimeline"
+                :disabled="isGeneratingContent"
+              >
+                <span v-if="isGeneratingContent" class="btn-loading">⏳</span>
+                <span v-else>✨</span>
+                <span>{{ isGeneratingContent ? '生成中...' : '基于时间轴生成游记' }}</span>
+              </button>
+              <p class="generate-hint">一键生成完整的游记内容，省时省力</p>
+            </div>
+            
             <!-- 时间轴 -->
             <div class="timeline-section">
               <h4 class="timeline-title">行程安排</h4>
@@ -295,27 +340,63 @@
     </div>
     
   </div>
+  
+  <!-- 行程选择弹窗 -->
+  <TripSelectorModal
+    v-model:visible="showTripSelector"
+    @select="onTripSelected"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import SmartTitleGenerator from '../utils/SmartTitleGenerator.js'
+import { TripToDiaryConverter } from '../utils/tripToDiaryConverter.js'
+import { DiaryContentGenerator } from '../utils/diaryContentGenerator.js'
+import TripSelectorModal from './TripSelectorModal.vue'
 
 const emit = defineEmits(['save', 'publish', 'cancel'])
+const router = useRouter()
+
+// Props
+const props = defineProps({
+  initialTitle: {
+    type: String,
+    default: ''
+  },
+  initialContent: {
+    type: String,
+    default: ''
+  },
+  initialType: {
+    type: String,
+    default: 'travel'
+  }
+})
 
 // 响应式状态
 const isMobile = ref(window.innerWidth < 768)
-const rawInput = ref('')
+const rawInput = ref(props.initialContent || '')
 const isOrganizing = ref(false)
 const uploadedImages = ref([])
 const showManualEdit = ref(false)
 
 // 日记元数据
-const diaryTitle = ref('')
+const diaryTitle = ref(props.initialTitle || '')
 const diaryBudget = ref('')
 const diaryCompanion = ref('')
-const diaryType = ref('travel')  // 默认行程类型
+const diaryType = ref(props.initialType || 'travel')  // 默认行程类型
+
+// 行程导入相关状态
+const showTripSelector = ref(false)
+const hasTripImport = ref(false)
+const importedTripTitle = ref('')
+const importedTripData = ref(null)
+
+// 内容生成状态
+const isGeneratingContent = ref(false)
 
 // 结构化数据
 const structuredData = ref([])
@@ -325,6 +406,19 @@ onMounted(() => {
   window.addEventListener('resize', () => {
     isMobile.value = window.innerWidth < 768
   })
+  
+  // 检查是否有来自行程的草稿
+  const draftData = localStorage.getItem('draftDiaryFromTrip')
+  if (draftData) {
+    try {
+      const parsed = JSON.parse(draftData)
+      loadTripData(parsed)
+      // 清除，避免重复加载
+      localStorage.removeItem('draftDiaryFromTrip')
+    } catch (e) {
+      console.error('解析草稿失败:', e)
+    }
+  }
 })
 
 // 计算属性
@@ -403,6 +497,139 @@ const organizeWithAI = async () => {
     ElMessage.error('整理失败，请重试')
   } finally {
     isOrganizing.value = false
+  }
+}
+
+// ========== 行程导入相关方法 ==========
+
+/**
+ * 加载行程数据
+ */
+const loadTripData = (tripData) => {
+  hasTripImport.value = true
+  importedTripTitle.value = tripData.sourceTripTitle || tripData.title
+  importedTripData.value = tripData
+
+  // 预填充数据
+  diaryTitle.value = tripData.title
+  diaryType.value = tripData.diary_type
+
+  // 将时间轴数据设置到预览
+  structuredData.value = tripData.itinerary || []
+
+  // 预填充图片
+  if (tripData.images?.length) {
+    uploadedImages.value = tripData.images
+  }
+
+  // 预填充生成的内容
+  if (tripData.content) {
+    rawInput.value = tripData.content
+  }
+
+  ElMessage.success(`已导入行程：${importedTripTitle.value}`)
+}
+
+/**
+ * 选择行程后回调
+ */
+const onTripSelected = async (trip) => {
+  showTripSelector.value = false
+
+  try {
+    // 获取完整行程数据
+    const response = await fetch(`http://localhost:8000/api/trips/${trip.id}`)
+    if (!response.ok) throw new Error('获取行程详情失败')
+
+    const tripData = await response.json()
+
+    // 转换为日记格式（时间轴 + 图片）
+    const diaryData = TripToDiaryConverter.convert(tripData, {
+      generateContent: false,
+      includeImages: true
+    })
+
+    // 使用智能内容生成器生成游记文本
+    const richContent = DiaryContentGenerator.generate(tripData, {
+      style: 'narrative',
+      includeEmojis: true,
+      includeTips: true,
+      wordCount: 'medium'
+    })
+
+    // 加载数据
+    loadTripData({
+      ...diaryData,
+      content: richContent,
+      sourceTripId: trip.id,
+      sourceTripTitle: trip.title
+    })
+  } catch (error) {
+    console.error('导入失败:', error)
+    ElMessage.error('导入失败，请重试')
+  }
+}
+
+/**
+ * 清除行程导入
+ */
+const clearTripImport = () => {
+  hasTripImport.value = false
+  importedTripTitle.value = ''
+  importedTripData.value = null
+  structuredData.value = []
+}
+
+/**
+ * 基于时间轴生成游记内容
+ */
+const generateDiaryContentFromTimeline = async () => {
+  if (structuredData.value.length === 0) {
+    ElMessage.warning('请先导入行程或生成时间轴')
+    return
+  }
+
+  isGeneratingContent.value = true
+
+  try {
+    // 构建行程数据
+    const tripData = {
+      title: diaryTitle.value || '我的旅行',
+      destination: importedTripData.value?.destination || '未知',
+      total_days: structuredData.value.length,
+      schedules: []
+    }
+
+    // 将时间轴转换回 schedules 格式
+    structuredData.value.forEach(day => {
+      day.activities?.forEach((activity, index) => {
+        tripData.schedules.push({
+          day_number: day.day,
+          spot_name: activity.location || activity.title,
+          visit_time_start: activity.time,
+          order_index: index,
+          notes: activity.insight || ''
+        })
+      })
+    })
+
+    // 生成游记内容
+    const content = DiaryContentGenerator.generate(tripData, {
+      style: 'narrative',
+      includeEmojis: true,
+      includeTips: true,
+      wordCount: 'medium'
+    })
+
+    // 填充到输入框
+    rawInput.value = content
+
+    ElMessage.success('游记内容生成成功！可以在此基础上继续编辑')
+  } catch (error) {
+    console.error('生成内容失败:', error)
+    ElMessage.error('生成失败，请重试')
+  } finally {
+    isGeneratingContent.value = false
   }
 }
 
@@ -1722,5 +1949,152 @@ const publishDiary = () => {
 .type-select option {
   background: white;
   color: #374151;
+}
+
+/* 行程导入区域样式 */
+.trip-import-section {
+  margin-top: 20px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #9CA3AF;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #E5E7EB;
+}
+
+.trip-import-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #F3F4F6 0%, #FFFFFF 100%);
+  border: 2px dashed #D1D5DB;
+  border-radius: 14px;
+  color: #4B5563;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.trip-import-btn:hover {
+  border-color: #6366F1;
+  color: #6366F1;
+  background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
+}
+
+.btn-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.arrow-icon {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+
+/* 已导入行程提示样式 */
+.imported-trip-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
+  border: 1px solid #C7D2FE;
+  border-radius: 12px;
+  margin-top: 16px;
+}
+
+.trip-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9375rem;
+  color: #4F46E5;
+}
+
+.trip-icon {
+  font-size: 1.25rem;
+}
+
+.clear-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(79, 70, 229, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: #4F46E5;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-btn:hover {
+  background: rgba(79, 70, 229, 0.2);
+}
+
+/* 生成游记内容按钮样式 */
+.generate-content-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.generate-content-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.generate-content-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.generate-content-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.generate-hint {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

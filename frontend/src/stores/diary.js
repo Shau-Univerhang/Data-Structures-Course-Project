@@ -120,13 +120,15 @@ export const useDiaryStore = defineStore('diary', () => {
         body: JSON.stringify({
           title: diaryData.title,
           content: diaryData.content,
+          trip_id: diaryData.trip_id,
           diary_type: diaryData.diary_type || 'notes',
           is_public: diaryData.is_public || false,
           images: diaryData.images || [],
+          videos: diaryData.videos || [],
           budget: diaryData.budget,
           companion: diaryData.companion,
           itinerary: diaryData.itinerary || [],
-          compress: false
+          compress: diaryData.compress ?? true
         })
       })
 

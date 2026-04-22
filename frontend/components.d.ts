@@ -16,5 +16,6 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SmartDiaryEditor: typeof import('./src/components/SmartDiaryEditor.vue')['default']
+    TripSelectorModal: typeof import('./src/components/TripSelectorModal.vue')['default']
   }
 }

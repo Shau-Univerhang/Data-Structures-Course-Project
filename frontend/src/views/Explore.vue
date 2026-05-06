@@ -2115,6 +2115,7 @@ const getMockSpots = () => {
       { id: 4, name: '长城-八达岭', rating: 4.8, tags: ['必玩景点', '地标建筑'], images: ['/images/spots/beijing/beijing_badaling_changcheng.jpg'], description: '万里长城的重要组成部分，是明长城的一个隘口。' },
       { id: 5, name: '天安门广场', rating: 4.8, tags: ['升旗仪式', '庄严神圣'], images: ['/images/spots/beijing/beijing_tiananmen_guangchang.jpg'], description: '世界上最大的城市广场之一，是中国的象征。' },
       { id: 6, name: '圆明园', rating: 4.7, tags: ['历史遗址', '园林景观'], images: ['/images/spots/beijing/beijing_yuanmingyuan.jpg'], description: '清代大型皇家园林，有"万园之园"之称。' },
+      { id: 287, name: '北京邮电大学（本部）', rating: 4.8, tags: ['学府', '导航测试'], images: ['/images/spots/beijing/beijing_beijing_daxue.jpg'], description: '可直接进入详情页并体验北邮本部内部导航测试。' },
     ],
     '上海': [
       { id: 11, name: '外滩', rating: 4.9, tags: ['地标建筑', '夜景绝美'], images: ['/images/spots/shanghai/shanghai_waitan.jpg'], description: '上海的标志性景观，拥有万国建筑博览群。' },

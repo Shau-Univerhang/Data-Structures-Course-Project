@@ -618,6 +618,7 @@ def get_spot(spot_id: int, db: Session = Depends(get_db)):
         'address': spot.address,
         'city': spot.city,
         'category': spot.category,
+        'type': spot.type,
         'rating': spot.rating or 0,
         'heat_score': spot.heat_score or 0,
         'review_count': spot.review_count or 0,

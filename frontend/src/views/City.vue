@@ -419,6 +419,7 @@ const spotImageMap = {
   // 新增景点 - 北京补充
   '北京大学': '/images/spots/beijing/beijing_beijing_daxue.jpg',
   '清华大学': '/images/spots/beijing/beijing_qinghua_daxue.jpg',
+  '北京邮电大学（本部）': '/images/spots/beijing/beijing_beijing_daxue.jpg',
   '鸟巢': '/images/spots/beijing/beijing_niaochao.jpg',
   '水立方': '/images/spots/beijing/beijing_shuilifang.jpg',
   '什刹海': '/images/spots/beijing/beijing_shichahai.jpg',

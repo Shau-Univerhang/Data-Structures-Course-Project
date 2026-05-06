@@ -21,6 +21,10 @@
           智能规划你的专属旅行路线<br />
           探索未知的美食与风景
         </p>
+        <div class="hero-actions">
+          <button class="hero-btn primary" @click="goToCity('北京')">探索北京</button>
+          <button class="hero-btn secondary" @click="goToBUPTSpot">北邮详情入口</button>
+        </div>
       </div>
     </div>
 
@@ -188,6 +192,10 @@ onUnmounted(() => {
 const goToCity = (city) => {
   router.push({ path: "/city", query: { name: city } });
 };
+
+const goToBUPTSpot = () => {
+  router.push({ path: '/spot', query: { id: 287, city: '北京' } })
+}
 </script>
 
 <style scoped>
@@ -240,6 +248,38 @@ const goToCity = (city) => {
 .hero-content {
   max-width: 500px;
   color: #fff;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.hero-btn {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.hero-btn.primary {
+  background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+  color: #fff;
+  border: none;
+}
+
+.hero-btn.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.hero-btn:hover {
+  transform: translateY(-1px);
 }
 
 .hero-title {

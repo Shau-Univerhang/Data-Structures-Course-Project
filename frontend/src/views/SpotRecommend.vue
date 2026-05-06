@@ -198,6 +198,7 @@ const getMockSpots = () => {
     { id: 8, name: '北海公园', city: '北京', rating: 4.5, favorites: 7890, tags: ['风景', '休闲', '园林'], images: ['/images/spots/beijing/beijing_beihai_gongyuan.jpg'] },
     { id: 9, name: '北京大学', city: '北京', rating: 4.7, favorites: 9876, tags: ['文化', '学府', '风景'], images: ['/images/spots/beijing/beijing_beijing_daxue.jpg'] },
     { id: 10, name: '清华大学', city: '北京', rating: 4.8, favorites: 8765, tags: ['文化', '学府', '风景'], images: ['/images/spots/beijing/beijing_qinghua_daxue.jpg'] },
+    { id: 287, name: '北京邮电大学（本部）', city: '北京', rating: 4.8, favorites: 9321, tags: ['文化', '学府', '导航测试'], images: ['/images/spots/beijing/beijing_beijing_daxue.jpg'] },
     { id: 11, name: '鸟巢', city: '北京', rating: 4.6, favorites: 11234, tags: ['地标', '建筑', '奥运'], images: ['/images/spots/beijing/beijing_niaochao.jpg'] },
     { id: 12, name: '水立方', city: '北京', rating: 4.5, favorites: 9876, tags: ['地标', '建筑', '奥运'], images: ['/images/spots/beijing/beijing_shuilifang.jpg'] },
     { id: 13, name: '什刹海', city: '北京', rating: 4.4, favorites: 13456, tags: ['风景', '休闲', '历史'], images: ['/images/spots/beijing/beijing_shichahai.jpg'] },

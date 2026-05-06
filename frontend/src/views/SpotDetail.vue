@@ -204,7 +204,7 @@ const hasReviewed = ref(false)
 const hasInternalMap = ref(false)
 const userId = computed(() => localStorage.getItem('userId'))
 const internalNavTitle = computed(() => spot.value?.type === 'campus' ? '校园内导航' : '景区内部导航')
-const internalNavSubtitle = computed(() => spot.value?.type === 'campus' ? '校园路网 · 多目标路线规划' : '内部路网 · 多目标路线规划')
+const internalNavSubtitle = computed(() => spot.value?.type === 'campus' ? '路线规划 · 场所查询 · 室内导航' : '内部路网 · 多目标路线规划')
 
 // 允许的tag列表
 const ALLOWED_TAGS = [

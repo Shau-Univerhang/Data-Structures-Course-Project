@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-page">
     <Navbar />
     
@@ -319,6 +319,7 @@
           :initial-title="newDiary.title"
           :initial-content="newDiary.content"
           :initial-type="newDiary.diary_type"
+          :initial-itinerary="newDiary.itinerary"
           @save="handleSaveDraft"
           @publish="handlePublish"
           @cancel="closeModal"
@@ -487,6 +488,27 @@ onMounted(() => {
       currentSlide.value = (currentSlide.value + 1) % publicDiaries.value.length
     }
   }, 4000)
+  
+  // 检查是否有从行程导入的数据
+  const draftData = localStorage.getItem('draftDiaryFromTrip')
+  if (draftData) {
+    try {
+      const parsed = JSON.parse(draftData)
+      // 自动打开编辑器并填充数据
+      newDiary.value = {
+        title: parsed.title || '',
+        content: parsed.content || '',
+        diary_type: parsed.diary_type || 'travel',
+        itinerary: parsed.itinerary || []
+      }
+      showCreateModal.value = true
+      // 清除，避免重复加载
+      localStorage.removeItem('draftDiaryFromTrip')
+      ElMessage.success(`已导入行程：${parsed.sourceTripTitle || parsed.title}`)
+    } catch (e) {
+      console.error('解析行程数据失败:', e)
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -503,7 +525,8 @@ watch(() => route.path, (newPath) => {
 const newDiary = ref({
   title: '',
   content: '',
-  diary_type: 'travel'
+  diary_type: 'travel',
+  itinerary: []
 })
 
 // 使用 store 的日记列表

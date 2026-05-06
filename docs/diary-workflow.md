@@ -381,8 +381,7 @@ backend/
 ├── models/
 │   └── database.py           # 数据库模型
 ├── routers/
-│   ├── diary.py              # 日记 API
-│   └── diary_api.py          # 评论评分 API
+│   └── diary.py              # 日记 API（包含评论、评分功能）
 └── data/
     └── travel.db             # SQLite 数据库文件
 ```

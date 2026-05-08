@@ -57,6 +57,11 @@
         <span class="menu-text">我的照片</span>
         <span class="menu-arrow">›</span>
       </div>
+      <div class="menu-item" @click="goMyPersonality">
+        <span class="menu-icon">🧭</span>
+        <span class="menu-text">我的人格</span>
+        <span class="menu-arrow">›</span>
+      </div>
     </section>
 
     <section class="menu-section">
@@ -191,6 +196,7 @@ const goTrips = () => router.push('/trips')
 const goDiary = () => router.push('/diary')
 const goCollection = () => router.push('/collection')
 const goPhotos = () => router.push('/photos')
+const goMyPersonality = () => router.push('/my-personality')
 const goSettings = () => router.push('/setting')
 const goAbout = () => alert('邮游世界 v1.0.0\n基于MiniMax大模型\n北京邮电大学课程设计')
 </script>

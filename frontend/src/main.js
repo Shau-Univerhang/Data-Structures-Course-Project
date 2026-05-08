@@ -30,6 +30,8 @@ import Explore from './views/Explore.vue'
 import AmapExample from './components/AmapExample.vue'
 import DesignPresentation from './views/DesignPresentation.vue'
 import InternalNav from './views/InternalNav.vue'
+import PersonalityTest from './views/PersonalityTest.vue'
+import MyPersonality from './views/MyPersonality.vue'
 
 // 路由配置
 const routes = [
@@ -57,6 +59,8 @@ const routes = [
   { path: '/setting', name: 'Setting', component: Setting },
   { path: '/photos', name: 'Photos', component: Photos },
   { path: '/collection', name: 'Collection', component: Collection },
+  { path: '/personality-test', name: 'PersonalityTest', component: PersonalityTest },
+  { path: '/my-personality', name: 'MyPersonality', component: MyPersonality },
 ]
 
 const router = createRouter({

@@ -9,8 +9,9 @@ import sys
 import json
 sys.path.append("..")
 
-from models.database import get_db, ScenicSpot, Restaurant
+from models.database import get_db, ScenicSpot, Restaurant, TravelPersonalityResult
 from algorithms.core import top_k_spots, top_k_restaurants, fuzzy_search_spots
+from algorithms.personality_algorithm import PERSONALITY_TYPES
 
 
 def parse_tags(tags_value):
@@ -32,6 +33,7 @@ router = APIRouter()
 PREFERENCE_WEIGHT = 1000  # 偏好权重：每个匹配的偏好加1000分
 FAVORITES_WEIGHT = 0.1  # 收藏权重：每个收藏加0.1分
 RATING_WEIGHT = 10  # 评分权重：每分加10分
+PERSONALITY_WEIGHT = 500  # 人格匹配权重：人格推荐列表中的景点加500分
 
 # 景点图片映射 - 包含所有277个景点
 SPOT_IMAGES = {
@@ -532,13 +534,26 @@ def search_spots(
 def recommend_spots(
     city: str = Query(..., description="城市"),
     preferences: str = Query("", description="偏好标签，逗号分隔"),
+    user_id: int = Query(None, description="用户ID，用于人格匹配"),
     k: int = Query(50, ge=1, le=100, description="返回数量"),
     db: Session = Depends(get_db)
 ):
-    """推荐景点（使用Top K部分排序算法）"""
+    """推荐景点（使用Top K部分排序算法，支持人格匹配加分）"""
     query = db.query(ScenicSpot).filter(ScenicSpot.city == city)
     spots = query.all()
-    
+
+    # 获取用户人格推荐景点列表（如果提供了user_id）
+    personality_spots = []
+    if user_id:
+        user_result = db.query(TravelPersonalityResult).filter(
+            TravelPersonalityResult.user_id == user_id
+        ).first()
+        if user_result:
+            personality_type = user_result.personality_type
+            personality_info = PERSONALITY_TYPES.get(personality_type)
+            if personality_info:
+                personality_spots = personality_info.get('recommend_spots', [])
+
     # 转换为字典列表
     spots_data = []
     for s in spots:
@@ -546,7 +561,7 @@ def recommend_spots(
         spot_images = get_spot_image(s.name, s.city)
         # 从数据库tags字段解析tags
         spot_tags = parse_tags(s.tags)
-        
+
         spots_data.append({
             'id': s.id,
             'name': s.name,
@@ -566,14 +581,14 @@ def recommend_spots(
             'images': spot_images if spot_images else [],
             'tags': spot_tags
         })
-    
+
     # 推荐排序算法
-    # score = 偏好权重 * 匹配到的偏好个数 + 收藏权重 * 收藏人数 + 评分权重 * 平均评分
+    # score = 偏好权重 * 匹配到的偏好个数 + 收藏权重 * 收藏人数 + 评分权重 * 平均评分 + 人格匹配权重
     pref_list = [p.strip() for p in preferences.split(',')] if preferences else []
-    
+
     for spot in spots_data:
         spot_pref_tags = spot.get('tags', [])
-        
+
         # 计算匹配到的偏好个数
         match_count = 0
         matched_prefs = []
@@ -581,23 +596,38 @@ def recommend_spots(
             if pref in spot_pref_tags:
                 match_count += 1
                 matched_prefs.append(pref)
-        
+
         # 计算各项分数
         pref_score = match_count * PREFERENCE_WEIGHT
         favorites_score = (spot.get('favorites_count', 0) or 0) * FAVORITES_WEIGHT
         rating_score = (spot.get('rating', 0) or 0) * RATING_WEIGHT
-        
+
+        # 人格匹配加分：检查景点是否在人格推荐列表中
+        personality_score = 0
+        is_personality_match = False
+        if personality_spots:
+            # 人格推荐列表格式: "城市：景点名"
+            spot_full_name = f"{spot['city']}：{spot['name']}"
+            # 也尝试不带冒号的格式
+            spot_alt_name = f"{spot['city']}:{spot['name']}"
+            for ps in personality_spots:
+                if spot_full_name in ps or spot_alt_name in ps or spot['name'] in ps:
+                    personality_score = PERSONALITY_WEIGHT
+                    is_personality_match = True
+                    break
+
         # 总分
-        spot['score'] = pref_score + favorites_score + rating_score
+        spot['score'] = pref_score + favorites_score + rating_score + personality_score
         spot['match_count'] = match_count
         spot['matched_prefs'] = matched_prefs
-    
+        spot['is_personality_match'] = is_personality_match
+
     # 按分数排序（降序）
     spots_data.sort(key=lambda x: x['score'], reverse=True)
-    
+
     # 返回前k个结果
     result = spots_data[:k]
-    
+
     return {"total": len(result), "spots": result}
 
 

@@ -329,6 +329,19 @@ class DiaryCityTag(Base):
     )
 
 
+class TravelPersonalityResult(Base):
+    """用户旅行人格测试结果表"""
+    __tablename__ = "travel_personality_results"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    personality_type = Column(String(4), nullable=False)  # 如: PESC, WRec
+    dimension_scores = Column(JSON)  # 四维得分详情
+    answers = Column(JSON)  # 原始答案 [1-5, 1-5, ...]
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
+
+
 # 数据库初始化
 engine = create_engine(f'sqlite:///{DB_PATH}', echo=False)
 Base.metadata.create_all(engine)

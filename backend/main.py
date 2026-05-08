@@ -16,7 +16,7 @@ load_dotenv()
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from routers import spots, trips, route, diary, ai, xiaohongshu, auth, collection, photo, photo_spot
+from routers import spots, trips, route, diary, ai, xiaohongshu, auth, collection, photo, photo_spot, personality
 
 app = FastAPI(
     title="邮游世界 - 个性化旅游系统",
@@ -138,6 +138,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
 app.include_router(collection.router, prefix="/api/collections", tags=["收藏"])
 app.include_router(photo.router, prefix="/api/photos", tags=["照片"])
 app.include_router(photo_spot.router, prefix="/api/photo-spots", tags=["拍照点位"])
+app.include_router(personality.router, prefix="/api/personality", tags=["旅行人格"])
 
 @app.get("/")
 async def root():

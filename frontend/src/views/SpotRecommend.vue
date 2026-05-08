@@ -51,8 +51,9 @@
             </div>
 
             <!-- 标签匹配度 -->
-            <div class="tag-match" v-if="spot.match_count > 0">
-              <span class="match-badge">匹配 {{ spot.match_count }} 个偏好</span>
+            <div class="tag-match" v-if="spot.match_count > 0 || spot.is_personality_match">
+              <span class="match-badge" v-if="spot.match_count > 0">匹配 {{ spot.match_count }} 个偏好</span>
+              <span class="personality-badge" v-if="spot.is_personality_match">人格推荐</span>
             </div>
 
             <!-- 景点标签 -->
@@ -155,16 +156,21 @@ const sortedSpots = computed(() => {
 const loadSpots = async () => {
   loading.value = true
   try {
-    // 构建URL，包含偏好参数
+    // 构建URL，包含偏好参数和用户ID
     let url = `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(city.value)}&limit=50`
     if (preferences.value.length > 0) {
       url += `&preferences=${encodeURIComponent(preferences.value.join(','))}`
     }
+    // 传递用户ID用于人格匹配
+    const userId = localStorage.getItem('userId')
+    if (userId) {
+      url += `&user_id=${userId}`
+    }
     console.log('请求URL:', url)
     const response = await fetch(url)
     const data = await response.json()
-    console.log('返回数据前3个:', data.spots?.slice(0, 3).map(s => ({name: s.name, match_count: s.match_count, tags: s.tags})))
-    
+    console.log('返回数据前3个:', data.spots?.slice(0, 3).map(s => ({name: s.name, match_count: s.match_count, is_personality_match: s.is_personality_match, tags: s.tags})))
+
     if (data.spots) {
       spots.value = data.spots.map(spot => ({
         ...spot,
@@ -685,6 +691,18 @@ onActivated(() => {
   border-radius: 10px;
   font-size: 12px;
   color: #00d4ff;
+  margin-right: 6px;
+}
+
+.personality-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 10px;
+  font-size: 12px;
+  color: #ffd700;
+  font-weight: 600;
 }
 
 .spot-tags {

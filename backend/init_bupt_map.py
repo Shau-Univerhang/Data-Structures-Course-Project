@@ -1,24 +1,38 @@
 """
-北京邮电大学本部内部导航测试数据初始化脚本
+北京邮电大学本部内部导航数据初始化脚本
 
-策略：
-- 仅优先使用高德可验证的海淀校区 POI 作为建筑/设施锚点
-- 对返回结果做校区范围与语义过滤
-- 不再为不可靠设施写入手工估点
-- 只写入高德步行路径返回的真实折线边，不再回退为直线连接
+数据来源：仓库根目录 export.geojson（Overpass Turbo 导出）
+输出：
+- backend/data/map_data.json
+- backend/data/poi_data.json
+
+处理流程：
+1. 提取北邮校园范围内的路网与 POI（WGS84）
+2. 构建路网节点/边，并为建筑、设施、入口生成锚点节点
+3. 通过高德坐标转换 API 批量转为 GCJ-02
+4. 写入 JSON 并重建数据库中的北邮内部导航数据
 """
-import os
 import json
-import time
 import math
+import os
 import sqlite3
-import urllib.request
-import urllib.parse
 import ssl
-import urllib.error
 import socket
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "travel.db")
+
+BACKEND_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BACKEND_DIR.parent
+DATA_DIR = BACKEND_DIR / "data"
+DB_PATH = DATA_DIR / "travel.db"
+EXPORT_GEOJSON_PATH = PROJECT_ROOT / "export.geojson"
+MAP_DATA_PATH = DATA_DIR / "map_data.json"
+POI_DATA_PATH = DATA_DIR / "poi_data.json"
+
 AMAP_KEY = os.getenv("AMAP_WEB_SERVICE_KEY", "5373684f183274b8b2834f1474a929f4")
 
 ssl_ctx = ssl.create_default_context()
@@ -30,196 +44,51 @@ SPOT_CITY = "北京"
 SPOT_CATEGORY = "文化教育"
 SPOT_TYPE = "campus"
 SPOT_ADDRESS = "北京市海淀区西土城路10号"
-SPOT_DESCRIPTION = "北京邮电大学本部校园内部导航测试数据，优先采用高德海淀校区 POI 和步行折线构建。"
-SPOT_TAGS = '["学府", "校园", "导航测试"]'
+SPOT_DESCRIPTION = "北京邮电大学本部校园内部导航数据，基于 OSM 导出的路网与设施数据构建。"
+SPOT_TAGS = '["学府", "校园", "OSM路网"]'
 
-CAMPUS_CENTER = (116.358104, 39.961554)
-CAMPUS_MAX_DISTANCE_M = 900
-CAMPUS_TEXT_TOKENS = ["北京邮电大学", "北邮", "海淀校区", "西土城路10号"]
 
-ENTRANCES = [
-    {"name": "西门", "query": None, "fallback": (116.355180, 39.961040), "accept": ["西门"]},
-    {"name": "南门", "query": None, "fallback": (116.358520, 39.958060), "accept": ["南门"]},
-    {"name": "东门", "query": None, "fallback": (116.360920, 39.961930), "accept": ["东门"]},
-    {"name": "北门", "query": None, "fallback": (116.356860, 39.964990), "accept": ["北门"]},
-]
+ALLOWED_HIGHWAYS = {
+    "footway",
+    "service",
+    "path",
+    "pedestrian",
+    "steps",
+    "residential",
+    "living_street",
+    "cycleway",
+}
 
-BUILDINGS = [
-    {"name": "主楼", "query": "北京邮电大学海淀校区主楼", "source": "text", "accept": ["主楼"], "floor_count": 6, "type": "teaching", "description": "校园核心教学楼，室内导航样例楼。"},
-    {"name": "教一楼", "query": "北京邮电大学海淀校区教一楼", "source": "text", "accept": ["教一楼", "教1楼"], "floor_count": 5, "type": "teaching", "description": "本科教学楼。"},
-    {"name": "教二楼", "query": "北京邮电大学海淀校区教二楼", "source": "text", "accept": ["教二楼", "教2楼"], "floor_count": 5, "type": "teaching", "description": "本科教学楼。"},
-    {"name": "图书馆", "query": "北京邮电大学海淀校区图书馆", "source": "text", "accept": ["图书馆"], "fallback": (116.357811, 39.962780), "floor_count": 6, "type": "attraction", "description": "校园图书馆。"},
-    {"name": "科研楼", "query": "北京邮电大学海淀校区研究生院", "source": "text", "accept": ["研究生院", "科研"], "fallback": (116.357977, 39.961872), "floor_count": 6, "type": "office", "description": "科研与实验办公楼。"},
-    {"name": "综合实验楼", "query": "北京邮电大学海淀校区教三楼", "source": "text", "accept": ["教三楼", "计算机科学", "光信息"], "fallback": (116.356244, 39.960464), "floor_count": 6, "type": "office", "description": "实验教学与科研楼。"},
-    {"name": "学生活动中心", "query": "北京邮电大学海淀校区学生活动中心", "source": "text", "accept": ["学生活动中心"], "fallback": (116.357355, 39.964001), "floor_count": 4, "type": "office", "description": "社团活动与报告厅。"},
-    {"name": "学生发展中心", "query": "北京邮电大学海淀校区学生发展中心", "source": "text", "accept": ["学生发展中心"], "fallback": (116.357830, 39.963428), "floor_count": 4, "type": "office", "description": "学生事务与服务大厅。"},
-    {"name": "体育馆", "query": "北京邮电大学海淀校区体育馆", "source": "text", "accept": ["体育馆"], "fallback": (116.359571, 39.962011), "floor_count": 3, "type": "attraction", "description": "综合体育馆。"},
-    {"name": "运动场", "query": "北京邮电大学海淀校区体育场", "source": "text", "accept": ["体育场", "运动场"], "fallback": (116.360235, 39.960652), "floor_count": 1, "type": "attraction", "description": "校园操场与室外运动区。"},
-    {"name": "科学会堂", "query": "北京邮电大学海淀校区科学会堂", "source": "text", "accept": ["科学会堂"], "fallback": (116.359073, 39.961265), "floor_count": 3, "type": "attraction", "description": "会议与报告活动场所。"},
-    {"name": "游泳馆", "query": "北京邮电大学海淀校区游泳馆", "source": "text", "accept": ["游泳馆"], "fallback": (116.360698, 39.961875), "floor_count": 2, "type": "attraction", "description": "校内游泳馆。"},
-    {"name": "青年教师公寓", "query": "北京邮电大学海淀校区青年教师公寓", "source": "text", "accept": ["青年教师公寓"], "fallback": (116.359986, 39.964615), "floor_count": 12, "type": "dorm", "description": "北邮校内公寓楼。"},
-    {"name": "行政楼", "query": "北京邮电大学行政楼", "source": "around", "accept": ["行政楼"], "fallback": (116.357940, 39.962097), "floor_count": 5, "type": "office", "description": "学校行政办公楼。"},
-    {"name": "信通楼", "query": "教学楼", "source": "around", "accept": ["信通楼"], "floor_count": 5, "type": "teaching", "description": "信息通信相关教学楼。"},
-    {"name": "电子工程学院", "query": "北京邮电大学海淀校区电子工程学院", "source": "text", "accept": ["电子工程学院"], "floor_count": 6, "type": "teaching", "description": "电子工程学院教学科研楼。"},
-    {"name": "人文学院", "query": "北京邮电大学海淀校区人文学院", "source": "text", "accept": ["人文学院"], "floor_count": 5, "type": "teaching", "description": "人文学院教学楼。"},
-    {"name": "数字媒体与设计艺术学院", "query": "北京邮电大学海淀校区数字媒体与设计艺术学院", "source": "around", "accept": ["数字媒体与设计艺术学院"], "floor_count": 5, "type": "teaching", "description": "数字媒体与设计艺术学院教学楼。"},
-    {"name": "网络技术研究院", "query": "北京邮电大学海淀校区网络技术研究院", "source": "text", "accept": ["网络技术研究院"], "floor_count": 5, "type": "office", "description": "网络技术科研机构。"},
-    {"name": "网络空间安全学院", "query": "北京邮电大学海淀校区网络空间安全学院", "source": "text", "accept": ["网络空间安全学院"], "fallback": (116.357982, 39.961866), "floor_count": 5, "type": "teaching", "description": "网络空间安全学院教学科研楼。"},
-    {"name": "时光广场", "query": "北京邮电大学海淀校区时光广场", "source": "text", "accept": ["时光广场"], "fallback": (116.357399, 39.962373), "floor_count": 1, "type": "attraction", "description": "校园中心广场。"},
-    {"name": "北家属区", "query": "宿舍", "source": "around", "accept": ["北京邮电大学社区北家属区"], "floor_count": 10, "type": "dorm", "description": "北邮北侧宿舍与家属区。"},
-    {"name": "学生会", "query": "北京邮电大学海淀校区学生会", "source": "text", "accept": ["学生会"], "floor_count": 2, "type": "office", "description": "学生组织活动点。"},
-    {"name": "学生勤工助学中心", "query": "北京邮电大学学生勤工助学中心", "source": "text", "accept": ["学生勤工助学中心"], "floor_count": 2, "type": "office", "description": "学生事务服务点。"},
-    {"name": "体育部", "query": "北京邮电大学海淀校区体育部", "source": "text", "accept": ["体育部"], "floor_count": 2, "type": "office", "description": "体育教学与管理办公点。"},
-    {"name": "明光楼", "query": "北京邮电大学海淀校区明光楼", "source": "text", "accept": ["明光楼"], "fallback": (116.360987, 39.958568), "floor_count": 6, "type": "teaching", "description": "校园南侧楼宇。"},
-    {"name": "马克思主义学院", "query": "北京邮电大学海淀校区马克思主义学院", "source": "text", "accept": ["马克思主义学院"], "fallback": (116.361105, 39.958384), "floor_count": 5, "type": "teaching", "description": "学院教学办公楼。"},
-    {"name": "现代邮政学院", "query": "北京邮电大学海淀校区现代邮政学院", "source": "text", "accept": ["现代邮政学院"], "fallback": (116.356240, 39.960464), "floor_count": 5, "type": "teaching", "description": "学院教学楼。"},
-    {"name": "信息与通信工程学院", "query": "北京邮电大学海淀校区信息与通信工程学院", "source": "text", "accept": ["信息与通信工程学院"], "fallback": (116.358034, 39.960532), "floor_count": 5, "type": "teaching", "description": "信息与通信工程学院楼。"},
-    {"name": "保卫处", "query": "北京邮电大学海淀校区保卫处", "source": "text", "accept": ["保卫处"], "fallback": (116.360713, 39.963256), "floor_count": 2, "type": "office", "description": "校内安保管理办公点。"},
-    {"name": "热力中心", "query": "北京邮电大学海淀校区热力中心", "source": "text", "accept": ["热力中心"], "fallback": (116.358404, 39.964192), "floor_count": 2, "type": "office", "description": "校园后勤能源服务点。"},
-    {"name": "学生工作基地", "query": "北京邮电大学海淀校区学生工作基地", "source": "text", "accept": ["学生工作基地"], "fallback": (116.356586, 39.962814), "floor_count": 2, "type": "office", "description": "学生事务与辅导支持点。"},
-]
+ROAD_TYPE_CONFIG = {
+    "walk": {"ideal_speed": 1.4, "congestion_factor": 0.95},
+    "bike": {"ideal_speed": 4.8, "congestion_factor": 0.88},
+}
 
-FACILITIES = [
-    {"name": "学一食堂", "query": "学生食堂", "source": "around", "accept": ["学生食堂"], "type": "canteen", "description": "主食堂。", "require_campus": True},
-    {"name": "学五食堂", "query": "综合食堂", "source": "around", "accept": ["综合食堂"], "type": "canteen", "description": "宿舍区附近食堂。", "require_campus": True},
-    {"name": "校园超市", "query": "超市", "source": "around", "accept": ["邮电大学店", "北京邮电大学店"], "type": "supermarket", "description": "生活服务超市。", "require_campus": True},
-    {"name": "麦当劳（校内）", "query": "麦当劳", "source": "around", "accept": ["北京邮电大学"], "type": "shop", "description": "校园内餐饮点。", "require_campus": True},
-    {"name": "医务室", "query": "北京邮电大学海淀校区社区卫生服务中心", "source": "text", "accept": ["卫生服务中心", "校医院"], "type": "clinic", "description": "校园基础医疗服务。", "require_campus": True},
-    {"name": "发热门诊", "query": "北京邮电大学社区卫生服务中心发热门诊", "source": "text", "accept": ["发热门诊"], "type": "clinic", "description": "校内门诊服务点。", "require_campus": True},
-    {"name": "瑞幸咖啡", "query": "咖啡", "source": "around", "accept": ["北京邮电大学店"], "type": "cafe", "description": "校内咖啡点。", "require_campus": True},
-    {"name": "邮储ATM", "query": "ATM", "source": "around", "accept": ["邮电大学支行"], "fallback": (116.355443, 39.961977), "type": "bank", "description": "校内自助取款点。", "require_campus": True},
-    {"name": "快递站", "query": "快递", "source": "around", "accept": ["北京邮电大学快递邮驿站"], "type": "express", "description": "校内快递收发点。", "require_campus": True},
-    {"name": "篮球场", "query": "篮球场", "source": "around", "accept": ["北京邮电大学海淀校区篮球场"], "type": "sports", "description": "校内篮球场。", "require_campus": True},
-    {"name": "排球场", "query": "排球场", "source": "around", "accept": ["北京邮电大学海淀校区排球场"], "fallback": (116.360007, 39.962575), "type": "sports", "description": "校内排球场。", "require_campus": True},
-    {"name": "好邻居便利店", "query": "便利店", "source": "around", "accept": ["海淀校区北京邮电大学店"], "fallback": (116.356618, 39.959250), "type": "supermarket", "description": "校园便利店。", "require_campus": True},
-    {"name": "物美多点便利店", "query": "北京邮电大学海淀校区物美多点便利店", "source": "text", "accept": ["物美多点便利店", "邮电大学店"], "type": "supermarket", "description": "校内北侧便利店。", "require_campus": True},
-    {"name": "沪咖鲜果咖啡", "query": "咖啡", "source": "around", "accept": ["邮电大学店"], "fallback": (116.357176, 39.960004), "type": "cafe", "description": "校园南侧咖啡点。", "require_campus": True},
-    {"name": "民族餐厅", "query": "餐厅", "source": "around", "accept": ["北邮民族餐厅"], "type": "restaurant", "description": "综合餐厅楼内餐饮点。", "require_campus": True},
-    {"name": "楼上楼茶餐厅", "query": "餐厅", "source": "around", "accept": ["楼上楼茶餐厅"], "type": "restaurant", "description": "学生餐厅楼内餐饮点。", "require_campus": True},
-    {"name": "教工餐厅", "query": "北京邮电大学海淀校区教工餐厅", "source": "text", "accept": ["教工餐厅"], "type": "restaurant", "description": "校内教工餐厅。", "require_campus": True},
-]
+FACILITY_DESCRIPTIONS = {
+    "canteen": "校内食堂",
+    "restaurant": "校内餐饮点",
+    "cafe": "校内咖啡点",
+    "clinic": "校内医疗服务点",
+    "toilet": "校内卫生间",
+    "supermarket": "校内商超便利点",
+    "shop": "校内商店",
+    "express": "校内快递服务点",
+    "bank": "校内金融服务点",
+    "sports": "校内运动设施",
+    "parking": "校内停车设施",
+    "library": "校内图书服务点",
+}
 
-ROUTE_PAIRS = [
-    ("西门", "主楼"),
-    ("西门", "教一楼"),
-    ("西门", "医务室"),
-    ("西门", "发热门诊"),
-    ("西门", "综合实验楼"),
-    ("西门", "好邻居便利店"),
-    ("西门", "邮储ATM"),
-    ("西门", "信通楼"),
-    ("西门", "行政楼"),
-    ("南门", "学一食堂"),
-    ("南门", "学生发展中心"),
-    ("南门", "沪咖鲜果咖啡"),
-    ("南门", "民族餐厅"),
-    ("南门", "教工餐厅"),
-    ("南门", "医务室"),
-    ("南门", "学生工作基地"),
-    ("南门", "马克思主义学院"),
-    ("南门", "明光楼"),
-    ("东门", "体育馆"),
-    ("东门", "游泳馆"),
-    ("东门", "科学会堂"),
-    ("东门", "排球场"),
-    ("东门", "篮球场"),
-    ("东门", "保卫处"),
-    ("东门", "时光广场"),
-    ("东门", "明光楼"),
-    ("北门", "学生活动中心"),
-    ("北门", "图书馆"),
-    ("北门", "青年教师公寓"),
-    ("北门", "快递站"),
-    ("北门", "北家属区"),
-    ("北门", "物美多点便利店"),
-    ("北门", "热力中心"),
-    ("北门", "学生发展中心"),
-    ("主楼", "教二楼"),
-    ("主楼", "图书馆"),
-    ("主楼", "综合实验楼"),
-    ("主楼", "学一食堂"),
-    ("主楼", "学生发展中心"),
-    ("主楼", "科学会堂"),
-    ("主楼", "邮储ATM"),
-    ("主楼", "行政楼"),
-    ("主楼", "信通楼"),
-    ("主楼", "电子工程学院"),
-    ("主楼", "人文学院"),
-    ("主楼", "数字媒体与设计艺术学院"),
-    ("主楼", "时光广场"),
-    ("主楼", "学生勤工助学中心"),
-    ("主楼", "学生工作基地"),
-    ("主楼", "信息与通信工程学院"),
-    ("主楼", "网络空间安全学院"),
-    ("主楼", "体育馆"),
-    ("教二楼", "科研楼"),
-    ("教二楼", "信通楼"),
-    ("教二楼", "现代邮政学院"),
-    ("科研楼", "图书馆"),
-    ("科研楼", "学生发展中心"),
-    ("科研楼", "网络技术研究院"),
-    ("综合实验楼", "电子工程学院"),
-    ("综合实验楼", "数字媒体与设计艺术学院"),
-    ("综合实验楼", "人文学院"),
-    ("综合实验楼", "现代邮政学院"),
-    ("综合实验楼", "学生会"),
-    ("综合实验楼", "学生工作基地"),
-    ("综合实验楼", "发热门诊"),
-    ("学生活动中心", "学生发展中心"),
-    ("学生活动中心", "学五食堂"),
-    ("学生活动中心", "时光广场"),
-    ("学生活动中心", "青年教师公寓"),
-    ("学生活动中心", "学生会"),
-    ("学生活动中心", "快递站"),
-    ("学生活动中心", "热力中心"),
-    ("学生活动中心", "物美多点便利店"),
-    ("学生活动中心", "图书馆"),
-    ("学五食堂", "校园超市"),
-    ("学五食堂", "麦当劳（校内）"),
-    ("学五食堂", "瑞幸咖啡"),
-    ("学五食堂", "楼上楼茶餐厅"),
-    ("学五食堂", "教工餐厅"),
-    ("学五食堂", "物美多点便利店"),
-    ("学五食堂", "学生活动中心"),
-    ("体育馆", "运动场"),
-    ("体育馆", "游泳馆"),
-    ("体育馆", "篮球场"),
-    ("体育馆", "排球场"),
-    ("体育馆", "体育部"),
-    ("体育馆", "保卫处"),
-    ("体育馆", "科学会堂"),
-    ("科学会堂", "图书馆"),
-    ("科学会堂", "时光广场"),
-    ("科学会堂", "保卫处"),
-    ("校园超市", "麦当劳（校内）"),
-    ("校园超市", "瑞幸咖啡"),
-    ("校园超市", "楼上楼茶餐厅"),
-    ("校园超市", "教工餐厅"),
-    ("校园超市", "学一食堂"),
-    ("瑞幸咖啡", "快递站"),
-    ("瑞幸咖啡", "时光广场"),
-    ("瑞幸咖啡", "学生会"),
-    ("青年教师公寓", "北家属区"),
-    ("青年教师公寓", "物美多点便利店"),
-    ("青年教师公寓", "快递站"),
-    ("北家属区", "物美多点便利店"),
-    ("北家属区", "快递站"),
-    ("明光楼", "马克思主义学院"),
-    ("明光楼", "沪咖鲜果咖啡"),
-    ("明光楼", "好邻居便利店"),
-    ("明光楼", "保卫处"),
-    ("学生勤工助学中心", "学生会"),
-    ("学生勤工助学中心", "时光广场"),
-    ("学生勤工助学中心", "学生工作基地"),
-    ("学生会", "快递站"),
-    ("学生会", "物美多点便利店"),
-    ("学生会", "学生发展中心"),
-    ("现代邮政学院", "信息与通信工程学院"),
-    ("信息与通信工程学院", "信通楼"),
-    ("网络空间安全学院", "信通楼"),
-    ("保卫处", "热力中心"),
-    ("医务室", "发热门诊"),
-]
+NAME_ALIASES = {
+    "北邮体育馆": "体育馆",
+    "综合食堂(新食堂)": "学五食堂",
+    "综合食堂": "学五食堂",
+    "学苑风味餐厅(矮食堂)": "学一食堂",
+    "校医院（北京邮电大学社区卫生服务中心）": "医务室",
+    "行政办公楼": "行政楼",
+}
+
+EXCLUDED_NAME_TOKENS = ["北京交通大学", "北京师范大学", "北师大"]
 
 
 def amap_get(url, params):
@@ -238,47 +107,6 @@ def amap_get(url, params):
     raise last_error
 
 
-def search_poi(keyword, city="北京", limit=8):
-    data = amap_get("https://restapi.amap.com/v3/place/text", {
-        "key": AMAP_KEY,
-        "keywords": keyword,
-        "city": city,
-        "citylimit": "true",
-        "offset": limit,
-        "output": "json",
-    })
-    if data.get("status") == "1" and data.get("pois"):
-        return data["pois"]
-    return []
-
-
-def around_poi(keyword, limit=8):
-    data = amap_get("https://restapi.amap.com/v3/place/around", {
-        "key": AMAP_KEY,
-        "location": f"{CAMPUS_CENTER[0]},{CAMPUS_CENTER[1]}",
-        "keywords": keyword,
-        "radius": 1000,
-        "sortrule": "distance",
-        "offset": limit,
-        "output": "json",
-    })
-    if data.get("status") == "1" and data.get("pois"):
-        return data["pois"]
-    return []
-
-
-def geocode_address(address, city="北京"):
-    data = amap_get("https://restapi.amap.com/v3/geocode/geo", {
-        "key": AMAP_KEY,
-        "address": address,
-        "city": city,
-        "output": "json",
-    })
-    if data.get("status") == "1" and data.get("geocodes"):
-        return data["geocodes"]
-    return []
-
-
 def haversine(lng1, lat1, lng2, lat2):
     r = 6371000
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -288,84 +116,598 @@ def haversine(lng1, lat1, lng2, lat2):
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def is_candidate_valid(poi, accept_tokens, require_campus=False):
-    loc = poi.get("location", "")
-    if not loc:
-        return False
-    try:
-        lng, lat = map(float, loc.split(","))
-    except Exception:
-        return False
-    if haversine(CAMPUS_CENTER[0], CAMPUS_CENTER[1], lng, lat) > CAMPUS_MAX_DISTANCE_M:
-        return False
-    text = f"{poi.get('name', '')} {poi.get('address', '')}"
-    if require_campus and not any(token in text for token in CAMPUS_TEXT_TOKENS):
-        return False
-    return any(token in text for token in accept_tokens)
+def out_of_china(lng, lat):
+    return not (73.66 < lng < 135.05 and 3.86 < lat < 53.55)
 
 
-def resolve_location(spec):
-    if not spec.get("query"):
-        return spec.get("fallback")
-    require_campus = spec.get("require_campus", False)
-    if spec.get("source") == "around":
-        pois = around_poi(spec["query"])
-        valid = [poi for poi in pois if is_candidate_valid(poi, spec["accept"], require_campus=require_campus)]
-        if not valid:
-            return spec.get("fallback")
-        lng, lat = map(float, valid[0]["location"].split(","))
+def transform_lat(x, y):
+    ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * math.sqrt(abs(x))
+    ret += (20.0 * math.sin(6.0 * x * math.pi) + 20.0 * math.sin(2.0 * x * math.pi)) * 2.0 / 3.0
+    ret += (20.0 * math.sin(y * math.pi) + 40.0 * math.sin(y / 3.0 * math.pi)) * 2.0 / 3.0
+    ret += (160.0 * math.sin(y / 12.0 * math.pi) + 320 * math.sin(y * math.pi / 30.0)) * 2.0 / 3.0
+    return ret
+
+
+def transform_lng(x, y):
+    ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * math.sqrt(abs(x))
+    ret += (20.0 * math.sin(6.0 * x * math.pi) + 20.0 * math.sin(2.0 * x * math.pi)) * 2.0 / 3.0
+    ret += (20.0 * math.sin(x * math.pi) + 40.0 * math.sin(x / 3.0 * math.pi)) * 2.0 / 3.0
+    ret += (150.0 * math.sin(x / 12.0 * math.pi) + 300.0 * math.sin(x / 30.0 * math.pi)) * 2.0 / 3.0
+    return ret
+
+
+def wgs84_to_gcj02(lng, lat):
+    if out_of_china(lng, lat):
         return lng, lat
-    if spec.get("source") == "geo":
-        geocodes = geocode_address(spec["query"])
-        for geo in geocodes:
-            loc = geo.get("location", "")
-            try:
-                lng, lat = map(float, loc.split(","))
-            except Exception:
-                continue
-            if haversine(CAMPUS_CENTER[0], CAMPUS_CENTER[1], lng, lat) <= CAMPUS_MAX_DISTANCE_M:
-                return lng, lat
-        return spec.get("fallback")
-    pois = search_poi(spec["query"])
-    valid = [poi for poi in pois if is_candidate_valid(poi, spec["accept"], require_campus=require_campus)]
-    if not valid:
-        return spec.get("fallback")
-    lng, lat = map(float, valid[0]["location"].split(","))
+    a = 6378245.0
+    ee = 0.00669342162296594323
+    dlat = transform_lat(lng - 105.0, lat - 35.0)
+    dlng = transform_lng(lng - 105.0, lat - 35.0)
+    radlat = lat / 180.0 * math.pi
+    magic = math.sin(radlat)
+    magic = 1 - ee * magic * magic
+    sqrtmagic = math.sqrt(magic)
+    dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * math.pi)
+    dlng = (dlng * 180.0) / (a / sqrtmagic * math.cos(radlat) * math.pi)
+    return lng + dlng, lat + dlat
+
+
+def point_key(lng, lat, precision=7):
+    return f"{round(lng, precision):.{precision}f},{round(lat, precision):.{precision}f}"
+
+
+def get_feature_name(props):
+    for key in ("name:zh", "name", "loc_name", "official_name", "brand:zh", "brand"):
+        value = props.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def geometry_rank(geometry_type):
+    return {"Polygon": 3, "MultiPolygon": 3, "Point": 2, "LineString": 1}.get(geometry_type, 0)
+
+
+def get_polygon_shell(geometry):
+    if geometry["type"] == "Polygon":
+        return geometry["coordinates"][0]
+    if geometry["type"] == "MultiPolygon":
+        polygons = [poly[0] for poly in geometry["coordinates"] if poly and poly[0]]
+        if not polygons:
+            return []
+        return max(polygons, key=polygon_area_estimate)
+    return []
+
+
+def polygon_area_estimate(coords):
+    if len(coords) < 3:
+        return 0.0
+    area = 0.0
+    for i in range(len(coords) - 1):
+        x1, y1 = coords[i]
+        x2, y2 = coords[i + 1]
+        area += x1 * y2 - x2 * y1
+    return abs(area) / 2.0
+
+
+def polygon_centroid(coords):
+    points = coords[:-1] if len(coords) > 1 and coords[0] == coords[-1] else coords
+    if not points:
+        return 0.0, 0.0
+    lng = sum(pt[0] for pt in points) / len(points)
+    lat = sum(pt[1] for pt in points) / len(points)
     return lng, lat
 
 
-def walking_route(origin, dest):
-    try:
-        data = amap_get("https://restapi.amap.com/v3/direction/walking", {
+def representative_point(feature):
+    geometry = feature.get("geometry") or {}
+    gtype = geometry.get("type")
+    if gtype == "Point":
+        lng, lat = geometry["coordinates"]
+        return lng, lat
+    if gtype == "LineString":
+        coords = geometry["coordinates"]
+        if not coords:
+            return None
+        mid = len(coords) // 2
+        lng, lat = coords[mid]
+        return lng, lat
+    if gtype in {"Polygon", "MultiPolygon"}:
+        shell = get_polygon_shell(geometry)
+        if not shell:
+            return None
+        return polygon_centroid(shell)
+    return None
+
+
+def point_in_polygon(point, polygon):
+    x, y = point
+    inside = False
+    n = len(polygon)
+    if n < 3:
+        return False
+    for i in range(n):
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[(i + 1) % n]
+        if ((y1 > y) != (y2 > y)):
+            cross = (x2 - x1) * (y - y1) / ((y2 - y1) or 1e-12) + x1
+            if x < cross:
+                inside = not inside
+    return inside
+
+
+def polygon_bounds(polygon):
+    lngs = [pt[0] for pt in polygon]
+    lats = [pt[1] for pt in polygon]
+    return min(lngs), min(lats), max(lngs), max(lats)
+
+
+def point_in_campus(point, campus_polygon, campus_bounds):
+    lng, lat = point
+    min_lng, min_lat, max_lng, max_lat = campus_bounds
+    if lng < min_lng or lng > max_lng or lat < min_lat or lat > max_lat:
+        return False
+    return point_in_polygon(point, campus_polygon)
+
+
+def clip_linestring_to_campus(coords, campus_polygon, campus_bounds):
+    segments = []
+    current = []
+    for lng, lat in coords:
+        pt = (lng, lat)
+        if point_in_campus(pt, campus_polygon, campus_bounds):
+            if not current or current[-1] != pt:
+                current.append(pt)
+        else:
+            if len(current) >= 2:
+                segments.append(current)
+            current = []
+    if len(current) >= 2:
+        segments.append(current)
+    return segments
+
+
+def road_types_for_highway(highway):
+    if highway == "steps":
+        return ["walk"]
+    return ["walk", "bike"]
+
+
+def classify_building(props, name):
+    if "building" not in props:
+        return None
+    amenity = props.get("amenity")
+    shop = str(props.get("shop", "")).lower()
+    if amenity in {"hospital", "restaurant", "fast_food", "cafe", "toilets", "post_office", "parking", "parking_space", "parking_entrance", "bicycle_parking", "charging_station", "library", "bank", "atm"}:
+        return None
+    if amenity == "university" and (name == "北京邮电大学" or props.get("short_name") == "北邮"):
+        return None
+    if shop:
+        return None
+
+    building_tag = str(props.get("building", "")).lower()
+    text = name or ""
+    if any(token in text for token in EXCLUDED_NAME_TOKENS):
+        return None
+    if building_tag in {"dormitory", "apartments"} or any(token in text for token in ["公寓", "宿舍", "学1楼", "学2楼", "学3楼", "学4楼", "学5楼", "学6楼", "学7楼", "学8楼", "学9楼", "学10楼"]):
+        return "dorm"
+    if any(token in text for token in ["图书馆", "体育馆", "体育场", "运动场", "游泳馆", "会堂", "礼堂", "广场", "酒店", "馆"]):
+        return "attraction"
+    if any(token in text for token in ["行政", "后勤", "保卫", "服务中心", "幼儿园"]):
+        return "office"
+    return "teaching"
+
+
+def classify_facility(props, name):
+    amenity = str(props.get("amenity", "")).lower()
+    shop = str(props.get("shop", "")).lower()
+    leisure = str(props.get("leisure", "")).lower()
+    text = name or ""
+
+    if amenity in {"restaurant", "fast_food"}:
+        return "canteen" if "食堂" in text else "restaurant"
+    if amenity == "cafe" or "咖啡" in text:
+        return "cafe"
+    if amenity == "hospital":
+        return "clinic"
+    if amenity == "toilets":
+        return "toilet"
+    if amenity == "post_office":
+        return "express"
+    if amenity in {"bank", "atm"}:
+        return "bank"
+    if amenity in {"parking", "parking_space", "parking_entrance", "bicycle_parking", "charging_station"}:
+        return "parking"
+    if amenity == "library":
+        return "library"
+    if shop in {"supermarket", "convenience"}:
+        return "supermarket"
+    if shop:
+        return "shop"
+    if leisure in {"stadium", "fitness_centre", "fitness_station"}:
+        return "sports"
+    if any(token in text for token in ["快递", "邮驿站"]):
+        return "express"
+    if any(token in text for token in ["超市", "便利店"]):
+        return "supermarket"
+    if any(token in text for token in ["球场", "体育"]):
+        return "sports"
+    return None
+
+
+def normalize_poi_name(name, kind, category, source_tags):
+    normalized = (name or "").strip()
+    if normalized in NAME_ALIASES:
+        return NAME_ALIASES[normalized]
+    if category == "library" and not normalized:
+        return "图书馆"
+    if category == "bank" and normalized.startswith("ATM"):
+        return "邮储ATM"
+    if normalized == "北邮体育馆":
+        return "体育馆"
+    return normalized
+
+
+def build_poi_description(kind, category, name):
+    if kind == "building":
+        return f"校内建筑：{name}"
+    return facility_description(category)
+
+
+def should_skip_poi(name):
+    return any(token in (name or "") for token in EXCLUDED_NAME_TOKENS)
+
+
+def build_source_tags(props):
+    keys = [
+        "building", "building:levels", "amenity", "shop", "leisure", "opening_hours",
+        "name", "name:zh", "loc_name", "brand", "brand:zh", "official_name",
+    ]
+    return {key: props[key] for key in keys if key in props}
+
+
+def facility_description(category):
+    return FACILITY_DESCRIPTIONS.get(category, "校内设施")
+
+
+def generated_poi_name(kind, category, counter):
+    counter[category] = counter.get(category, 0) + 1
+    base = {
+        "toilet": "卫生间",
+        "parking": "停车点",
+        "bank": "ATM",
+        "library": "图书馆",
+        "shop": "商店",
+        "supermarket": "便利店",
+        "sports": "运动设施",
+        "cafe": "咖啡点",
+        "restaurant": "餐饮点",
+        "canteen": "食堂",
+        "express": "快递点",
+        "clinic": "医疗点",
+    }.get(category, "设施")
+    if category == "library":
+        return base
+    return f"{base}{counter[category]}"
+
+
+def extract_campus_polygon(features):
+    candidates = []
+    for feature in features:
+        props = feature.get("properties", {})
+        geometry = feature.get("geometry", {})
+        if geometry.get("type") not in {"Polygon", "MultiPolygon"}:
+            continue
+        if props.get("amenity") != "university":
+            continue
+        name = get_feature_name(props)
+        if "北京邮电大学" not in name and props.get("short_name") != "北邮":
+            continue
+        shell = get_polygon_shell(geometry)
+        if shell:
+            candidates.append(shell)
+    if not candidates:
+        raise RuntimeError("未在 export.geojson 中找到北京邮电大学校园边界")
+    return max(candidates, key=polygon_area_estimate)
+
+
+def extract_road_graph(features, campus_polygon, campus_bounds):
+    nodes = []
+    edges = []
+    node_id_by_key = {}
+    edge_keys = set()
+    next_node_id = 1
+
+    def ensure_node(lng, lat, node_type="crossing", name=None, ref_poi_id=None):
+        nonlocal next_node_id
+        key = point_key(lng, lat, precision=7)
+        node_id = node_id_by_key.get(key)
+        if node_id:
+            return node_id
+        node_id = next_node_id
+        next_node_id += 1
+        nodes.append({
+            "id": node_id,
+            "name": name or f"路口_{node_id}",
+            "lat": lat,
+            "lng": lng,
+            "node_type": node_type,
+            "ref_poi_id": ref_poi_id,
+        })
+        node_id_by_key[key] = node_id
+        return node_id
+
+    for feature in features:
+        props = feature.get("properties", {})
+        geometry = feature.get("geometry", {})
+        if geometry.get("type") != "LineString":
+            continue
+        highway = str(props.get("highway", "")).lower()
+        if highway not in ALLOWED_HIGHWAYS:
+            continue
+
+        segments = clip_linestring_to_campus(geometry.get("coordinates", []), campus_polygon, campus_bounds)
+        if not segments:
+            continue
+
+        is_bidirectional = str(props.get("oneway", "")).lower() not in {"yes", "1", "true"}
+        road_types = road_types_for_highway(highway)
+
+        for segment in segments:
+            node_ids = [ensure_node(lng, lat) for lng, lat in segment]
+            for index in range(len(segment) - 1):
+                from_lng, from_lat = segment[index]
+                to_lng, to_lat = segment[index + 1]
+                from_id = node_ids[index]
+                to_id = node_ids[index + 1]
+                if from_id == to_id:
+                    continue
+                distance = round(haversine(from_lng, from_lat, to_lng, to_lat), 2)
+                if distance < 1:
+                    continue
+                for road_type in road_types:
+                    key = (min(from_id, to_id), max(from_id, to_id), road_type, is_bidirectional)
+                    if key in edge_keys:
+                        continue
+                    edge_keys.add(key)
+                    config = ROAD_TYPE_CONFIG[road_type]
+                    edges.append({
+                        "from_node_id": from_id,
+                        "to_node_id": to_id,
+                        "distance": distance,
+                        "road_type": road_type,
+                        "is_bidirectional": is_bidirectional,
+                        "ideal_speed": config["ideal_speed"],
+                        "congestion_factor": config["congestion_factor"],
+                    })
+
+    return nodes, edges, next_node_id
+
+
+def append_poi(container, index_map, poi):
+    name = (poi.get("name") or "").strip()
+    if name:
+        key = (poi["kind"], poi["category"], name)
+    else:
+        key = (poi["kind"], poi["category"], point_key(poi["lng"], poi["lat"], precision=6))
+    existing_idx = index_map.get(key)
+    if existing_idx is None:
+        index_map[key] = len(container)
+        container.append(poi)
+        return
+
+    existing = container[existing_idx]
+    if geometry_rank(poi["geometry_type"]) > geometry_rank(existing["geometry_type"]):
+        container[existing_idx] = poi
+
+
+def extract_pois(features, campus_polygon, campus_bounds):
+    pois = []
+    poi_index = {}
+    generated_counter = {}
+
+    for feature in features:
+        props = feature.get("properties", {})
+        geometry = feature.get("geometry", {})
+        gtype = geometry.get("type")
+        if gtype not in {"Point", "Polygon", "MultiPolygon"}:
+            continue
+
+        point = representative_point(feature)
+        if not point or not point_in_campus(point, campus_polygon, campus_bounds):
+            continue
+
+        lng, lat = point
+        name = get_feature_name(props)
+        if should_skip_poi(name):
+            continue
+        feature_id = feature.get("id") or props.get("@id") or ""
+        source_tags = build_source_tags(props)
+
+        building_category = classify_building(props, name)
+        facility_category = classify_facility(props, name)
+
+        if building_category and name:
+            normalized_name = normalize_poi_name(name, "building", building_category, source_tags)
+            append_poi(pois, poi_index, {
+                "name": normalized_name,
+                "kind": "building",
+                "category": building_category,
+                "lat": lat,
+                "lng": lng,
+                "description": build_poi_description("building", building_category, normalized_name),
+                "source_osm_id": feature_id,
+                "source_tags": source_tags,
+                "geometry_type": gtype,
+            })
+            continue
+
+        if facility_category:
+            display_name = normalize_poi_name(name or generated_poi_name("facility", facility_category, generated_counter), "facility", facility_category, source_tags)
+            append_poi(pois, poi_index, {
+                "name": display_name,
+                "kind": "facility",
+                "category": facility_category,
+                "lat": lat,
+                "lng": lng,
+                "description": build_poi_description("facility", facility_category, display_name),
+                "source_osm_id": feature_id,
+                "source_tags": source_tags,
+                "geometry_type": gtype,
+            })
+
+    for idx, poi in enumerate(pois, start=1):
+        poi["id"] = idx
+        poi.pop("geometry_type", None)
+
+    return pois
+
+
+def nearest_walk_node(point, nodes, edges):
+    walk_node_ids = set()
+    for edge in edges:
+        if edge["road_type"] == "walk":
+            walk_node_ids.add(edge["from_node_id"])
+            walk_node_ids.add(edge["to_node_id"])
+    candidates = [node for node in nodes if node["id"] in walk_node_ids]
+    if not candidates:
+        raise RuntimeError("未提取到可步行路网节点")
+    lng, lat = point
+    return min(candidates, key=lambda node: haversine(lng, lat, node["lng"], node["lat"]))
+
+
+def build_map_and_poi_data(features):
+    campus_polygon = extract_campus_polygon(features)
+    campus_bounds = polygon_bounds(campus_polygon)
+    campus_center_lng, campus_center_lat = polygon_centroid(campus_polygon)
+
+    nodes, edges, next_node_id = extract_road_graph(features, campus_polygon, campus_bounds)
+    pois = extract_pois(features, campus_polygon, campus_bounds)
+
+    for poi in pois:
+        nearest_node = nearest_walk_node((poi["lng"], poi["lat"]), nodes, edges)
+        node_id = next_node_id
+        next_node_id += 1
+        nodes.append({
+            "id": node_id,
+            "name": poi["name"],
+            "lat": poi["lat"],
+            "lng": poi["lng"],
+            "node_type": poi["kind"],
+            "ref_poi_id": poi["id"],
+        })
+        poi["node_id"] = node_id
+        distance = round(haversine(poi["lng"], poi["lat"], nearest_node["lng"], nearest_node["lat"]), 2)
+        if distance >= 1:
+            edges.append({
+                "from_node_id": node_id,
+                "to_node_id": nearest_node["id"],
+                "distance": distance,
+                "road_type": "walk",
+                "is_bidirectional": True,
+                "ideal_speed": ROAD_TYPE_CONFIG["walk"]["ideal_speed"],
+                "congestion_factor": ROAD_TYPE_CONFIG["walk"]["congestion_factor"],
+            })
+            edges.append({
+                "from_node_id": node_id,
+                "to_node_id": nearest_node["id"],
+                "distance": distance,
+                "road_type": "bike",
+                "is_bidirectional": True,
+                "ideal_speed": ROAD_TYPE_CONFIG["bike"]["ideal_speed"],
+                "congestion_factor": ROAD_TYPE_CONFIG["bike"]["congestion_factor"],
+            })
+
+    map_data = {
+        "crs": "WGS84",
+        "source_crs": "WGS84",
+        "spot": {
+            "name": SPOT_NAME,
+            "center": {"lng": campus_center_lng, "lat": campus_center_lat},
+        },
+        "nodes": nodes,
+        "edges": edges,
+    }
+    return map_data, pois
+
+
+def batch_convert_coordinates(points):
+    unique_points = []
+    seen = set()
+    for lng, lat in points:
+        key = point_key(lng, lat, precision=7)
+        if key not in seen:
+            seen.add(key)
+            unique_points.append((lng, lat))
+
+    converted = {}
+    batch_size = 40
+    use_local_fallback = False
+    for start in range(0, len(unique_points), batch_size):
+        batch = unique_points[start:start + batch_size]
+        if use_local_fallback:
+            for lng, lat in batch:
+                converted[point_key(lng, lat, precision=7)] = wgs84_to_gcj02(lng, lat)
+            continue
+
+        locations = ";".join(f"{lng},{lat}" for lng, lat in batch)
+        data = amap_get("https://restapi.amap.com/v3/assistant/coordinate/convert", {
             "key": AMAP_KEY,
-            "origin": f"{origin[0]},{origin[1]}",
-            "destination": f"{dest[0]},{dest[1]}",
+            "locations": locations,
+            "coordsys": "gps",
             "output": "json",
         })
-    except Exception:
-        return None
-    if data.get("status") != "1":
-        return None
-    paths = data.get("route", {}).get("paths", [])
-    if not paths:
-        return None
-    points = []
-    for step in paths[0].get("steps", []):
-        for pt in step.get("polyline", "").split(";"):
-            parts = pt.strip().split(",")
-            if len(parts) == 2:
-                points.append((float(parts[0]), float(parts[1])))
-    return points if len(points) >= 2 else None
+        if data.get("status") != "1" or not data.get("locations"):
+            if data.get("infocode") == "10021":
+                use_local_fallback = True
+                for lng, lat in batch:
+                    converted[point_key(lng, lat, precision=7)] = wgs84_to_gcj02(lng, lat)
+                continue
+            raise RuntimeError(f"高德坐标转换失败: {data}")
+        parts = data["locations"].split(";")
+        if len(parts) != len(batch):
+            raise RuntimeError("高德坐标转换返回数量与请求数量不一致")
+        for original, raw in zip(batch, parts):
+            lng, lat = map(float, raw.split(","))
+            converted[point_key(original[0], original[1], precision=7)] = (lng, lat)
+        time.sleep(0.05)
+    return converted
 
 
-def ensure_spot(conn):
+def apply_gcj02_conversion(map_data, poi_data):
+    raw_points = []
+    for node in map_data["nodes"]:
+        raw_points.append((node["lng"], node["lat"]))
+    for poi in poi_data:
+        raw_points.append((poi["lng"], poi["lat"]))
+    center = map_data["spot"]["center"]
+    raw_points.append((center["lng"], center["lat"]))
+
+    converted = batch_convert_coordinates(raw_points)
+
+    for node in map_data["nodes"]:
+        lng, lat = converted[point_key(node["lng"], node["lat"], precision=7)]
+        node["lng"] = lng
+        node["lat"] = lat
+
+    for poi in poi_data:
+        lng, lat = converted[point_key(poi["lng"], poi["lat"], precision=7)]
+        poi["lng"] = lng
+        poi["lat"] = lat
+
+    center_lng, center_lat = converted[point_key(center["lng"], center["lat"], precision=7)]
+    map_data["spot"]["center"] = {"lng": center_lng, "lat": center_lat}
+    map_data["crs"] = "GCJ-02"
+
+
+def ensure_spot(conn, center_lng, center_lat):
     c = conn.cursor()
     c.execute("SELECT id FROM scenic_spots WHERE name=? AND city=?", (SPOT_NAME, SPOT_CITY))
     row = c.fetchone()
     if row:
         c.execute(
             "UPDATE scenic_spots SET category=?, type=?, address=?, description=?, tags=?, location_lng=?, location_lat=? WHERE id=?",
-            (SPOT_CATEGORY, SPOT_TYPE, SPOT_ADDRESS, SPOT_DESCRIPTION, SPOT_TAGS, CAMPUS_CENTER[0], CAMPUS_CENTER[1], row[0]),
+            (SPOT_CATEGORY, SPOT_TYPE, SPOT_ADDRESS, SPOT_DESCRIPTION, SPOT_TAGS, center_lng, center_lat, row[0]),
         )
         conn.commit()
         return row[0]
@@ -378,8 +720,8 @@ def ensure_spot(conn):
         (
             SPOT_NAME,
             SPOT_DESCRIPTION,
-            CAMPUS_CENTER[1],
-            CAMPUS_CENTER[0],
+            center_lat,
+            center_lng,
             SPOT_ADDRESS,
             SPOT_CITY,
             SPOT_CATEGORY,
@@ -411,135 +753,115 @@ def clear_existing_map(conn, spot_id):
     conn.commit()
 
 
-def insert_building(conn, spot_id, spec, lng, lat):
+def insert_building(conn, spot_id, poi):
     c = conn.cursor()
+    floor_count = None
+    raw_levels = poi.get("source_tags", {}).get("building:levels")
+    if raw_levels:
+        try:
+            floor_count = int(float(raw_levels))
+        except Exception:
+            floor_count = None
     c.execute(
         "INSERT INTO buildings (spot_id, name, type, location_lng, location_lat, floor_count, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (spot_id, spec["name"], spec["type"], lng, lat, spec["floor_count"], spec["description"]),
+        (spot_id, poi["name"], poi["category"], poi["lng"], poi["lat"], floor_count, poi["description"]),
     )
     conn.commit()
     return c.lastrowid
 
 
-def insert_facility(conn, spot_id, spec, lng, lat):
+def insert_facility(conn, spot_id, poi):
     c = conn.cursor()
     c.execute(
         "INSERT INTO facilities (spot_id, name, type, location_lng, location_lat, description) VALUES (?, ?, ?, ?, ?, ?)",
-        (spot_id, spec["name"], spec["type"], lng, lat, spec["description"]),
+        (spot_id, poi["name"], poi["category"], poi["lng"], poi["lat"], poi["description"]),
     )
     conn.commit()
     return c.lastrowid
 
 
-def insert_node(conn, spot_id, name, lng, lat, node_type, ref_id=None):
+def insert_node(conn, spot_id, node, ref_id_map):
     c = conn.cursor()
+    ref_id = None
+    if node["node_type"] in {"building", "facility"} and node.get("ref_poi_id"):
+        ref_id = ref_id_map.get(node["ref_poi_id"])
     c.execute(
         "INSERT INTO road_nodes (spot_id, name, location_lng, location_lat, node_type, ref_id) VALUES (?, ?, ?, ?, ?, ?)",
-        (spot_id, name, lng, lat, node_type, ref_id),
+        (spot_id, node["name"], node["lng"], node["lat"], node["node_type"], ref_id),
     )
     conn.commit()
     return c.lastrowid
 
 
-def insert_edge(conn, spot_id, from_id, to_id, distance):
+def insert_edge(conn, spot_id, edge, node_id_map):
     c = conn.cursor()
     c.execute(
         "INSERT INTO road_edges (spot_id, from_node_id, to_node_id, distance, ideal_speed, congestion_factor, road_type, is_bidirectional) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (spot_id, from_id, to_id, distance, 1.4, 0.9, "walk", 1),
-    )
-    c.execute(
-        "INSERT INTO road_edges (spot_id, from_node_id, to_node_id, distance, ideal_speed, congestion_factor, road_type, is_bidirectional) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (spot_id, from_id, to_id, distance, 4.2, 0.85, "bike", 1),
+        (
+            spot_id,
+            node_id_map[edge["from_node_id"]],
+            node_id_map[edge["to_node_id"]],
+            edge["distance"],
+            edge["ideal_speed"],
+            edge["congestion_factor"],
+            edge["road_type"],
+            1 if edge.get("is_bidirectional", True) else 0,
+        ),
     )
     conn.commit()
 
 
-def build_intermediate_nodes(conn, spot_id, from_node_id, to_node_id, points, created_crossings):
-    prev_id = from_node_id
-    prev_lng, prev_lat = points[0]
-    for i, (lng, lat) in enumerate(points[1:], 1):
-        dist = haversine(prev_lng, prev_lat, lng, lat)
-        if dist < 5:
-            continue
-        if i == len(points) - 1:
-            cur_id = to_node_id
-        else:
-            key = (round(lng, 6), round(lat, 6))
-            cur_id = created_crossings.get(key)
-            if not cur_id:
-                cur_id = insert_node(conn, spot_id, f"路口_{len(created_crossings)+1}", lng, lat, "crossing")
-                created_crossings[key] = cur_id
-        insert_edge(conn, spot_id, prev_id, cur_id, int(dist))
-        prev_id = cur_id
-        prev_lng, prev_lat = lng, lat
+def write_json_outputs(map_data, poi_data):
+    MAP_DATA_PATH.write_text(json.dumps(map_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    POI_DATA_PATH.write_text(json.dumps(poi_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_into_database(map_data, poi_data):
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        center = map_data["spot"]["center"]
+        spot_id = ensure_spot(conn, center["lng"], center["lat"])
+        clear_existing_map(conn, spot_id)
+
+        ref_id_map = {}
+        for poi in poi_data:
+            if poi["kind"] == "building":
+                ref_id_map[poi["id"]] = insert_building(conn, spot_id, poi)
+            elif poi["kind"] == "facility":
+                ref_id_map[poi["id"]] = insert_facility(conn, spot_id, poi)
+
+        node_id_map = {}
+        for node in map_data["nodes"]:
+            node_id_map[node["id"]] = insert_node(conn, spot_id, node, ref_id_map)
+
+        for edge in map_data["edges"]:
+            insert_edge(conn, spot_id, edge, node_id_map)
+
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) FROM buildings WHERE spot_id=?", (spot_id,))
+        print("buildings", c.fetchone()[0])
+        c.execute("SELECT COUNT(*) FROM facilities WHERE spot_id=?", (spot_id,))
+        print("facilities", c.fetchone()[0])
+        c.execute("SELECT COUNT(*) FROM road_nodes WHERE spot_id=?", (spot_id,))
+        print("nodes", c.fetchone()[0])
+        c.execute("SELECT COUNT(*) FROM road_edges WHERE spot_id=?", (spot_id,))
+        print("edges", c.fetchone()[0])
+    finally:
+        conn.close()
 
 
 def main():
-    conn = sqlite3.connect(DB_PATH)
-    spot_id = ensure_spot(conn)
-    clear_existing_map(conn, spot_id)
+    if not EXPORT_GEOJSON_PATH.exists():
+        raise FileNotFoundError(f"未找到文件: {EXPORT_GEOJSON_PATH}")
 
-    anchors = {}
-
-    for spec in ENTRANCES:
-        point = resolve_location(spec)
-        if not point:
-            continue
-        lng, lat = point
-        node_id = insert_node(conn, spot_id, spec["name"], lng, lat, "entrance")
-        anchors[spec["name"]] = {"id": node_id, "lng": lng, "lat": lat}
-        print(f"入口: {spec['name']} -> ({lng:.6f}, {lat:.6f})")
-
-    for spec in BUILDINGS:
-        point = resolve_location(spec)
-        if not point:
-            print(f"跳过建筑: {spec['name']}")
-            continue
-        lng, lat = point
-        ref_id = insert_building(conn, spot_id, spec, lng, lat)
-        node_id = insert_node(conn, spot_id, spec["name"], lng, lat, "building", ref_id)
-        anchors[spec["name"]] = {"id": node_id, "lng": lng, "lat": lat}
-        print(f"建筑: {spec['name']} -> ({lng:.6f}, {lat:.6f})")
-        time.sleep(0.05)
-
-    for spec in FACILITIES:
-        point = resolve_location(spec)
-        if not point:
-            print(f"跳过设施: {spec['name']}")
-            continue
-        lng, lat = point
-        ref_id = insert_facility(conn, spot_id, spec, lng, lat)
-        node_id = insert_node(conn, spot_id, spec["name"], lng, lat, "facility", ref_id)
-        anchors[spec["name"]] = {"id": node_id, "lng": lng, "lat": lat}
-        print(f"设施: {spec['name']} -> ({lng:.6f}, {lat:.6f})")
-        time.sleep(0.05)
-
-    created_crossings = {}
-    for from_name, to_name in ROUTE_PAIRS:
-        if from_name not in anchors or to_name not in anchors:
-            continue
-        origin = anchors[from_name]
-        dest = anchors[to_name]
-        points = walking_route((origin["lng"], origin["lat"]), (dest["lng"], dest["lat"]))
-        if not points:
-            print(f"跳过无折线路径: {from_name} -> {to_name}")
-            continue
-        points[0] = (origin["lng"], origin["lat"])
-        points[-1] = (dest["lng"], dest["lat"])
-        build_intermediate_nodes(conn, spot_id, origin["id"], dest["id"], points, created_crossings)
-        print(f"路径: {from_name} -> {to_name}, 折点={max(len(points)-2, 0)}")
-        time.sleep(0.05)
-
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM buildings WHERE spot_id=?", (spot_id,))
-    print('buildings', c.fetchone()[0])
-    c.execute("SELECT COUNT(*) FROM facilities WHERE spot_id=?", (spot_id,))
-    print('facilities', c.fetchone()[0])
-    c.execute("SELECT COUNT(*) FROM road_nodes WHERE spot_id=? AND node_type='crossing'", (spot_id,))
-    print('crossings', c.fetchone()[0])
-    c.execute("SELECT COUNT(*) FROM road_edges WHERE spot_id=?", (spot_id,))
-    print('edges', c.fetchone()[0])
-    conn.close()
+    geojson = json.loads(EXPORT_GEOJSON_PATH.read_text(encoding="utf-8"))
+    features = geojson.get("features", [])
+    map_data, poi_data = build_map_and_poi_data(features)
+    apply_gcj02_conversion(map_data, poi_data)
+    write_json_outputs(map_data, poi_data)
+    load_into_database(map_data, poi_data)
+    print(f"map json -> {MAP_DATA_PATH}")
+    print(f"poi json -> {POI_DATA_PATH}")
 
 
 if __name__ == "__main__":

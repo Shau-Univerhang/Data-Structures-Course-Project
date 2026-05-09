@@ -43,6 +43,12 @@ class RoutePlanResponse(BaseModel):
     transport_mode: str = "walk"
     transport_label: str = "步行"
     segment_transport_modes: List[str] = []
+    start_node_id: Optional[int] = None
+    start_node_name: str = ""
+    ordered_stop_ids: List[int] = []
+    ordered_stop_names: List[str] = []
+    final_node_id: Optional[int] = None
+    final_node_name: str = ""
     ordered_waypoint_ids: List[int] = []
     ordered_waypoint_names: List[str] = []
     return_to_start: bool = False
@@ -119,13 +125,14 @@ def _build_ordered_waypoint_names(path_ids, waypoint_ids, node_map):
     return ordered_ids, ordered_names
 
 
-def _display_modes_for_spot(spot_type: Optional[str]):
+def _display_modes_for_spot(spot_type: Optional[str], available_modes: Optional[List[str]] = None):
     if spot_type == "campus":
-        return [
-            {"value": "walk", "label": "步行"},
-            {"value": "bike", "label": "骑行"},
-            {"value": "smart", "label": "智能混合"},
-        ]
+        modes = [{"value": "walk", "label": "步行"}]
+        available = set(available_modes or [])
+        if "bike" in available:
+            modes.append({"value": "bike", "label": "骑行"})
+            modes.append({"value": "smart", "label": "智能混合"})
+        return modes
     return [
         {"value": "walk", "label": "步行"},
         {"value": "shuttle", "label": "电瓶车"},
@@ -136,6 +143,23 @@ def _display_modes_for_spot(spot_type: Optional[str]):
 def _transport_label(transport_mode: str, spot_type: Optional[str]):
     resolved_mode = resolve_transport_mode(transport_mode, spot_type or "scenic")
     return TRANSPORT_MODE_LABELS.get(resolved_mode, transport_mode)
+
+
+def _default_map_node_id(spot: ScenicSpot, nodes: List[RoadNode]):
+    entrance_node = next((n for n in nodes if n.node_type == "entrance"), None)
+    if entrance_node:
+        return entrance_node.id
+
+    anchor_nodes = [n for n in nodes if n.node_type in {"building", "facility"}]
+    if not anchor_nodes:
+        return nodes[0].id if nodes else None
+
+    center_lng = spot.location_lng or 0
+    center_lat = spot.location_lat or 0
+    return min(
+        anchor_nodes,
+        key=lambda node: (node.location_lng - center_lng) ** 2 + (node.location_lat - center_lat) ** 2,
+    ).id
 
 
 def _serialize_path(path_ids, node_map):
@@ -151,6 +175,35 @@ def _serialize_path(path_ids, node_map):
                 "type": node.node_type,
             })
     return path
+
+
+def _build_stop_sequence(path_ids, start_node_id, terminal_node_id, waypoint_ids, node_map, return_to_start=False):
+    waypoint_set = set(waypoint_ids)
+    ordered_waypoint_ids = []
+    ordered_waypoint_names = []
+    for node_id in path_ids:
+        if node_id in waypoint_set and (not ordered_waypoint_ids or ordered_waypoint_ids[-1] != node_id):
+            ordered_waypoint_ids.append(node_id)
+            ordered_waypoint_names.append(node_map[node_id].name)
+
+    ordered_stop_ids = [start_node_id]
+    ordered_stop_names = [node_map[start_node_id].name] if start_node_id in node_map else []
+    ordered_stop_ids.extend(ordered_waypoint_ids)
+    ordered_stop_names.extend(ordered_waypoint_names)
+
+    final_node_id = terminal_node_id
+    if terminal_node_id in node_map and (not ordered_stop_ids or ordered_stop_ids[-1] != terminal_node_id):
+        ordered_stop_ids.append(terminal_node_id)
+        ordered_stop_names.append(node_map[terminal_node_id].name)
+
+    if return_to_start and path_ids and path_ids[-1] == start_node_id:
+        final_node_id = start_node_id
+        if not ordered_stop_ids or ordered_stop_ids[-1] != start_node_id:
+            ordered_stop_ids.append(start_node_id)
+            ordered_stop_names.append(node_map[start_node_id].name)
+
+    final_node_name = node_map[final_node_id].name if final_node_id in node_map else ""
+    return ordered_waypoint_ids, ordered_waypoint_names, ordered_stop_ids, ordered_stop_names, final_node_id, final_node_name
 
 
 def _facility_categories(facilities):
@@ -459,7 +512,7 @@ def get_internal_map(spot_id: int, db: Session = Depends(get_db)):
     buildings = db.query(Building).filter(Building.spot_id == spot_id).all()
     facilities = db.query(Facility).filter(Facility.spot_id == spot_id).all()
 
-    entrance_node = next((n for n in nodes if n.node_type == "entrance"), None)
+    default_node_id = _default_map_node_id(spot, nodes)
     available_modes = sorted({e.road_type for e in edges if e.road_type})
 
     return {
@@ -472,9 +525,9 @@ def get_internal_map(spot_id: int, db: Session = Depends(get_db)):
             "location_lat": spot.location_lat,
             "location_lng": spot.location_lng,
         },
-        "entrance_node_id": entrance_node.id if entrance_node else (nodes[0].id if nodes else None),
+        "entrance_node_id": default_node_id,
         "available_modes": available_modes,
-        "display_modes": _display_modes_for_spot(spot.type),
+        "display_modes": _display_modes_for_spot(spot.type, available_modes),
         "facility_categories": _facility_categories(facilities),
         "indoor_navigation": _indoor_navigation_payload(spot),
         "nodes": [_serialize_node(n) for n in nodes],

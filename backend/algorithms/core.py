@@ -129,6 +129,17 @@ def _edge_supports_transport(edge: dict, transport_mode: str) -> bool:
 
 
 
+def _edge_penalty(edge: dict, start: int, end: Optional[int], current: int, neighbor: int) -> float:
+    if edge.get('road_type', 'walk') != 'walk':
+        return 0.0
+    if current == start or neighbor == start or (end and (current == end or neighbor == end)):
+        return 0.0
+    if edge.get('from_node_type') == 'entrance' or edge.get('to_node_type') == 'entrance':
+        return max(float(edge.get('distance', 0) or 0) * 0.6, 120.0)
+    return 0.0
+
+
+
 def _edge_transport_mode(edge: dict, transport_mode: str) -> str:
     road_type = edge.get('road_type', 'walk')
     if transport_mode == 'smart_campus':

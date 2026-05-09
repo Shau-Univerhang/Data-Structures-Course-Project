@@ -1,0 +1,2282 @@
+[
+  {
+    "name": "图书馆",
+    "kind": "facility",
+    "category": "library",
+    "lat": 39.96279838270721,
+    "lng": 116.3582176502314,
+    "description": "校内图书服务点",
+    "source_osm_id": "relation/18961046",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "library"
+    },
+    "id": 1,
+    "node_id": 566
+  },
+  {
+    "name": "学生10号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96453521680589,
+    "lng": 116.35663173598343,
+    "description": "校内建筑：学生10号公寓",
+    "source_osm_id": "relation/18974411",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生10号公寓"
+    },
+    "id": 2,
+    "node_id": 567
+  },
+  {
+    "name": "教二楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.960521365595575,
+    "lng": 116.35804954184536,
+    "description": "校内建筑：教二楼",
+    "source_osm_id": "way/253330141",
+    "source_tags": {
+      "building": "university",
+      "name": "教二楼",
+      "name:zh": "教二楼"
+    },
+    "id": 3,
+    "node_id": 568
+  },
+  {
+    "name": "学生发展中心",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.963414442706544,
+    "lng": 116.35783229566667,
+    "description": "校内建筑：学生发展中心",
+    "source_osm_id": "way/265030101",
+    "source_tags": {
+      "building": "house",
+      "name": "学生发展中心",
+      "name:zh": "学生发展中心"
+    },
+    "id": 4,
+    "node_id": 569
+  },
+  {
+    "name": "麦当劳",
+    "kind": "facility",
+    "category": "restaurant",
+    "lat": 39.96363668227453,
+    "lng": 116.35754128435384,
+    "description": "校内餐饮点",
+    "source_osm_id": "way/265030102",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "fast_food",
+      "name": "麦当劳",
+      "name:zh": "麦当劳",
+      "brand": "麦当劳",
+      "brand:zh": "麦当劳"
+    },
+    "id": 5,
+    "node_id": 570
+  },
+  {
+    "name": "留学生2号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96391789019724,
+    "lng": 116.35524505265101,
+    "description": "校内建筑：留学生2号公寓",
+    "source_osm_id": "way/265030103",
+    "source_tags": {
+      "building": "house",
+      "name": "留学生2号公寓",
+      "name:zh": "留学生2号公寓"
+    },
+    "id": 6,
+    "node_id": 571
+  },
+  {
+    "name": "学生13号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96301268759085,
+    "lng": 116.35528686590399,
+    "description": "校内建筑：学生13号公寓",
+    "source_osm_id": "way/265030104",
+    "source_tags": {
+      "building": "apartments",
+      "name": "学生13号公寓",
+      "name:zh": "学生13号公寓"
+    },
+    "id": 7,
+    "node_id": 572
+  },
+  {
+    "name": "学生5号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96352752693857,
+    "lng": 116.35581543821488,
+    "description": "校内建筑：学生5号公寓",
+    "source_osm_id": "way/265030105",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生5号公寓",
+      "name:zh": "学生5号公寓"
+    },
+    "id": 8,
+    "node_id": 573
+  },
+  {
+    "name": "学生3号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.962904583604946,
+    "lng": 116.35582760478141,
+    "description": "校内建筑：学生3号公寓",
+    "source_osm_id": "way/265030106",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生3号公寓",
+      "name:zh": "学生3号公寓"
+    },
+    "id": 9,
+    "node_id": 574
+  },
+  {
+    "name": "学生8号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.963507597803684,
+    "lng": 116.3566764270538,
+    "description": "校内建筑：学生8号公寓",
+    "source_osm_id": "way/265030107",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生8号公寓",
+      "name:zh": "学生8号公寓"
+    },
+    "id": 10,
+    "node_id": 575
+  },
+  {
+    "name": "学生4号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.9628803698799,
+    "lng": 116.35670646248735,
+    "description": "校内建筑：学生4号公寓",
+    "source_osm_id": "way/265030108",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生4号公寓",
+      "name:zh": "学生4号公寓"
+    },
+    "id": 11,
+    "node_id": 576
+  },
+  {
+    "name": "学生1号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96242607811249,
+    "lng": 116.35586009977955,
+    "description": "校内建筑：学生1号公寓",
+    "source_osm_id": "way/265030109",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生1号公寓",
+      "name:zh": "学生1号公寓"
+    },
+    "id": 12,
+    "node_id": 577
+  },
+  {
+    "name": "学生2号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96244555756018,
+    "lng": 116.35672546338422,
+    "description": "校内建筑：学生2号公寓",
+    "source_osm_id": "way/265030110",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生2号公寓",
+      "name:zh": "学生2号公寓"
+    },
+    "id": 13,
+    "node_id": 578
+  },
+  {
+    "name": "医务室",
+    "kind": "facility",
+    "category": "clinic",
+    "lat": 39.95995110129645,
+    "lng": 116.35685917502732,
+    "description": "校内医疗服务点",
+    "source_osm_id": "way/344373140",
+    "source_tags": {
+      "amenity": "hospital",
+      "name": "校医院（北京邮电大学社区卫生服务中心）",
+      "name:zh": "校医院（北京邮电大学社区卫生服务中心）"
+    },
+    "id": 14,
+    "node_id": 579
+  },
+  {
+    "name": "宏途书店",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.95959638272653,
+    "lng": 116.35678270193353,
+    "description": "校内商店",
+    "source_osm_id": "way/344376258",
+    "source_tags": {
+      "building": "yes",
+      "shop": "books",
+      "name": "宏途书店",
+      "name:zh": "宏途书店"
+    },
+    "id": 15,
+    "node_id": 580
+  },
+  {
+    "name": "南区教学楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.95939684708271,
+    "lng": 116.35686354389479,
+    "description": "校内建筑：南区教学楼",
+    "source_osm_id": "way/344376259",
+    "source_tags": {
+      "building": "university",
+      "name": "南区教学楼"
+    },
+    "id": 16,
+    "node_id": 581
+  },
+  {
+    "name": "7号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958942534577744,
+    "lng": 116.35690061301263,
+    "description": "校内建筑：7号楼",
+    "source_osm_id": "way/344376260",
+    "source_tags": {
+      "building": "apartments",
+      "name": "7号楼",
+      "name:zh": "7号楼"
+    },
+    "id": 17,
+    "node_id": 582
+  },
+  {
+    "name": "9号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95858994527864,
+    "lng": 116.35691489790004,
+    "description": "校内建筑：9号楼",
+    "source_osm_id": "way/344376261",
+    "source_tags": {
+      "building": "apartments",
+      "name": "9号楼",
+      "name:zh": "9号楼"
+    },
+    "id": 18,
+    "node_id": 583
+  },
+  {
+    "name": "14号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.959893460788415,
+    "lng": 116.35595176287254,
+    "description": "校内建筑：14号楼",
+    "source_osm_id": "way/344376262",
+    "source_tags": {
+      "building": "apartments",
+      "name": "14号楼",
+      "name:zh": "14号楼"
+    },
+    "id": 19,
+    "node_id": 584
+  },
+  {
+    "name": "2号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95936137884052,
+    "lng": 116.35601753271239,
+    "description": "校内建筑：2号楼",
+    "source_osm_id": "way/344376264",
+    "source_tags": {
+      "building": "apartments",
+      "name": "2号楼",
+      "name:zh": "2号楼"
+    },
+    "id": 20,
+    "node_id": 585
+  },
+  {
+    "name": "8号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958570778185944,
+    "lng": 116.35603504416179,
+    "description": "校内建筑：8号楼",
+    "source_osm_id": "way/344376266",
+    "source_tags": {
+      "building": "apartments",
+      "name": "8号楼",
+      "name:zh": "8号楼"
+    },
+    "id": 21,
+    "node_id": 586
+  },
+  {
+    "name": "4号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.9582263493487,
+    "lng": 116.35621409852571,
+    "description": "校内建筑：4号楼",
+    "source_osm_id": "way/344376267",
+    "source_tags": {
+      "building": "apartments",
+      "name": "4号楼",
+      "name:zh": "4号楼"
+    },
+    "id": 22,
+    "node_id": 587
+  },
+  {
+    "name": "10号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958233316304316,
+    "lng": 116.35746135383332,
+    "description": "校内建筑：10号楼",
+    "source_osm_id": "way/344376268",
+    "source_tags": {
+      "building": "apartments",
+      "name": "10号楼",
+      "name:zh": "10号楼"
+    },
+    "id": 23,
+    "node_id": 588
+  },
+  {
+    "name": "国际学院",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.960151107024494,
+    "lng": 116.35541980271921,
+    "description": "校内建筑：国际学院",
+    "source_osm_id": "way/344376269",
+    "source_tags": {
+      "building": "university",
+      "name": "国际学院"
+    },
+    "id": 24,
+    "node_id": 589
+  },
+  {
+    "name": "15号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95960215964446,
+    "lng": 116.35543940435369,
+    "description": "校内建筑：15号楼",
+    "source_osm_id": "way/344376270",
+    "source_tags": {
+      "building": "apartments",
+      "name": "15号楼",
+      "name:zh": "15号楼"
+    },
+    "id": 25,
+    "node_id": 590
+  },
+  {
+    "name": "16号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.959070767492975,
+    "lng": 116.35545587163246,
+    "description": "校内建筑：16号楼",
+    "source_osm_id": "way/344376271",
+    "source_tags": {
+      "building": "apartments",
+      "name": "16号楼",
+      "name:zh": "16号楼"
+    },
+    "id": 26,
+    "node_id": 591
+  },
+  {
+    "name": "17号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958532652358606,
+    "lng": 116.35545928569478,
+    "description": "校内建筑：17号楼",
+    "source_osm_id": "way/344376272",
+    "source_tags": {
+      "building": "apartments",
+      "name": "17号楼",
+      "name:zh": "17号楼"
+    },
+    "id": 27,
+    "node_id": 592
+  },
+  {
+    "name": "1号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95998287330596,
+    "lng": 116.35802773569722,
+    "description": "校内建筑：1号楼",
+    "source_osm_id": "way/344376663",
+    "source_tags": {
+      "building": "apartments",
+      "name": "1号楼",
+      "name:zh": "1号楼"
+    },
+    "id": 28,
+    "node_id": 593
+  },
+  {
+    "name": "5号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958664077139545,
+    "lng": 116.35813422773687,
+    "description": "校内建筑：5号楼",
+    "source_osm_id": "way/344376666",
+    "source_tags": {
+      "building": "apartments",
+      "name": "5号楼",
+      "name:zh": "5号楼"
+    },
+    "id": 29,
+    "node_id": 594
+  },
+  {
+    "name": "科研楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.964147174089526,
+    "lng": 116.3589728585689,
+    "description": "校内建筑：科研楼",
+    "source_osm_id": "way/354562947",
+    "source_tags": {
+      "building": "university",
+      "building:levels": "12",
+      "name": "科研楼",
+      "name:zh": "科研楼"
+    },
+    "id": 30,
+    "node_id": 595
+  },
+  {
+    "name": "教四楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96193569337692,
+    "lng": 116.35631756827162,
+    "description": "校内建筑：教四楼",
+    "source_osm_id": "way/363833971",
+    "source_tags": {
+      "building": "university",
+      "name": "教四楼",
+      "name:zh": "教四楼"
+    },
+    "id": 31,
+    "node_id": 596
+  },
+  {
+    "name": "中国邮政储蓄银行（鸿通楼）",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96191441210421,
+    "lng": 116.35534367473436,
+    "description": "校内建筑：中国邮政储蓄银行（鸿通楼）",
+    "source_osm_id": "way/399008788",
+    "source_tags": {
+      "building": "yes",
+      "name": "中国邮政储蓄银行（鸿通楼）",
+      "name:zh": "中国邮政储蓄银行（鸿通楼）"
+    },
+    "id": 32,
+    "node_id": 597
+  },
+  {
+    "name": "未来学习大楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96130411330994,
+    "lng": 116.35838613230078,
+    "description": "校内建筑：未来学习大楼",
+    "source_osm_id": "way/399008789",
+    "source_tags": {
+      "building": "university",
+      "name": "未来学习大楼"
+    },
+    "id": 33,
+    "node_id": 598
+  },
+  {
+    "name": "教一楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96192665718914,
+    "lng": 116.35799100682685,
+    "description": "校内建筑：教一楼",
+    "source_osm_id": "way/399008979",
+    "source_tags": {
+      "building": "university",
+      "name": "教一楼",
+      "name:zh": "教一楼"
+    },
+    "id": 34,
+    "node_id": 599
+  },
+  {
+    "name": "行政楼",
+    "kind": "building",
+    "category": "office",
+    "lat": 39.962117637382505,
+    "lng": 116.35798670722808,
+    "description": "校内建筑：行政楼",
+    "source_osm_id": "way/399008980",
+    "source_tags": {
+      "building": "yes",
+      "name": "行政办公楼",
+      "name:zh": "行政办公楼"
+    },
+    "id": 35,
+    "node_id": 600
+  },
+  {
+    "name": "财务处",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96217333676312,
+    "lng": 116.35761742316528,
+    "description": "校内建筑：财务处",
+    "source_osm_id": "way/399008981",
+    "source_tags": {
+      "building": "yes",
+      "name": "财务处",
+      "name:zh": "财务处"
+    },
+    "id": 36,
+    "node_id": 601
+  },
+  {
+    "name": "后勤处",
+    "kind": "building",
+    "category": "office",
+    "lat": 39.96209935736047,
+    "lng": 116.35759452932298,
+    "description": "校内建筑：后勤处",
+    "source_osm_id": "way/399008982",
+    "source_tags": {
+      "building": "yes",
+      "name": "后勤处",
+      "name:zh": "后勤处"
+    },
+    "id": 37,
+    "node_id": 602
+  },
+  {
+    "name": "体育馆",
+    "kind": "building",
+    "category": "attraction",
+    "lat": 39.96196185387664,
+    "lng": 116.35994149237686,
+    "description": "校内建筑：体育馆",
+    "source_osm_id": "way/399009424",
+    "source_tags": {
+      "building": "university",
+      "leisure": "stadium",
+      "name": "北邮体育馆",
+      "name:zh": "北邮体育馆"
+    },
+    "id": 38,
+    "node_id": 603
+  },
+  {
+    "name": "可信网络通信协同创新中心（创新楼）",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.960406242939726,
+    "lng": 116.35897787814187,
+    "description": "校内建筑：可信网络通信协同创新中心（创新楼）",
+    "source_osm_id": "way/399009425",
+    "source_tags": {
+      "building": "university",
+      "name": "可信网络通信协同创新中心（创新楼）",
+      "name:zh": "可信网络通信协同创新中心（创新楼）"
+    },
+    "id": 39,
+    "node_id": 604
+  },
+  {
+    "name": "明光楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.95851176165188,
+    "lng": 116.36099332969509,
+    "description": "校内建筑：明光楼",
+    "source_osm_id": "way/399009831",
+    "source_tags": {
+      "building": "university",
+      "name": "明光楼",
+      "name:zh": "明光楼"
+    },
+    "id": 40,
+    "node_id": 605
+  },
+  {
+    "name": "留学生1号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96398335530761,
+    "lng": 116.35583833605916,
+    "description": "校内建筑：留学生1号公寓",
+    "source_osm_id": "way/399010162",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "留学生1号公寓",
+      "name:zh": "留学生1号公寓"
+    },
+    "id": 41,
+    "node_id": 606
+  },
+  {
+    "name": "学五食堂",
+    "kind": "facility",
+    "category": "canteen",
+    "lat": 39.96393146342274,
+    "lng": 116.35653317372518,
+    "description": "校内食堂",
+    "source_osm_id": "way/399013934",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "restaurant",
+      "name": "综合食堂(新食堂)",
+      "name:zh": "综合食堂"
+    },
+    "id": 42,
+    "node_id": 607
+  },
+  {
+    "name": "学生9号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96426355401497,
+    "lng": 116.3557221964798,
+    "description": "校内建筑：学生9号公寓",
+    "source_osm_id": "way/399013935",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生9号公寓",
+      "name:zh": "学生9号公寓"
+    },
+    "id": 43,
+    "node_id": 608
+  },
+  {
+    "name": "学生11号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.964691379919415,
+    "lng": 116.35578506206392,
+    "description": "校内建筑：学生11号公寓",
+    "source_osm_id": "way/399013936",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生11号公寓",
+      "name:zh": "学生11号公寓"
+    },
+    "id": 44,
+    "node_id": 609
+  },
+  {
+    "name": "学生6号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.96464600225997,
+    "lng": 116.35823201808832,
+    "description": "校内建筑：学生6号公寓",
+    "source_osm_id": "way/399015104",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生6号公寓",
+      "name:zh": "学生6号公寓"
+    },
+    "id": 45,
+    "node_id": 610
+  },
+  {
+    "name": "学生活动中心",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96408637222072,
+    "lng": 116.35732555737303,
+    "description": "校内建筑：学生活动中心",
+    "source_osm_id": "way/399015106",
+    "source_tags": {
+      "building": "yes",
+      "name": "学生活动中心",
+      "name:zh": "学生活动中心"
+    },
+    "id": 46,
+    "node_id": 611
+  },
+  {
+    "name": "经管楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96468202476947,
+    "lng": 116.35734588017985,
+    "description": "校内建筑：经管楼",
+    "source_osm_id": "way/399015107",
+    "source_tags": {
+      "building": "university",
+      "name": "经管楼",
+      "name:zh": "经管楼"
+    },
+    "id": 47,
+    "node_id": 612
+  },
+  {
+    "name": "综合服务楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.964199570434914,
+    "lng": 116.35784813418832,
+    "description": "校内建筑：综合服务楼",
+    "source_osm_id": "way/399017728",
+    "source_tags": {
+      "building": "yes",
+      "name": "综合服务楼",
+      "name:zh": "综合服务楼"
+    },
+    "id": 48,
+    "node_id": 613
+  },
+  {
+    "name": "北邮科技酒店",
+    "kind": "building",
+    "category": "attraction",
+    "lat": 39.96460817173893,
+    "lng": 116.35531213338818,
+    "description": "校内建筑：北邮科技酒店",
+    "source_osm_id": "way/399017729",
+    "source_tags": {
+      "building": "hotel",
+      "name": "北邮科技酒店",
+      "name:zh": "北邮科技酒店"
+    },
+    "id": 49,
+    "node_id": 614
+  },
+  {
+    "name": "北京邮电大学学生餐厅",
+    "kind": "facility",
+    "category": "restaurant",
+    "lat": 39.96331831258382,
+    "lng": 116.35909044105689,
+    "description": "校内餐饮点",
+    "source_osm_id": "way/399018200",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "restaurant",
+      "name": "北京邮电大学学生餐厅(老食堂)",
+      "name:zh": "北京邮电大学学生餐厅"
+    },
+    "id": 50,
+    "node_id": 615
+  },
+  {
+    "name": "家属27号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.963963378232506,
+    "lng": 116.36003040971266,
+    "description": "校内建筑：家属27号楼",
+    "source_osm_id": "way/399018201",
+    "source_tags": {
+      "building": "apartments",
+      "name": "家属27号楼",
+      "name:zh": "家属27号楼"
+    },
+    "id": 51,
+    "node_id": 616
+  },
+  {
+    "name": "家属28号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.963231802788286,
+    "lng": 116.36003841298037,
+    "description": "校内建筑：家属28号楼",
+    "source_osm_id": "way/399018202",
+    "source_tags": {
+      "building": "apartments",
+      "name": "家属28号楼",
+      "name:zh": "家属28号楼"
+    },
+    "id": 52,
+    "node_id": 617
+  },
+  {
+    "name": "学生29号公寓",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.962834489698174,
+    "lng": 116.36062928359632,
+    "description": "校内建筑：学生29号公寓",
+    "source_osm_id": "way/399018593",
+    "source_tags": {
+      "building": "dormitory",
+      "name": "学生29号公寓",
+      "name:zh": "学生29号公寓"
+    },
+    "id": 53,
+    "node_id": 618
+  },
+  {
+    "name": "25号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.964335245726126,
+    "lng": 116.36054313172949,
+    "description": "校内建筑：25号楼",
+    "source_osm_id": "way/399018595",
+    "source_tags": {
+      "building": "apartments",
+      "name": "25号楼",
+      "name:zh": "25号楼"
+    },
+    "id": 54,
+    "node_id": 619
+  },
+  {
+    "name": "26号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.963683558782385,
+    "lng": 116.36058743801257,
+    "description": "校内建筑：26号楼",
+    "source_osm_id": "way/399018596",
+    "source_tags": {
+      "building": "apartments",
+      "name": "26号楼",
+      "name:zh": "26号楼"
+    },
+    "id": 55,
+    "node_id": 620
+  },
+  {
+    "name": "20号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.959089902906186,
+    "lng": 116.35911893791251,
+    "description": "校内建筑：20号楼",
+    "source_osm_id": "way/399038556",
+    "source_tags": {
+      "building": "apartments",
+      "name": "20号楼"
+    },
+    "id": 56,
+    "node_id": 621
+  },
+  {
+    "name": "21号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958679723001225,
+    "lng": 116.35903611877714,
+    "description": "校内建筑：21号楼",
+    "source_osm_id": "way/399038557",
+    "source_tags": {
+      "building": "apartments",
+      "name": "21号楼",
+      "name:zh": "21号楼"
+    },
+    "id": 57,
+    "node_id": 622
+  },
+  {
+    "name": "13号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95879726673505,
+    "lng": 116.35954388112187,
+    "description": "校内建筑：13号楼",
+    "source_osm_id": "way/399038558",
+    "source_tags": {
+      "building": "apartments",
+      "name": "13号楼",
+      "name:zh": "13号楼"
+    },
+    "id": 58,
+    "node_id": 623
+  },
+  {
+    "name": "19号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.9600011908863,
+    "lng": 116.35911134302121,
+    "description": "校内建筑：19号楼",
+    "source_osm_id": "way/399038561",
+    "source_tags": {
+      "building": "apartments",
+      "name": "19号楼",
+      "name:zh": "19号楼"
+    },
+    "id": 59,
+    "node_id": 624
+  },
+  {
+    "name": "科学会堂",
+    "kind": "building",
+    "category": "attraction",
+    "lat": 39.96134243358366,
+    "lng": 116.3590425485951,
+    "description": "校内建筑：科学会堂",
+    "source_osm_id": "way/399038562",
+    "source_tags": {
+      "building": "university",
+      "amenity": "conference_centre",
+      "name": "科学会堂",
+      "name:zh": "科学会堂"
+    },
+    "id": 60,
+    "node_id": 625
+  },
+  {
+    "name": "11号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.95824655716424,
+    "lng": 116.35847214628797,
+    "description": "校内建筑：11号楼",
+    "source_osm_id": "way/399041101",
+    "source_tags": {
+      "building": "apartments",
+      "name": "11号楼",
+      "name:zh": "11号楼"
+    },
+    "id": 61,
+    "node_id": 626
+  },
+  {
+    "name": "北京邮电大学幼儿园",
+    "kind": "building",
+    "category": "office",
+    "lat": 39.95954945961454,
+    "lng": 116.35932131230614,
+    "description": "校内建筑：北京邮电大学幼儿园",
+    "source_osm_id": "way/399041102",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "childcare",
+      "name": "北京邮电大学幼儿园",
+      "name:zh": "北京邮电大学幼儿园"
+    },
+    "id": 62,
+    "node_id": 627
+  },
+  {
+    "name": "23号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.964844531732055,
+    "lng": 116.35901047293056,
+    "description": "校内建筑：23号楼",
+    "source_osm_id": "way/399042378",
+    "source_tags": {
+      "building": "apartments",
+      "name": "23号楼",
+      "name:zh": "23号楼"
+    },
+    "id": 63,
+    "node_id": 628
+  },
+  {
+    "name": "24号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.964868970793354,
+    "lng": 116.36002860086579,
+    "description": "校内建筑：24号楼",
+    "source_osm_id": "way/399042379",
+    "source_tags": {
+      "building": "apartments",
+      "name": "24号楼",
+      "name:zh": "24号楼"
+    },
+    "id": 64,
+    "node_id": 629
+  },
+  {
+    "name": "教三楼",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.9603705466829,
+    "lng": 116.35649900985813,
+    "description": "校内建筑：教三楼",
+    "source_osm_id": "way/399046289",
+    "source_tags": {
+      "building": "university",
+      "name": "教三楼",
+      "name:zh": "教三楼"
+    },
+    "id": 65,
+    "node_id": 630
+  },
+  {
+    "name": "保卫处",
+    "kind": "building",
+    "category": "office",
+    "lat": 39.963263523553046,
+    "lng": 116.36068001266112,
+    "description": "校内建筑：保卫处",
+    "source_osm_id": "way/399046290",
+    "source_tags": {
+      "building": "house",
+      "name": "保卫处"
+    },
+    "id": 66,
+    "node_id": 631
+  },
+  {
+    "name": "12号楼",
+    "kind": "building",
+    "category": "dorm",
+    "lat": 39.958345118447674,
+    "lng": 116.35949956818799,
+    "description": "校内建筑：12号楼",
+    "source_osm_id": "way/399046292",
+    "source_tags": {
+      "building": "apartments",
+      "name": "12号楼",
+      "name:zh": "12号楼"
+    },
+    "id": 67,
+    "node_id": 632
+  },
+  {
+    "name": "物美",
+    "kind": "facility",
+    "category": "supermarket",
+    "lat": 39.96369397586835,
+    "lng": 116.35785516358668,
+    "description": "校内商超便利点",
+    "source_osm_id": "way/582551390",
+    "source_tags": {
+      "building": "yes",
+      "shop": "supermarket",
+      "name": "物美",
+      "name:zh": "物美",
+      "brand": "物美",
+      "brand:zh": "物美"
+    },
+    "id": 68,
+    "node_id": 633
+  },
+  {
+    "name": "北邮邮驿站",
+    "kind": "facility",
+    "category": "express",
+    "lat": 39.96488596580265,
+    "lng": 116.35731708452748,
+    "description": "校内快递服务点",
+    "source_osm_id": "way/582551392",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "post_office",
+      "opening_hours": "Mo-Su 08:00-20:00",
+      "name": "北邮邮驿站",
+      "name:zh": "北邮邮驿站",
+      "official_name": "北京邮电大学快递服务中心"
+    },
+    "id": 69,
+    "node_id": 634
+  },
+  {
+    "name": "北京中仁中医医院",
+    "kind": "facility",
+    "category": "clinic",
+    "lat": 39.95821877896764,
+    "lng": 116.36064547994684,
+    "description": "校内医疗服务点",
+    "source_osm_id": "way/959801254",
+    "source_tags": {
+      "building": "hospital",
+      "amenity": "hospital",
+      "name": "北京中仁中医医院",
+      "name:zh": "北京中仁中医医院"
+    },
+    "id": 70,
+    "node_id": 635
+  },
+  {
+    "name": "停车点1",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.964220924581134,
+    "lng": 116.35806316980354,
+    "description": "校内停车设施",
+    "source_osm_id": "way/969718468",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 71,
+    "node_id": 636
+  },
+  {
+    "name": "停车点2",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96015449823732,
+    "lng": 116.35839297693927,
+    "description": "校内停车设施",
+    "source_osm_id": "way/969718471",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 72,
+    "node_id": 637
+  },
+  {
+    "name": "停车点3",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.95862001314456,
+    "lng": 116.35956988586875,
+    "description": "校内停车设施",
+    "source_osm_id": "way/969718474",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 73,
+    "node_id": 638
+  },
+  {
+    "name": "体育部",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96054387555011,
+    "lng": 116.35946672012895,
+    "description": "校内建筑：体育部",
+    "source_osm_id": "way/1375509854",
+    "source_tags": {
+      "building": "yes",
+      "name": "体育部"
+    },
+    "id": 74,
+    "node_id": 639
+  },
+  {
+    "name": "停车点4",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96189367540393,
+    "lng": 116.35895397061908,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375509857",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 75,
+    "node_id": 640
+  },
+  {
+    "name": "停车点5",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.962046520331846,
+    "lng": 116.35962112904706,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375509858",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 76,
+    "node_id": 641
+  },
+  {
+    "name": "中心机房",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.960583988392706,
+    "lng": 116.35886978874314,
+    "description": "校内建筑：中心机房",
+    "source_osm_id": "way/1375595585",
+    "source_tags": {
+      "building": "bungalow",
+      "name": "中心机房"
+    },
+    "id": 77,
+    "node_id": 642
+  },
+  {
+    "name": "收发室",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.959981778360344,
+    "lng": 116.3574019180386,
+    "description": "校内建筑：收发室",
+    "source_osm_id": "way/1375595586",
+    "source_tags": {
+      "building": "yes",
+      "name": "收发室"
+    },
+    "id": 78,
+    "node_id": 643
+  },
+  {
+    "name": "卫生间1",
+    "kind": "facility",
+    "category": "toilet",
+    "lat": 39.96148713956383,
+    "lng": 116.3595683209599,
+    "description": "校内卫生间",
+    "source_osm_id": "way/1375595587",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "toilets"
+    },
+    "id": 79,
+    "node_id": 644
+  },
+  {
+    "name": "停车点6",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96194260039095,
+    "lng": 116.36093492425725,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375595588",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 80,
+    "node_id": 645
+  },
+  {
+    "name": "停车点7",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96489593828987,
+    "lng": 116.35627341621142,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375595589",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 81,
+    "node_id": 646
+  },
+  {
+    "name": "停车点8",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96376886086708,
+    "lng": 116.35585260640715,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375595590",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 82,
+    "node_id": 647
+  },
+  {
+    "name": "停车点9",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96207587129348,
+    "lng": 116.35772806267329,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375837500",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 83,
+    "node_id": 648
+  },
+  {
+    "name": "停车点10",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9628226650659,
+    "lng": 116.35853846061411,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375837502",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 84,
+    "node_id": 649
+  },
+  {
+    "name": "停车点11",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9606292990831,
+    "lng": 116.35539586803516,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375837506",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 85,
+    "node_id": 650
+  },
+  {
+    "name": "停车点12",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96303375007635,
+    "lng": 116.35584571395948,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375837507",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 86,
+    "node_id": 651
+  },
+  {
+    "name": "停车点13",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.964220899550554,
+    "lng": 116.3579599839949,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1375860721",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 87,
+    "node_id": 652
+  },
+  {
+    "name": "停车点14",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96201945325552,
+    "lng": 116.35771876146815,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376080278",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 88,
+    "node_id": 653
+  },
+  {
+    "name": "停车点15",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.962528961365656,
+    "lng": 116.36066884744896,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376105776",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 89,
+    "node_id": 654
+  },
+  {
+    "name": "停车点16",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96456137789985,
+    "lng": 116.35788046450187,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376105798",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 90,
+    "node_id": 655
+  },
+  {
+    "name": "基建修缮部",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.96137829216907,
+    "lng": 116.35528896346597,
+    "description": "校内建筑：基建修缮部",
+    "source_osm_id": "way/1376105799",
+    "source_tags": {
+      "building": "yes",
+      "name": "基建修缮部"
+    },
+    "id": 91,
+    "node_id": 656
+  },
+  {
+    "name": "停车点17",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.964831212807724,
+    "lng": 116.3557403462889,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376632766",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 92,
+    "node_id": 657
+  },
+  {
+    "name": "停车点18",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96456421360858,
+    "lng": 116.35712441183276,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376633932",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 93,
+    "node_id": 658
+  },
+  {
+    "name": "停车点19",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96216831060269,
+    "lng": 116.35662398214748,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376633933",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 94,
+    "node_id": 659
+  },
+  {
+    "name": "停车点20",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96214612774118,
+    "lng": 116.35600681283127,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376633934",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 95,
+    "node_id": 660
+  },
+  {
+    "name": "校史馆",
+    "kind": "building",
+    "category": "attraction",
+    "lat": 39.96390511466274,
+    "lng": 116.35926704651226,
+    "description": "校内建筑：校史馆",
+    "source_osm_id": "way/1376641640",
+    "source_tags": {
+      "building": "yes",
+      "name": "校史馆"
+    },
+    "id": 96,
+    "node_id": 661
+  },
+  {
+    "name": "大学生创新创业实践基地",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.964494766477856,
+    "lng": 116.35793416589982,
+    "description": "校内建筑：大学生创新创业实践基地",
+    "source_osm_id": "way/1376641642",
+    "source_tags": {
+      "building": "yes",
+      "name": "大学生创新创业实践基地"
+    },
+    "id": 97,
+    "node_id": 662
+  },
+  {
+    "name": "接诉即办",
+    "kind": "building",
+    "category": "teaching",
+    "lat": 39.9633644401539,
+    "lng": 116.35844393715124,
+    "description": "校内建筑：接诉即办",
+    "source_osm_id": "way/1376682968",
+    "source_tags": {
+      "building": "yes",
+      "name": "接诉即办"
+    },
+    "id": 98,
+    "node_id": 663
+  },
+  {
+    "name": "学一食堂",
+    "kind": "facility",
+    "category": "canteen",
+    "lat": 39.96354371240867,
+    "lng": 116.3584806010587,
+    "description": "校内食堂",
+    "source_osm_id": "way/1376682970",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "restaurant",
+      "name": "学苑风味餐厅(矮食堂)"
+    },
+    "id": 99,
+    "node_id": 664
+  },
+  {
+    "name": "商店1",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96372091970127,
+    "lng": 116.358305179958,
+    "description": "校内商店",
+    "source_osm_id": "way/1376682971",
+    "source_tags": {
+      "building": "yes",
+      "shop": "yes"
+    },
+    "id": 100,
+    "node_id": 665
+  },
+  {
+    "name": "停车点21",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96371052598312,
+    "lng": 116.35683042153073,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682972",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 101,
+    "node_id": 666
+  },
+  {
+    "name": "停车点22",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9637016837448,
+    "lng": 116.35644284213805,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682973",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 102,
+    "node_id": 667
+  },
+  {
+    "name": "停车点23",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96458530510106,
+    "lng": 116.35577027773495,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682975",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 103,
+    "node_id": 668
+  },
+  {
+    "name": "停车点24",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96444097087801,
+    "lng": 116.35578263529364,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682976",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 104,
+    "node_id": 669
+  },
+  {
+    "name": "停车点25",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96302830715394,
+    "lng": 116.35889533506382,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682980",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 105,
+    "node_id": 670
+  },
+  {
+    "name": "停车点26",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96289309177152,
+    "lng": 116.35763314656815,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682990",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 106,
+    "node_id": 671
+  },
+  {
+    "name": "停车点27",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9627052780932,
+    "lng": 116.35764412029211,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376682991",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 107,
+    "node_id": 672
+  },
+  {
+    "name": "停车点28",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.963878127041156,
+    "lng": 116.35842719317199,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1376997119",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 108,
+    "node_id": 673
+  },
+  {
+    "name": "停车点29",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96004343276552,
+    "lng": 116.35600436658271,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377171463",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 109,
+    "node_id": 674
+  },
+  {
+    "name": "停车点30",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96434126988414,
+    "lng": 116.35735247838035,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377171467",
+    "source_tags": {
+      "amenity": "parking_space"
+    },
+    "id": 110,
+    "node_id": 675
+  },
+  {
+    "name": "停车点31",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96385761441857,
+    "lng": 116.35771233107867,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377379910",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 111,
+    "node_id": 676
+  },
+  {
+    "name": "停车点32",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9621485127443,
+    "lng": 116.35860713966015,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377379927",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 112,
+    "node_id": 677
+  },
+  {
+    "name": "停车点33",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96150661706509,
+    "lng": 116.35927989351438,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377379932",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 113,
+    "node_id": 678
+  },
+  {
+    "name": "停车点34",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96474869923362,
+    "lng": 116.3570242284807,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377417927",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 114,
+    "node_id": 679
+  },
+  {
+    "name": "停车点35",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96160591701802,
+    "lng": 116.35536983701984,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377447925",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 115,
+    "node_id": 680
+  },
+  {
+    "name": "停车点36",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96159014454532,
+    "lng": 116.35962389552351,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377685880",
+    "source_tags": {
+      "amenity": "parking"
+    },
+    "id": 116,
+    "node_id": 681
+  },
+  {
+    "name": "停车点37",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.964532404766835,
+    "lng": 116.3588885368598,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377991210",
+    "source_tags": {
+      "amenity": "charging_station"
+    },
+    "id": 117,
+    "node_id": 682
+  },
+  {
+    "name": "停车点38",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96448256567769,
+    "lng": 116.35848045301967,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1377991211",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 118,
+    "node_id": 683
+  },
+  {
+    "name": "停车点39",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96447653252692,
+    "lng": 116.35889148574731,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1378616920",
+    "source_tags": {
+      "amenity": "bicycle_parking"
+    },
+    "id": 119,
+    "node_id": 684
+  },
+  {
+    "name": "停车点40",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96194372498346,
+    "lng": 116.36093464885613,
+    "description": "校内停车设施",
+    "source_osm_id": "way/1382205271",
+    "source_tags": {
+      "building": "yes",
+      "amenity": "bicycle_parking"
+    },
+    "id": 120,
+    "node_id": 685
+  },
+  {
+    "name": "零壹时光咖啡馆",
+    "kind": "facility",
+    "category": "cafe",
+    "lat": 39.95965093734922,
+    "lng": 116.35669688116937,
+    "description": "校内咖啡点",
+    "source_osm_id": "node/3511264385",
+    "source_tags": {
+      "amenity": "cafe",
+      "name": "零壹时光咖啡馆",
+      "name:zh": "零壹时光咖啡馆"
+    },
+    "id": 121,
+    "node_id": 686
+  },
+  {
+    "name": "南区超市",
+    "kind": "facility",
+    "category": "supermarket",
+    "lat": 39.959486702450775,
+    "lng": 116.35720501006446,
+    "description": "校内商超便利点",
+    "source_osm_id": "node/3511264386",
+    "source_tags": {
+      "shop": "supermarket",
+      "name": "南区超市",
+      "name:zh": "南区超市"
+    },
+    "id": 122,
+    "node_id": 687
+  },
+  {
+    "name": "二手书店",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.95932274946853,
+    "lng": 116.35723625367042,
+    "description": "校内商店",
+    "source_osm_id": "node/3511264388",
+    "source_tags": {
+      "shop": "books",
+      "name": "二手书店",
+      "name:zh": "二手书店"
+    },
+    "id": 123,
+    "node_id": 688
+  },
+  {
+    "name": "楼上楼茶餐厅",
+    "kind": "facility",
+    "category": "restaurant",
+    "lat": 39.96335034432564,
+    "lng": 116.35908874168487,
+    "description": "校内餐饮点",
+    "source_osm_id": "node/6041100036",
+    "source_tags": {
+      "amenity": "restaurant",
+      "name": "楼上楼茶餐厅",
+      "name:zh": "楼上楼茶餐厅"
+    },
+    "id": 124,
+    "node_id": 689
+  },
+  {
+    "name": "便利蜂",
+    "kind": "facility",
+    "category": "supermarket",
+    "lat": 39.96474209059543,
+    "lng": 116.35528407893398,
+    "description": "校内商超便利点",
+    "source_osm_id": "node/7426396546",
+    "source_tags": {
+      "shop": "convenience",
+      "name": "便利蜂",
+      "name:zh": "便利蜂"
+    },
+    "id": 125,
+    "node_id": 690
+  },
+  {
+    "name": "京东物流",
+    "kind": "facility",
+    "category": "express",
+    "lat": 39.96490637008382,
+    "lng": 116.35841397153347,
+    "description": "校内快递服务点",
+    "source_osm_id": "node/11834538799",
+    "source_tags": {
+      "amenity": "post_office",
+      "opening_hours": "Mo-Su 09:00-20:00",
+      "name": "京东物流",
+      "name:zh": "京东物流",
+      "brand": "京东物流",
+      "brand:zh": "京东物流"
+    },
+    "id": 126,
+    "node_id": 691
+  },
+  {
+    "name": "档案馆",
+    "kind": "facility",
+    "category": "library",
+    "lat": 39.96309884607149,
+    "lng": 116.35808707648908,
+    "description": "校内图书服务点",
+    "source_osm_id": "node/12735976944",
+    "source_tags": {
+      "amenity": "library",
+      "name": "档案馆"
+    },
+    "id": 127,
+    "node_id": 692
+  },
+  {
+    "name": "顺丰速运",
+    "kind": "facility",
+    "category": "express",
+    "lat": 39.964906014807944,
+    "lng": 116.35832208449585,
+    "description": "校内快递服务点",
+    "source_osm_id": "node/12735976945",
+    "source_tags": {
+      "amenity": "post_office",
+      "opening_hours": "Mo-Su 09:00-20:00",
+      "name": "顺丰快递",
+      "name:zh": "顺丰速运",
+      "brand": "顺丰速运",
+      "brand:zh": "顺丰速运"
+    },
+    "id": 128,
+    "node_id": 693
+  },
+  {
+    "name": "中国邮政",
+    "kind": "facility",
+    "category": "express",
+    "lat": 39.9617605254253,
+    "lng": 116.35537118441344,
+    "description": "校内快递服务点",
+    "source_osm_id": "node/12741379590",
+    "source_tags": {
+      "amenity": "post_office",
+      "name": "中国邮政",
+      "name:zh": "中国邮政",
+      "brand": "中国邮政",
+      "brand:zh": "中国邮政"
+    },
+    "id": 129,
+    "node_id": 694
+  },
+  {
+    "name": "北邮人之家",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96201411133195,
+    "lng": 116.3553573875572,
+    "description": "校内商店",
+    "source_osm_id": "node/12741379591",
+    "source_tags": {
+      "shop": "yes",
+      "name": "北邮人之家"
+    },
+    "id": 130,
+    "node_id": 695
+  },
+  {
+    "name": "商店2",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96394616728526,
+    "lng": 116.35784428755476,
+    "description": "校内商店",
+    "source_osm_id": "node/12747381125",
+    "source_tags": {
+      "shop": "hairdresser"
+    },
+    "id": 131,
+    "node_id": 696
+  },
+  {
+    "name": "自邮制造",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96394645224274,
+    "lng": 116.35789428990097,
+    "description": "校内商店",
+    "source_osm_id": "node/12747381126",
+    "source_tags": {
+      "shop": "yes",
+      "opening_hours": "Mo-Su 11:00-19:00",
+      "name": "自邮制造"
+    },
+    "id": 132,
+    "node_id": 697
+  },
+  {
+    "name": "瑞幸咖啡",
+    "kind": "facility",
+    "category": "cafe",
+    "lat": 39.96373508389069,
+    "lng": 116.35791781123834,
+    "description": "校内咖啡点",
+    "source_osm_id": "node/12753716536",
+    "source_tags": {
+      "amenity": "cafe",
+      "name": "瑞幸咖啡",
+      "name:zh": "瑞幸咖啡",
+      "brand": "瑞幸咖啡",
+      "brand:zh": "瑞幸咖啡"
+    },
+    "id": 133,
+    "node_id": 698
+  },
+  {
+    "name": "泸溪河",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.963730834229004,
+    "lng": 116.35800649196779,
+    "description": "校内商店",
+    "source_osm_id": "node/12753716537",
+    "source_tags": {
+      "shop": "pastry",
+      "name": "泸溪河",
+      "name:zh": "泸溪河",
+      "brand": "泸溪河",
+      "brand:zh": "泸溪河"
+    },
+    "id": 134,
+    "node_id": 699
+  },
+  {
+    "name": "中国移动",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96372839778192,
+    "lng": 116.35769084567335,
+    "description": "校内商店",
+    "source_osm_id": "node/12753716538",
+    "source_tags": {
+      "shop": "telecommunication",
+      "name": "中国移动",
+      "name:zh": "中国移动",
+      "brand": "中国移动",
+      "brand:zh": "中国移动"
+    },
+    "id": 135,
+    "node_id": 700
+  },
+  {
+    "name": "虎头军煎饼",
+    "kind": "facility",
+    "category": "restaurant",
+    "lat": 39.96369746992406,
+    "lng": 116.35779275054941,
+    "description": "校内餐饮点",
+    "source_osm_id": "node/12753720328",
+    "source_tags": {
+      "amenity": "fast_food",
+      "name": "虎头军煎饼"
+    },
+    "id": 136,
+    "node_id": 701
+  },
+  {
+    "name": "中国联通",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.963950090455576,
+    "lng": 116.35779899533138,
+    "description": "校内商店",
+    "source_osm_id": "node/12754376687",
+    "source_tags": {
+      "shop": "telecommunication",
+      "name": "中国联通",
+      "name:zh": "中国联通",
+      "brand": "中国联通",
+      "brand:zh": "中国联通"
+    },
+    "id": 137,
+    "node_id": 702
+  },
+  {
+    "name": "停车点41",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.960058780763326,
+    "lng": 116.35567129781946,
+    "description": "校内停车设施",
+    "source_osm_id": "node/12759050892",
+    "source_tags": {
+      "amenity": "parking_space"
+    },
+    "id": 138,
+    "node_id": 703
+  },
+  {
+    "name": "停车点42",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.96021541969357,
+    "lng": 116.35574777758964,
+    "description": "校内停车设施",
+    "source_osm_id": "node/12759050893",
+    "source_tags": {
+      "amenity": "parking_entrance"
+    },
+    "id": 139,
+    "node_id": 704
+  },
+  {
+    "name": "停车点43",
+    "kind": "facility",
+    "category": "parking",
+    "lat": 39.9602422609337,
+    "lng": 116.35681349741516,
+    "description": "校内停车设施",
+    "source_osm_id": "node/12759050894",
+    "source_tags": {
+      "amenity": "parking_entrance"
+    },
+    "id": 140,
+    "node_id": 705
+  },
+  {
+    "name": "邮储ATM",
+    "kind": "facility",
+    "category": "bank",
+    "lat": 39.96420159204114,
+    "lng": 116.35897802590716,
+    "description": "校内金融服务点",
+    "source_osm_id": "node/12759050898",
+    "source_tags": {
+      "amenity": "atm"
+    },
+    "id": 141,
+    "node_id": 706
+  },
+  {
+    "name": "商店3",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.962957346271594,
+    "lng": 116.35680121574718,
+    "description": "校内商店",
+    "source_osm_id": "node/12762013155",
+    "source_tags": {
+      "shop": "laundry"
+    },
+    "id": 142,
+    "node_id": 707
+  },
+  {
+    "name": "商店4",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.964411758174116,
+    "lng": 116.35660048413827,
+    "description": "校内商店",
+    "source_osm_id": "node/12762013156",
+    "source_tags": {
+      "shop": "laundry"
+    },
+    "id": 143,
+    "node_id": 708
+  },
+  {
+    "name": "运动设施1",
+    "kind": "facility",
+    "category": "sports",
+    "lat": 39.961327759264954,
+    "lng": 116.35944400104967,
+    "description": "校内运动设施",
+    "source_osm_id": "node/12765435770",
+    "source_tags": {
+      "leisure": "fitness_station"
+    },
+    "id": 144,
+    "node_id": 709
+  },
+  {
+    "name": "运动设施2",
+    "kind": "facility",
+    "category": "sports",
+    "lat": 39.96124785277,
+    "lng": 116.3594419868774,
+    "description": "校内运动设施",
+    "source_osm_id": "node/12765435771",
+    "source_tags": {
+      "leisure": "fitness_station"
+    },
+    "id": 145,
+    "node_id": 710
+  },
+  {
+    "name": "商店5",
+    "kind": "facility",
+    "category": "shop",
+    "lat": 39.96473648914363,
+    "lng": 116.3581335788153,
+    "description": "校内商店",
+    "source_osm_id": "node/12771885789",
+    "source_tags": {
+      "shop": "laundry"
+    },
+    "id": 146,
+    "node_id": 711
+  },
+  {
+    "name": "运动设施3",
+    "kind": "facility",
+    "category": "sports",
+    "lat": 39.96197623708355,
+    "lng": 116.35971542794749,
+    "description": "校内运动设施",
+    "source_osm_id": "node/13384698260",
+    "source_tags": {
+      "leisure": "fitness_centre"
+    },
+    "id": 147,
+    "node_id": 712
+  },
+  {
+    "name": "鸿雁健身中心",
+    "kind": "facility",
+    "category": "sports",
+    "lat": 39.96164117541915,
+    "lng": 116.3605315126944,
+    "description": "校内运动设施",
+    "source_osm_id": "node/13694775719",
+    "source_tags": {
+      "leisure": "fitness_centre",
+      "name": "鸿雁健身中心"
+    },
+    "id": 148,
+    "node_id": 713
+  }
+]

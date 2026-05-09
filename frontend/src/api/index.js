@@ -101,6 +101,25 @@ export const API = {
   photos: {
     list: (userId) => fetchJSON(`${API_BASE_URL}/api/photos?user_id=${userId}`),
     getByTrip: (userId, tripId) => fetchJSON(`${API_BASE_URL}/api/photos/by-trip/${tripId}?user_id=${userId}`),
+  },
+
+  // 旅行人格测试
+  personality: {
+    getQuestions: () => fetchJSON(`${API_BASE_URL}/api/personality/questions`),
+    submitTest: (answers) => fetchJSON(`${API_BASE_URL}/api/personality/test`, {
+      method: 'POST',
+      body: JSON.stringify({ answers })
+    }),
+    saveResult: (answers, userId) => fetchJSON(`${API_BASE_URL}/api/personality/save`, {
+      method: 'POST',
+      body: JSON.stringify({ answers, user_id: userId })
+    }),
+    getMyResult: (userId) => fetchJSON(`${API_BASE_URL}/api/personality/my?user_id=${userId}`),
+    getAllTypes: () => fetchJSON(`${API_BASE_URL}/api/personality/types`),
+    getTypeDetail: (typeCode) => fetchJSON(`${API_BASE_URL}/api/personality/types/${typeCode}`),
+    deleteResult: (userId) => fetch(`${API_BASE_URL}/api/personality/my?user_id=${userId}`, {
+      method: 'DELETE'
+    }),
   }
 }
 

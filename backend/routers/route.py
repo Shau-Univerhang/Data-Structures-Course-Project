@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
+import math
 import sys
 
 sys.path.append("..")
@@ -62,6 +63,13 @@ class MultiPointRouteRequest(BaseModel):
     return_to_start: bool = True
     strategy: str = "shortest_time"
     transport_mode: str = "walk"
+
+
+def _duration_seconds(value: float) -> int:
+    if value <= 0:
+        return 0
+    return max(1, math.ceil(value))
+
 
 
 def _serialize_node(node: RoadNode):
@@ -415,7 +423,7 @@ def plan_route(request: RoutePlanRequest, db: Session = Depends(get_db)):
     node_map = {n.id: n for n in nodes}
     segment_transport_modes = extract_segment_transport_modes(graph, path_ids, resolved_mode)
     distance = calculate_path_distance(graph, path_ids)
-    duration = int(calculate_path_duration(graph, path_ids, resolved_mode)) if path_ids else 0
+    duration = _duration_seconds(calculate_path_duration(graph, path_ids, resolved_mode)) if path_ids else 0
 
     return {
         "distance": distance,
@@ -486,7 +494,7 @@ def plan_multi_point_route(request: MultiPointRouteRequest, db: Session = Depend
 
     return {
         "distance": total_distance,
-        "duration": int(total_duration),
+        "duration": _duration_seconds(total_duration),
         "path": _serialize_path(full_path, node_map),
         "algorithm": "tsp_greedy_2opt",
         "time_complexity": "O(n²)",
@@ -627,7 +635,7 @@ def get_nearby_facilities(
         if radius_m is not None and distance > radius_m:
             continue
 
-        duration = int(calculate_path_duration(graph, path_ids, resolved_mode))
+        duration = _duration_seconds(calculate_path_duration(graph, path_ids, resolved_mode))
         results.append({
             "facility_id": facility.id,
             "node_id": facility_node.id,

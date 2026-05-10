@@ -225,16 +225,28 @@ def get_shortest_path(prev: Dict[int, Optional[int]], start: int, end: int) -> L
 
 
 
-def calculate_path_distance(graph: Dict[int, List[dict]], path: List[int]) -> float:
+def _find_path_edge(graph: Dict[int, List[dict]], from_id: int, to_id: int, transport_mode: Optional[str] = None) -> Optional[dict]:
+    fallback = None
+    for edge in graph.get(from_id, []):
+        if edge['to'] != to_id:
+            continue
+        if fallback is None:
+            fallback = edge
+        if transport_mode is None or _edge_supports_transport(edge, transport_mode):
+            return edge
+    return fallback
+
+
+
+def calculate_path_distance(graph: Dict[int, List[dict]], path: List[int], transport_mode: Optional[str] = None) -> float:
     """计算路径总距离"""
     total = 0
     for i in range(len(path) - 1):
         from_id = path[i]
         to_id = path[i + 1]
-        for edge in graph.get(from_id, []):
-            if edge['to'] == to_id:
-                total += edge.get('distance', 0)
-                break
+        edge = _find_path_edge(graph, from_id, to_id, transport_mode)
+        if edge:
+            total += edge.get('distance', 0)
     return total
 
 
@@ -245,11 +257,9 @@ def calculate_path_duration(graph: Dict[int, List[dict]], path: List[int], trans
     for i in range(len(path) - 1):
         from_id = path[i]
         to_id = path[i + 1]
-        for edge in graph.get(from_id, []):
-            if edge['to'] == to_id:
-                if _edge_supports_transport(edge, transport_mode):
-                    total += _edge_weight(edge, 'shortest_time')
-                break
+        edge = _find_path_edge(graph, from_id, to_id, transport_mode)
+        if edge and _edge_supports_transport(edge, transport_mode):
+            total += _edge_weight(edge, 'shortest_time')
     return total
 
 
@@ -259,10 +269,9 @@ def extract_segment_transport_modes(graph: Dict[int, List[dict]], path: List[int
     for i in range(len(path) - 1):
         from_id = path[i]
         to_id = path[i + 1]
-        for edge in graph.get(from_id, []):
-            if edge['to'] == to_id:
-                modes.append(_edge_transport_mode(edge, transport_mode))
-                break
+        edge = _find_path_edge(graph, from_id, to_id, transport_mode)
+        if edge:
+            modes.append(_edge_transport_mode(edge, transport_mode))
     return modes
 
 

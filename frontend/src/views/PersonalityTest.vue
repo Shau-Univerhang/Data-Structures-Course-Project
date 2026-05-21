@@ -83,6 +83,9 @@
       <!-- 结果页面 -->
       <div v-else-if="step === 'result' && result" class="result-section">
         <div class="result-card">
+          <div class="character-wrapper">
+            <PersonalityCharacter :type-code="result.type_code" />
+          </div>
           <div class="result-code">{{ result.type_code }}</div>
           <h1 class="result-name">{{ result.name }}</h1>
           <p class="result-tagline">"{{ result.tagline }}"</p>
@@ -154,6 +157,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
+import PersonalityCharacter from '../components/PersonalityCharacter.vue'
 import { API } from '../api'
 
 const router = useRouter()
@@ -482,6 +486,12 @@ const retakeTest = () => {
   border-radius: 24px;
   padding: 40px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.character-wrapper {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 .result-code {

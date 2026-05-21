@@ -15,6 +15,9 @@
       <!-- 已测试状态 -->
       <div v-else-if="hasResult && result" class="result-display">
         <div class="result-header">
+          <div class="character-wrapper">
+            <PersonalityCharacter :type-code="result.type_code" />
+          </div>
           <div class="result-code">{{ result.type_code }}</div>
           <h1 class="result-name">{{ result.name }}</h1>
           <p class="result-tagline">"{{ result.tagline }}"</p>
@@ -100,6 +103,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
+import PersonalityCharacter from '../components/PersonalityCharacter.vue'
 import { API } from '../api'
 
 const router = useRouter()
@@ -232,6 +236,12 @@ const shareResult = () => {
   border-radius: 24px;
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.character-wrapper {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 .result-code {

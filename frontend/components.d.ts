@@ -13,6 +13,7 @@ declare module 'vue' {
     ElButton: typeof import('element-plus/es')['ElButton']
     ElInput: typeof import('element-plus/es')['ElInput']
     Navbar: typeof import('./src/components/Navbar.vue')['default']
+    PersonalityCharacter: typeof import('./src/components/PersonalityCharacter.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SmartDiaryEditor: typeof import('./src/components/SmartDiaryEditor.vue')['default']

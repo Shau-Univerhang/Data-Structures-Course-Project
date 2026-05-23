@@ -1,0 +1,802 @@
+.persona-stage {
+  position: relative;
+  display: inline-block;
+  width: 400px;
+  height: 520px;
+}
+
+.persona-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.dialogue {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  animation: dialogueFloat 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dialogue::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(255, 255, 255, 0.95);
+}
+
+.body-breathe {
+  animation: breathe 3s ease-in-out infinite;
+  transform-origin: center 400px;
+}
+
+.shadow-group {
+  animation: shadowPulse 3s ease-in-out infinite;
+  transform-origin: center 490px;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes shadowPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@keyframes dialogueFloat {
+  0%, 100% { opacity: 0; transform: translateX(-50%) translateY(5px); }
+  20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* PESC - Excel成精 */
+.persona-PESC {
+  .arm-right {
+    animation: PESC-pushGlasses 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: PESC-checkWatch 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: PESC-headTilt 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PESC-lensGlint 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PESC-pushGlasses {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  15% { transform: rotate(-15deg) translateY(-5px); }
+  30% { transform: rotate(-20deg) translateY(-8px); }
+  45% { transform: rotate(-15deg) translateY(-5px); }
+  60% { transform: rotate(0deg) translateY(0); }
+}
+
+@keyframes PESC-checkWatch {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(10deg); }
+  40% { transform: rotate(25deg); }
+  60% { transform: rotate(15deg); }
+  80% { transform: rotate(0deg); }
+}
+
+@keyframes PESC-headTilt {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  50% { transform: rotate(-5deg); }
+  75% { transform: rotate(-2deg); }
+}
+
+@keyframes PESC-lensGlint {
+  0%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+  50% { opacity: 0.8; }
+  70% { opacity: 1; }
+}
+
+/* PESc - 人间KPI */
+.persona-PESc {
+  .arm-right {
+    animation: PESc-selfie 4s ease-in-out infinite;
+    transform-origin: 245px 240px;
+  }
+  .arm-left {
+    animation: PESc-peace 4s ease-in-out infinite;
+    transform-origin: 155px 240px;
+  }
+  .head-tilt {
+    animation: PESc-headAngle 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PESc-cameraFlash 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PESc-selfie {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  20% { transform: rotate(-20deg) translateX(10px); }
+  40% { transform: rotate(-25deg) translateX(15px); }
+  60% { transform: rotate(-20deg) translateX(10px); }
+  80% { transform: rotate(0deg) translateX(0); }
+}
+
+@keyframes PESc-peace {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  50% { transform: rotate(-25deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+@keyframes PESc-headAngle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(3deg); }
+  40% { transform: rotate(-3deg); }
+  60% { transform: rotate(2deg); }
+  80% { transform: rotate(0deg); }
+}
+
+@keyframes PESc-cameraFlash {
+  0%, 100% { opacity: 0; }
+  35% { opacity: 1; }
+  40% { opacity: 0; }
+  45% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* PEsC - 电子流浪猫 */
+.persona-PEsC {
+  .arm-right {
+    animation: PEsC-pullMap 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: PEsC-pointMap 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: PEsC-headTilt 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PEsC-mapUnfold 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PEsC-pullMap {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-10deg); }
+  40% { transform: rotate(-30deg); }
+  60% { transform: rotate(-25deg); }
+  80% { transform: rotate(-5deg); }
+}
+
+@keyframes PEsC-pointMap {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(15deg); }
+  50% { transform: rotate(25deg); }
+  70% { transform: rotate(10deg); }
+}
+
+@keyframes PEsC-headTilt {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(4deg); }
+  50% { transform: rotate(6deg); }
+  75% { transform: rotate(2deg); }
+}
+
+@keyframes PEsC-mapUnfold {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  30% { transform: scale(1); opacity: 1; }
+  70% { transform: scale(1); opacity: 1; }
+}
+
+/* PEsc - 瑞士军刀成精 */
+.persona-PEsc {
+  .arm-right {
+    animation: PEsc-pullTool 4s ease-in-out infinite;
+    transform-origin: 245px 240px;
+  }
+  .arm-left {
+    animation: PEsc-crossArm 4s ease-in-out infinite;
+    transform-origin: 155px 240px;
+  }
+  .head-tilt {
+    animation: PEsc-headStill 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PEsc-toolShow 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PEsc-pullTool {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(-20deg); }
+  60% { transform: rotate(-25deg); }
+  80% { transform: rotate(-10deg); }
+}
+
+@keyframes PEsc-crossArm {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes PEsc-headStill {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-1deg); }
+}
+
+@keyframes PEsc-toolShow {
+  0%, 100% { opacity: 0; transform: translateY(5px); }
+  40% { opacity: 1; transform: translateY(0); }
+  70% { opacity: 1; transform: translateY(0); }
+}
+
+/* PReC - 躺平项目经理 */
+.persona-PReC {
+  .body-breathe {
+    animation: PReC-leanBack 4s ease-in-out infinite;
+    transform-origin: center 400px;
+  }
+  .arm-right {
+    animation: PReC-holdDrink 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: PReC-okSign 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: PReC-nod 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+}
+
+@keyframes PReC-leanBack {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-2deg); }
+}
+
+@keyframes PReC-holdDrink {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-10deg); }
+  50% { transform: rotate(-15deg); }
+  75% { transform: rotate(-5deg); }
+}
+
+@keyframes PReC-okSign {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(15deg); }
+  60% { transform: rotate(10deg); }
+}
+
+@keyframes PReC-nod {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(3deg); }
+  50% { transform: rotate(5deg); }
+  75% { transform: rotate(2deg); }
+}
+
+/* PRec - 朋友圈精修师 */
+.persona-PRec {
+  .body-breathe {
+    animation: PRec-crouch 4s ease-in-out infinite;
+    transform-origin: center 400px;
+  }
+  .arm-right {
+    animation: PRec-cameraUp 4s ease-in-out infinite;
+    transform-origin: 245px 240px;
+  }
+  .arm-left {
+    animation: PRec-direct 4s ease-in-out infinite;
+    transform-origin: 155px 240px;
+  }
+  .head-tilt {
+    animation: PRec-headMove 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PRec-viewfinder 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PRec-crouch {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
+}
+
+@keyframes PRec-cameraUp {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-25deg); }
+  40% { transform: rotate(-35deg); }
+  60% { transform: rotate(-30deg); }
+  80% { transform: rotate(-10deg); }
+}
+
+@keyframes PRec-direct {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  50% { transform: rotate(-25deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+@keyframes PRec-headMove {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(2deg); }
+  40% { transform: rotate(-2deg); }
+  60% { transform: rotate(3deg); }
+}
+
+@keyframes PRec-viewfinder {
+  0%, 100% { opacity: 0; }
+  30% { opacity: 1; }
+  50% { opacity: 0; }
+  70% { opacity: 1; }
+}
+
+/* PRsC - 断网疗愈体 */
+.persona-PRsC {
+  .arm-right {
+    animation: PRsC-hangDown 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: PRsC-hangDown 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: PRsC-headBack 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PRsC-breatheDeep 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PRsC-hangDown {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes PRsC-headBack {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-3deg); }
+  60% { transform: rotate(-5deg); }
+  90% { transform: rotate(-2deg); }
+}
+
+@keyframes PRsC-breatheDeep {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+/* PRsc - 人民币蒸发器 */
+.persona-PRsc {
+  .arm-right {
+    animation: PRsc-presentCard 4s ease-in-out infinite;
+    transform-origin: 245px 240px;
+  }
+  .arm-left {
+    animation: PRsc-adjustCuff 4s ease-in-out infinite;
+    transform-origin: 155px 240px;
+  }
+  .head-tilt {
+    animation: PRsc-chinUp 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: PRsc-cardShine 4s ease-in-out infinite;
+  }
+}
+
+@keyframes PRsc-presentCard {
+  0%, 100% { transform: rotate(0deg) translateX(0); }
+  20% { transform: rotate(-15deg) translateX(10px); }
+  40% { transform: rotate(-25deg) translateX(20px); }
+  60% { transform: rotate(-20deg) translateX(15px); }
+  80% { transform: rotate(-5deg) translateX(5px); }
+}
+
+@keyframes PRsc-adjustCuff {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(8deg); }
+  60% { transform: rotate(15deg); }
+  90% { transform: rotate(5deg); }
+}
+
+@keyframes PRsc-chinUp {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  50% { transform: rotate(-5deg); }
+  75% { transform: rotate(-2deg); }
+}
+
+@keyframes PRsc-cardShine {
+  0%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+  50% { opacity: 0.8; }
+  70% { opacity: 1; }
+}
+
+/* WESC - 野生GPS */
+.persona-WESC {
+  .arm-right {
+    animation: WESC-pointForward 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WESC-waveCome 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WESC-lookBack 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .body-breathe {
+    animation: WESC-leanForward 4s ease-in-out infinite;
+    transform-origin: center 400px;
+  }
+}
+
+@keyframes WESC-pointForward {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-30deg); }
+  30% { transform: rotate(-45deg); }
+  45% { transform: rotate(-35deg); }
+  60% { transform: rotate(-40deg); }
+  75% { transform: rotate(-20deg); }
+}
+
+@keyframes WESC-waveCome {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(15deg); }
+  40% { transform: rotate(25deg); }
+  60% { transform: rotate(15deg); }
+  80% { transform: rotate(20deg); }
+}
+
+@keyframes WESC-lookBack {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  50% { transform: rotate(8deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes WESC-leanForward {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(2deg); }
+}
+
+/* WESc - 故事拾荒者 */
+.persona-WESc {
+  .body-breathe {
+    animation: WESc-sit 4s ease-in-out infinite;
+    transform-origin: center 400px;
+  }
+  .arm-right {
+    animation: WESc-write 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WESc-holdCup 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WESc-nodSmile 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+}
+
+@keyframes WESc-sit {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+@keyframes WESc-write {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(-10deg); }
+  60% { transform: rotate(-5deg); }
+  80% { transform: rotate(-8deg); }
+}
+
+@keyframes WESc-holdCup {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(10deg); }
+  50% { transform: rotate(15deg); }
+  75% { transform: rotate(8deg); }
+}
+
+@keyframes WESc-nodSmile {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(2deg); }
+  60% { transform: rotate(4deg); }
+  90% { transform: rotate(1deg); }
+}
+
+/* WEsC - 信号绝缘体 */
+.persona-WEsC {
+  .arm-right {
+    animation: WEsC-spreadWing 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WEsC-spreadWing 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WEsC-lookUp 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+}
+
+@keyframes WEsC-spreadWing {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-20deg); }
+  40% { transform: rotate(-45deg); }
+  60% { transform: rotate(-50deg); }
+  80% { transform: rotate(-25deg); }
+}
+
+@keyframes WEsC-lookUp {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  50% { transform: rotate(-10deg); }
+  75% { transform: rotate(-3deg); }
+}
+
+/* WEsc - 风的方向盘 */
+.persona-WEsc {
+  .arm-right {
+    animation: WEsc-holdHandle 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WEsc-waveBack 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WEsc-lookBack 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: WEsc-engineVibrate 0.5s ease-in-out infinite;
+  }
+}
+
+@keyframes WEsc-holdHandle {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-5deg); }
+}
+
+@keyframes WEsc-waveBack {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(15deg); }
+  40% { transform: rotate(25deg); }
+  60% { transform: rotate(20deg); }
+  80% { transform: rotate(10deg); }
+}
+
+@keyframes WEsc-lookBack {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(5deg); }
+  50% { transform: rotate(10deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes WEsc-engineVibrate {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(1px); }
+  50% { transform: translateX(-1px); }
+  75% { transform: translateX(1px); }
+}
+
+/* WReC - 夜间经济贡献者 */
+.persona-WReC {
+  .arm-right {
+    animation: WReC-drinkUp 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WReC-wristband 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WReC-drinkTilt 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: WReC-neonGlow 2s ease-in-out infinite;
+  }
+}
+
+@keyframes WReC-drinkUp {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-30deg); }
+  30% { transform: rotate(-50deg); }
+  45% { transform: rotate(-45deg); }
+  60% { transform: rotate(-55deg); }
+  75% { transform: rotate(-20deg); }
+}
+
+@keyframes WReC-wristband {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes WReC-drinkTilt {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(-10deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(-3deg); }
+}
+
+@keyframes WReC-neonGlow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* WRec - 氛围感炼丹师 */
+.persona-WRec {
+  .arm-right {
+    animation: WRec-cameraUp 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WRec-feelVibe 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WRec-closeEyes 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: WRec-shutterFlash 4s ease-in-out infinite;
+  }
+}
+
+@keyframes WRec-cameraUp {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-15deg); }
+  40% { transform: rotate(-30deg); }
+  60% { transform: rotate(-25deg); }
+  80% { transform: rotate(-10deg); }
+}
+
+@keyframes WRec-feelVibe {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(10deg); }
+  60% { transform: rotate(5deg); }
+  90% { transform: rotate(8deg); }
+}
+
+@keyframes WRec-closeEyes {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  50% { transform: rotate(-4deg); }
+  75% { transform: rotate(-1deg); }
+}
+
+@keyframes WRec-shutterFlash {
+  0%, 100% { opacity: 0; }
+  35% { opacity: 1; }
+  40% { opacity: 0; }
+  45% { opacity: 0.8; }
+  50% { opacity: 0; }
+}
+
+/* WRsC - 人类观察样本 */
+.persona-WRsC {
+  .body-breathe {
+    animation: WRsC-sitStill 4s ease-in-out infinite;
+    transform-origin: center 400px;
+  }
+  .arm-right {
+    animation: WRsC-chinRest 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WRsC-tapPen 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WRsC-gaze 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+}
+
+@keyframes WRsC-sitStill {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(1px); }
+}
+
+@keyframes WRsC-chinRest {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-3deg); }
+}
+
+@keyframes WRsC-tapPen {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(3deg); }
+  50% { transform: rotate(5deg); }
+  75% { transform: rotate(2deg); }
+}
+
+@keyframes WRsC-gaze {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(2deg); }
+  60% { transform: rotate(4deg); }
+  90% { transform: rotate(1deg); }
+}
+
+/* WRsc - 城市游牧民 */
+.persona-WRsc {
+  .arm-right {
+    animation: WRsc-bargain 4s ease-in-out infinite;
+    transform-origin: 250px 240px;
+  }
+  .arm-left {
+    animation: WRsc-holdBag 4s ease-in-out infinite;
+    transform-origin: 150px 240px;
+  }
+  .head-tilt {
+    animation: WRsc-shakeHead 4s ease-in-out infinite;
+    transform-origin: 200px 180px;
+  }
+  .prop-action {
+    animation: WRsc-feedPigeon 4s ease-in-out infinite;
+  }
+}
+
+@keyframes WRsc-bargain {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-10deg); }
+  30% { transform: rotate(5deg); }
+  45% { transform: rotate(-15deg); }
+  60% { transform: rotate(0deg); }
+  75% { transform: rotate(-8deg); }
+}
+
+@keyframes WRsc-holdBag {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes WRsc-shakeHead {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(3deg); }
+  30% { transform: rotate(-3deg); }
+  45% { transform: rotate(2deg); }
+  60% { transform: rotate(-2deg); }
+  75% { transform: rotate(1deg); }
+}
+
+@keyframes WRsc-feedPigeon {
+  0%, 100% { opacity: 0; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-5px); }
+  70% { opacity: 0.5; transform: translateY(-10px); }
+}

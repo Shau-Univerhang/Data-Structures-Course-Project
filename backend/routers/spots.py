@@ -7,10 +7,19 @@ from typing import List, Optional
 from pydantic import BaseModel
 import sys
 import json
+import os
+import requests
 sys.path.append("..")
 
 from models.database import get_db, ScenicSpot, Restaurant, TravelPersonalityResult
-from algorithms.core import top_k_spots, top_k_restaurants, fuzzy_search_spots
+from algorithms.core import (
+    top_k_spots,
+    top_k_restaurants,
+    top_k_restaurants_by_sort,
+    fuzzy_search_spots,
+    fuzzy_search_restaurants,
+    haversine_distance_m,
+)
 from algorithms.personality_algorithm import PERSONALITY_TYPES
 
 
@@ -27,6 +36,175 @@ def parse_tags(tags_value):
             return []
     return []
 
+
+def normalize_amap_distance(distance_value):
+    try:
+        return float(distance_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def fetch_amap_nearby_restaurants(lng: float, lat: float, radius: int = 3000) -> List[dict]:
+    if not AMAP_WEB_SERVICE_KEY:
+        return []
+
+    params = {
+        "key": AMAP_WEB_SERVICE_KEY,
+        "location": f"{lng},{lat}",
+        "keywords": "美食",
+        "types": "050000",
+        "radius": radius,
+        "sortrule": "distance",
+        "offset": 25,
+        "page": 1,
+        "extensions": "all",
+        "output": "json",
+    }
+
+    try:
+        response = requests.get(AMAP_PLACE_AROUND_URL, params=params, timeout=8)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException:
+        return []
+
+    if data.get("status") != "1":
+        return []
+
+    return data.get("pois") or []
+
+
+import random
+import hashlib
+
+# 模拟评分和热度的种子配置
+MOCK_RATING_SEEDS = {
+    '全聚德': 4.7, '便宜坊': 4.6, '四季民福': 4.8, '东来顺': 4.5, '海底捞': 4.7,
+    '西贝莜面村': 4.5, '眉州东坡': 4.5, '大董': 4.7, '胡大': 4.7, '聚宝源': 4.8,
+    '烤肉季': 4.6, '都一处': 4.5, '护国寺': 4.4, '庆丰': 4.3, '姚记': 4.4,
+    '锦芳': 4.4, '爆肚': 4.4, '卤煮': 4.5, '炒肝': 4.3, '豆汁': 4.2,
+    '功德林': 4.5, '同和居': 4.5, '砂锅居': 4.4, '柳泉居': 4.5, '马凯': 4.3,
+    '峨眉': 4.4, '烤肉宛': 4.5, '白魁': 4.3, '丰泽园': 4.6, '泰丰楼': 4.3,
+    '晋阳': 4.4, '花家怡园': 4.6, '厉家': 4.5, '那家': 4.6, '局气': 4.5,
+    '鼎泰丰': 4.6, '将太': 4.5, '蓝蛙': 4.4, '外婆家': 4.3,
+    '文宇': 4.6, '鬼味': 4.4, '过客': 4.5, '付小姐': 4.5, '烧虾': 4.4,
+    '冰窖': 4.6, '角楼': 4.5, '满恒记': 4.7, '宏源': 4.6, '鸦儿': 4.6,
+    '听鹂馆': 4.6, '巴依老爷': 4.6, '云海肴': 4.4, '金鼎轩': 4.4,
+    'Shake': 4.4, '京A': 4.5, '悠航': 4.6, 'Migas': 4.5,
+    'Element': 4.3, '吴裕泰': 4.5, '狗不理': 4.0,
+}
+
+MOCK_HEAT_RANGES = {
+    '全聚德': (9000, 12000), '便宜坊': (7000, 9000), '四季民福': (10000, 15000),
+    '东来顺': (7000, 9000), '海底捞': (10000, 13000), '西贝': (7000, 9000),
+    '眉州': (5000, 7000), '大董': (8000, 10000), '胡大': (12000, 15000),
+    '聚宝源': (10000, 13000), '烤肉季': (8000, 10000), '都一处': (6000, 8000),
+    '护国寺': (7000, 9000), '庆丰': (8000, 10000), '姚记': (8000, 10000),
+    '锦芳': (5000, 7000), '爆肚': (5000, 7000), '卤煮': (6000, 9000),
+    '炒肝': (6000, 8000), '豆汁': (5000, 8000), '功德林': (3000, 5000),
+    '同和居': (4000, 6000), '砂锅居': (4000, 5000), '柳泉居': (3000, 5000),
+    '马凯': (5000, 7000), '峨眉': (6000, 8000), '烤肉宛': (4000, 6000),
+    '白魁': (4000, 6000), '丰泽园': (4000, 6000), '泰丰楼': (2000, 4000),
+    '晋阳': (3000, 5000), '花家': (6000, 8000), '厉家': (5000, 7000),
+    '那家': (6000, 8000), '局气': (7000, 9000), '鼎泰丰': (7000, 9000),
+    '将太': (6000, 8000), '蓝蛙': (6000, 8000), '外婆家': (7000, 9000),
+    '文宇': (14000, 17000), '鬼味': (10000, 12000), '过客': (5000, 7000),
+    '付小姐': (9000, 11000), '烧虾': (8000, 10000), '冰窖': (5000, 8000),
+    '角楼': (14000, 17000), '满恒记': (9000, 11000), '宏源': (8000, 10000),
+    '鸦儿': (7000, 9000), '听鹂馆': (6000, 8000), '巴依老爷': (6000, 8000),
+    '云海肴': (6000, 8000), '金鼎轩': (5000, 7000),
+    'Shake': (9000, 11000), '京A': (6000, 8000), '悠航': (8000, 10000),
+    'Migas': (5000, 7000), 'Element': (4000, 6000), '吴裕泰': (6000, 8000),
+    '狗不理': (8000, 10000),
+}
+
+
+def generate_mock_rating(name: str, poi_id: str) -> float:
+    """根据餐厅名称生成模拟评分 (3.5 - 4.9)"""
+    for keyword, base_rating in MOCK_RATING_SEEDS.items():
+        if keyword in name:
+            variation = (hash(poi_id + keyword) % 10) / 100 - 0.05
+            return round(min(4.9, max(3.5, base_rating + variation)), 1)
+
+    hash_val = hash(poi_id + "rating")
+    return round(3.8 + (abs(hash_val) % 110) / 100, 1)
+
+
+def generate_mock_heat(name: str, poi_id: str) -> int:
+    """根据餐厅名称生成模拟热度 (1000 - 17000)"""
+    for keyword, (min_heat, max_heat) in MOCK_HEAT_RANGES.items():
+        if keyword in name:
+            hash_val = hash(poi_id + keyword + "heat")
+            return min_heat + (abs(hash_val) % (max_heat - min_heat + 1))
+
+    hash_val = hash(poi_id + "heat")
+    return 1500 + (abs(hash_val) % 5500)
+
+
+def map_amap_poi_to_restaurant(poi: dict, spot: ScenicSpot) -> Optional[dict]:
+    location = poi.get("location") or ""
+    if not location or "," not in location:
+        return None
+
+    try:
+        lng_str, lat_str = location.split(",", 1)
+        lng = float(lng_str)
+        lat = float(lat_str)
+    except ValueError:
+        return None
+
+    type_names = [item.strip() for item in (poi.get("type") or "").split(";") if item.strip()]
+    tags = [item for item in type_names if item not in {"餐饮服务", "餐饮相关场所"}]
+    business = poi.get("business") or {}
+    cuisine_type = business.get("tag") or (tags[0] if tags else "")
+    distance_m = normalize_amap_distance(poi.get("distance"))
+    if distance_m is None:
+        distance_m = haversine_distance_m(spot.location_lng, spot.location_lat, lng, lat)
+
+    poi_id = poi.get("id") or ""
+    try:
+        numeric_id = int(poi_id)
+    except (TypeError, ValueError):
+        numeric_id = abs(hash(poi_id)) % (10 ** 9)
+
+    name = poi.get("name") or "未知商家"
+
+    rating = 0.0
+    if business.get("rating") not in (None, "", []):
+        try:
+            rating = float(business.get("rating"))
+        except (TypeError, ValueError):
+            rating = 0.0
+
+    if rating == 0.0:
+        rating = generate_mock_rating(name, poi_id)
+
+    price_range = business.get("cost")
+    if price_range not in (None, "", []):
+        price_range = f"¥{price_range}"
+    else:
+        price_range = None
+
+    heat_score = generate_mock_heat(name, poi_id)
+
+    return {
+        "id": numeric_id,
+        "name": poi.get("name") or "未知商家",
+        "cuisine_type": cuisine_type,
+        "location_lat": lat,
+        "location_lng": lng,
+        "rating": rating,
+        "heat_score": heat_score,
+        "price_range": price_range,
+        "open_time": business.get("opentime_today") or business.get("opentime_week"),
+        "images": [],
+        "tags": tags,
+        "distance_m": distance_m,
+        "match_score": None,
+        "matched_fields": [],
+        "address": poi.get("address") or "",
+    }
+
 router = APIRouter()
 
 # 推荐算法权重配置
@@ -34,6 +212,8 @@ PREFERENCE_WEIGHT = 1000  # 偏好权重：每个匹配的偏好加1000分
 FAVORITES_WEIGHT = 0.1  # 收藏权重：每个收藏加0.1分
 RATING_WEIGHT = 10  # 评分权重：每分加10分
 PERSONALITY_WEIGHT = 500  # 人格匹配权重：人格推荐列表中的景点加500分
+AMAP_WEB_SERVICE_KEY = os.getenv("AMAP_WEB_SERVICE_KEY", "")
+AMAP_PLACE_AROUND_URL = "https://restapi.amap.com/v3/place/around"
 
 # 景点图片映射 - 包含所有277个景点
 SPOT_IMAGES = {
@@ -470,6 +650,26 @@ class RestaurantResponse(BaseModel):
         from_attributes = True
 
 
+class NearbyRestaurantItemResponse(RestaurantResponse):
+    distance_m: Optional[float] = None
+    match_score: Optional[float] = None
+    matched_fields: Optional[List[str]] = []
+    address: Optional[str] = None
+
+
+class NearbyRestaurantResponse(BaseModel):
+    spot_id: int
+    spot_name: str
+    sort_by: str
+    keyword: Optional[str] = None
+    cuisine: Optional[str] = None
+    top_k: int
+    total_candidates: int
+    matched_count: int
+    cuisine_options: List[str]
+    restaurants: List[NearbyRestaurantItemResponse]
+
+
 # 路由实现
 
 @router.get("/", response_model=SpotListResponse)
@@ -700,6 +900,69 @@ def recommend_restaurants(
     result = top_k_restaurants(restaurants_data, k=k)
     
     return result
+
+
+@router.get("/restaurants/nearby", response_model=NearbyRestaurantResponse)
+def get_nearby_restaurants(
+    spot_id: int = Query(..., description="景点ID"),
+    sort_by: str = Query("distance", pattern="^(distance|popularity|rating)$"),
+    cuisine: Optional[str] = Query(None, description="菜系过滤"),
+    keyword: Optional[str] = Query(None, description="模糊搜索关键词"),
+    top_k: int = Query(10, ge=1, le=20),
+    db: Session = Depends(get_db)
+):
+    """获取景点附近美食，优先使用高德 POI，支持模糊搜索、菜系过滤和 Top-K 部分排序"""
+    spot = db.query(ScenicSpot).filter(ScenicSpot.id == spot_id).first()
+    if not spot or spot.location_lng is None or spot.location_lat is None:
+        return {
+            "spot_id": spot_id,
+            "spot_name": spot.name if spot else "",
+            "sort_by": sort_by,
+            "keyword": keyword,
+            "cuisine": cuisine,
+            "top_k": top_k,
+            "total_candidates": 0,
+            "matched_count": 0,
+            "cuisine_options": [],
+            "restaurants": [],
+        }
+
+    amap_pois = fetch_amap_nearby_restaurants(spot.location_lng, spot.location_lat)
+    candidates = []
+    seen_names = set()
+    for poi in amap_pois:
+        mapped = map_amap_poi_to_restaurant(poi, spot)
+        if not mapped:
+            continue
+        dedupe_key = (mapped['name'], round(mapped['location_lng'], 6), round(mapped['location_lat'], 6))
+        if dedupe_key in seen_names:
+            continue
+        seen_names.add(dedupe_key)
+        candidates.append(mapped)
+
+    cuisine_options = sorted({item.get('cuisine_type') for item in candidates if item.get('cuisine_type')})
+
+    filtered = candidates
+    if cuisine and cuisine != '全部':
+        filtered = [item for item in filtered if item.get('cuisine_type') == cuisine]
+
+    if keyword:
+        filtered = fuzzy_search_restaurants(filtered, keyword)
+
+    result = top_k_restaurants_by_sort(filtered, k=top_k, sort_by=sort_by)
+
+    return {
+        "spot_id": spot.id,
+        "spot_name": spot.name,
+        "sort_by": sort_by,
+        "keyword": keyword,
+        "cuisine": cuisine,
+        "top_k": top_k,
+        "total_candidates": len(candidates),
+        "matched_count": len(filtered),
+        "cuisine_options": cuisine_options,
+        "restaurants": result,
+    }
 
 
 @router.get("/restaurants/by-city", response_model=List[RestaurantResponse])

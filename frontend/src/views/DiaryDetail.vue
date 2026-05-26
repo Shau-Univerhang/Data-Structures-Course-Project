@@ -1,10 +1,17 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-detail-page">
-    <!-- Mesh Gradient 背景 -->
-    <div class="mesh-gradient-bg">
-      <div class="blob blob-1"></div>
-      <div class="blob blob-2"></div>
-      <div class="blob blob-3"></div>
+    <!-- 大背景层：用户图片 + 亮度降低 -->
+    <div class="page-background">
+      <transition name="bg-switch">
+        <div 
+          v-show="currentBgImage"
+          :key="currentBgImage"
+          class="bg-image"
+          :style="{ backgroundImage: `url(${currentBgImage})` }"
+        ></div>
+      </transition>
+      <div v-show="!currentBgImage" class="bg-white"></div>
+      <div class="bg-dim-overlay"></div>
     </div>
     
     <Navbar />
@@ -19,8 +26,8 @@
           <span>返回</span>
         </button>
         
-        <!-- 日记内容卡片 -->
-        <article class="diary-card">
+        <!-- 日记内容卡片 - 模糊白底背景 -->
+        <article class="diary-card glass-card">
           <!-- Hero区域：封面图 + 标题叠加 -->
           <div class="hero-section" v-if="diary.images && diary.images.length">
             <div class="hero-image-wrapper">
@@ -36,8 +43,6 @@
               </div>
             </div>
           </div>
-          
-          <!-- 无封面图时的标题区域 -->
           <div class="title-section" v-else>
             <h1 class="diary-title">{{ diary.title }}</h1>
             <div class="hero-meta">
@@ -105,9 +110,19 @@
                     >
                       <div class="timeline-dot"></div>
                       <div class="timeline-line" v-if="spotIndex < day.spots.length - 1"></div>
-                      <div class="timeline-item-content">
-                        <span class="time-marker">{{ spot.time }}</span>
-                        <p class="spot-description">{{ spot.description }}</p>
+                      <div class="timeline-item-body">
+                        <div class="timeline-item-content">
+                          <span class="time-marker">{{ spot.time }}</span>
+                          <p class="spot-description">{{ spot.description }}</p>
+                          <span v-if="spot.location" class="spot-location">📍 {{ spot.location }}</span>
+                        </div>
+                        <div class="timeline-item-image" v-if="getSpotImage(day.day, spotIndex)">
+                          <img 
+                            :src="getSpotImage(day.day, spotIndex)" 
+                            :alt="spot.location || spot.time"
+                            @click="openImagePreview(getSpotImage(day.day, spotIndex))"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -141,11 +156,23 @@
         </div>
       </div>
     </main>
+    
+    <!-- 图片预览弹窗 -->
+    <div v-if="showPreview" class="image-preview-overlay" @click="closeImagePreview">
+      <div class="image-preview-container">
+        <img :src="previewImage" alt="预览" />
+        <button class="preview-close-btn" @click.stop="closeImagePreview">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import CommentsRatings from '../components/CommentsRatings.vue'
@@ -470,27 +497,24 @@ const loadDiary = async () => {
         return
       }
     }
-    // 如果API请求失败或返回无效数据，显示错误提示
-    console.error('加载日记失败: 日记不存在或服务器错误')
+    // API请求失败或返回无效数据，尝试使用mock数据
+    console.warn('API加载日记失败，尝试使用mock数据')
+    fallbackToMock()
+  } catch (error) {
+    console.error('加载日记失败:', error)
+    fallbackToMock()
+  }
+}
+
+// 回退到mock数据
+const fallbackToMock = () => {
+  if (diaryId.value >= 1 && diaryId.value <= 3 && mockDiaries[diaryId.value]) {
+    diary.value = { ...mockDiaries[diaryId.value] }
+  } else {
     diary.value = {
       id: diaryId.value,
       title: '日记加载失败',
       content: '无法加载该日记内容，请稍后重试。',
-      username: '',
-      created_at: new Date().toISOString(),
-      view_count: 0,
-      avg_rating: 0,
-      rating_count: 0,
-      images: [],
-      budget: '',
-      companion: ''
-    }
-  } catch (error) {
-    console.error('加载日记失败:', error)
-    diary.value = {
-      id: diaryId.value,
-      title: '日记加载失败',
-      content: '无法加载该日记内容，请检查网络连接后重试。',
       username: '',
       created_at: new Date().toISOString(),
       view_count: 0,
@@ -506,10 +530,179 @@ const loadDiary = async () => {
 onMounted(() => {
   loadDiary()
 })
+
+// 为时间轴节点分配图片 - 按顺序将日记图片分配给各个时间节点
+const getSpotImage = (dayLabel, spotIndex) => {
+  if (!diary.value.images || diary.value.images.length <= 1) return null
+  
+  // 计算在所有天数中的累计索引
+  let globalIndex = 0
+  for (const day of parsedItinerary.value) {
+    if (day.day === dayLabel) {
+      globalIndex += spotIndex
+      break
+    }
+    globalIndex += day.spots.length
+  }
+  
+  // 从第二张图片开始分配（第一张是封面）
+  const imageIndex = globalIndex % (diary.value.images.length - 1)
+  return diary.value.images[imageIndex + 1] || null
+}
+
+// 图片预览
+const previewImage = ref('')
+const showPreview = ref(false)
+
+const openImagePreview = (src) => {
+  previewImage.value = src
+  showPreview.value = true
+}
+
+const closeImagePreview = () => {
+  showPreview.value = false
+  previewImage.value = ''
+}
+
+// 滚动背景相关
+// 当前背景图片
+const currentBgImage = ref('')
+const currentBgIndex = ref(0)
+
+// 获取所有可用作背景的图片
+const backgroundImages = computed(() => {
+  if (!diary.value.images || diary.value.images.length === 0) {
+    return []
+  }
+  // 使用所有图片作为背景候选（包括封面）
+  return diary.value.images
+})
+
+// 计算每个内容区块的位置用于滚动切换
+const contentSections = ref([])
+
+const updateContentSections = () => {
+  // 获取所有主要内容区块
+  const sections = []
+  
+  // Hero区域
+  const hero = document.querySelector('.hero-section, .title-section')
+  if (hero) sections.push({ el: hero, type: 'hero' })
+  
+  // 时间轴节点
+  const timelineItems = document.querySelectorAll('.timeline-item')
+  timelineItems.forEach((item, index) => {
+    sections.push({ el: item, type: 'timeline', index })
+  })
+  
+  // 画廊图片
+  const galleryItems = document.querySelectorAll('.gallery-item')
+  galleryItems.forEach((item, index) => {
+    sections.push({ el: item, type: 'gallery', index })
+  })
+  
+  contentSections.value = sections
+}
+
+// 滚动监听 - 切换背景图片
+const handleScroll = () => {
+  if (backgroundImages.value.length === 0) return
+  
+  const scrollY = window.scrollY
+  const windowHeight = window.innerHeight
+  const triggerLine = scrollY + windowHeight * 0.4 // 触发线位于视口40%位置
+  
+  // 找到当前位于触发线附近的内容区块
+  let activeIndex = 0
+  let minDistance = Infinity
+  
+  contentSections.value.forEach((section, index) => {
+    if (section.el) {
+      const rect = section.el.getBoundingClientRect()
+      const sectionCenter = rect.top + rect.height / 2 + scrollY
+      const distance = Math.abs(sectionCenter - triggerLine)
+      
+      if (distance < minDistance) {
+        minDistance = distance
+        activeIndex = index
+      }
+    }
+  })
+  
+  // 切换背景图片（循环使用可用图片）
+  const newIndex = activeIndex % backgroundImages.value.length
+  if (newIndex !== currentBgIndex.value) {
+    currentBgIndex.value = newIndex
+    currentBgImage.value = backgroundImages.value[newIndex]
+  }
+}
+
+// 初始化背景
+const initBackground = () => {
+  if (backgroundImages.value.length > 0) {
+    currentBgImage.value = backgroundImages.value[0]
+    currentBgIndex.value = 0
+  }
+}
+
+onMounted(() => {
+  loadDiary()
+  // 延迟初始化，确保DOM渲染完成
+  setTimeout(() => {
+    initBackground()
+    updateContentSections()
+    window.addEventListener('scroll', handleScroll)
+  }, 800)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
-/* Mesh Gradient 背景 */
+/* 大背景层 */
+.page-background {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+}
+
+.bg-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: opacity 0.6s ease-in-out;
+}
+
+.bg-white {
+  position: absolute;
+  inset: 0;
+  background: #f8f9fc;
+}
+
+.bg-dim-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.15);
+  transition: opacity 0.3s ease;
+}
+
+/* 背景切换动画 */
+.bg-switch-enter-active,
+.bg-switch-leave-active {
+  transition: opacity 0.6s ease-in-out;
+}
+
+.bg-switch-enter-from,
+.bg-switch-leave-to {
+  opacity: 0;
+}
+
+/* 日记详情页 */
 .diary-detail-page {
   min-height: 100vh;
   position: relative;
@@ -587,11 +780,30 @@ onMounted(() => {
 }
 
 .diary-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(14px) saturate(120%);
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 玻璃拟态卡片增强效果 */
+.glass-card {
+  position: relative;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  border-radius: 24px;
+  pointer-events: none;
 }
 
 .hero-section {
@@ -763,8 +975,16 @@ onMounted(() => {
   background: linear-gradient(to bottom, #667eea, transparent);
 }
 
-.timeline-item-content {
+.timeline-item-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
   padding-left: 16px;
+}
+
+.timeline-item-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .time-marker {
@@ -782,6 +1002,91 @@ onMounted(() => {
   font-size: 15px;
   line-height: 1.6;
   color: #555;
+  margin-bottom: 6px;
+}
+
+.spot-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+.timeline-item-image {
+  width: 120px;
+  height: 90px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.timeline-item-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.timeline-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 图片预览弹窗 */
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 40px;
+  animation: fadeIn 0.3s ease;
+}
+
+.image-preview-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.image-preview-container img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.preview-close-btn {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.preview-close-btn:hover {
+  background: rgba(255, 71, 87, 0.8);
+  border-color: rgba(255, 71, 87, 0.5);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .diary-body {
@@ -870,6 +1175,16 @@ onMounted(() => {
   
   .gallery-item.large {
     grid-column: span 1;
+  }
+  
+  .timeline-item-body {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .timeline-item-image {
+    width: 100%;
+    height: 160px;
   }
 }
 </style>

@@ -109,6 +109,49 @@ class CommentResponse(BaseModel):
 
 # 路由实现
 
+def _sync_diary_city_tags(db: Session, diary: TravelDiary, content: str):
+    """同步日记的城市标签"""
+    try:
+        # 先删除旧关联并递减计数
+        old_tags = db.query(DiaryCityTag).filter_by(diary_id=diary.id).all()
+        for tag in old_tags:
+            city = db.query(DiaryCity).filter_by(id=tag.city_id).first()
+            if city and city.diary_count > 0:
+                city.diary_count -= 1
+            db.delete(tag)
+        db.flush()
+
+        # 提取新标签
+        extractor = get_extractor()
+        cities = extractor.extract_cities(
+            title=diary.title,
+            content=content,
+            itinerary=diary.itinerary
+        )
+        
+        for city_data in cities:
+            city_name = city_data['city']
+            confidence = city_data['confidence']
+            
+            # 获取或创建城市
+            city = get_or_create_city(db, city_name)
+            
+            # 创建新关联
+            tag = DiaryCityTag(
+                diary_id=diary.id,
+                city_id=city.id,
+                confidence=confidence
+            )
+            db.add(tag)
+            
+            # 更新城市计数
+            city.diary_count += 1
+        
+        db.commit()
+    except Exception as e:
+        print(f"城市标签同步失败: {e}")
+        db.rollback()
+
 @router.post("/", response_model=DiaryResponse)
 def create_diary(
     request: CreateDiaryRequest,
@@ -144,46 +187,8 @@ def create_diary(
     db.commit()
     db.refresh(diary)
     
-    # 自动提取城市标签（仅公开日记）
-    if diary.is_public:
-        try:
-            extractor = get_extractor()
-            cities = extractor.extract_cities(
-                title=diary.title,
-                content=request.content,  # 使用原始内容
-                itinerary=diary.itinerary
-            )
-            
-            for city_data in cities:
-                city_name = city_data['city']
-                confidence = city_data['confidence']
-                
-                # 获取或创建城市
-                city = get_or_create_city(db, city_name)
-                
-                # 检查是否已关联
-                existing = db.query(DiaryCityTag).filter_by(
-                    diary_id=diary.id,
-                    city_id=city.id
-                ).first()
-                
-                if not existing:
-                    # 创建关联
-                    tag = DiaryCityTag(
-                        diary_id=diary.id,
-                        city_id=city.id,
-                        confidence=confidence
-                    )
-                    db.add(tag)
-                    
-                    # 更新城市计数
-                    city.diary_count += 1
-            
-            db.commit()
-        except Exception as e:
-            # 城市提取失败不应影响日记创建
-            print(f"城市提取失败: {e}")
-            db.rollback()
+    # 自动提取城市标签（所有日记都提取，以便展示印痕）
+    _sync_diary_city_tags(db, diary, request.content)
     
     # 获取用户名
     user = db.query(User).filter(User.id == diary.user_id).first()
@@ -206,6 +211,46 @@ def create_diary(
         'created_at': diary.created_at,
         'username': user.username if user else '匿名用户'
     }
+
+@router.get("/footprints")
+def get_user_footprints(
+    user_id: int = Query(1, description="用户ID"),
+    db: Session = Depends(get_db)
+):
+    """获取用户的旅行印痕（所有去过的城市及其坐标）"""
+    # 查找用户日记关联的所有城市
+    footprints = db.query(
+        DiaryCity.name,
+        DiaryCityTag.confidence,
+        TravelDiary.id.label("diary_id"),
+        TravelDiary.title.label("diary_title"),
+        TravelDiary.images.label("diary_images"),
+        TravelDiary.created_at
+    ).join(
+        DiaryCityTag, DiaryCity.id == DiaryCityTag.city_id
+    ).join(
+        TravelDiary, TravelDiary.id == DiaryCityTag.diary_id
+    ).filter(
+        TravelDiary.user_id == user_id
+    ).all()
+
+    # 按城市分组
+    city_map = {}
+    for f in footprints:
+        if f.name not in city_map:
+            city_map[f.name] = {
+                "name": f.name,
+                "diaries": []
+            }
+        
+        city_map[f.name]["diaries"].append({
+            "id": f.diary_id,
+            "title": f.diary_title,
+            "cover": f.diary_images[0] if f.diary_images else "",
+            "created_at": f.created_at
+        })
+    
+    return list(city_map.values())
 
 
 @router.get("/public", response_model=List[dict])
@@ -571,6 +616,9 @@ def update_diary(
     db.commit()
     db.refresh(diary)
     
+    # 同步城市标签
+    _sync_diary_city_tags(db, diary, request.content)
+    
     return {
         "id": diary.id,
         "title": diary.title,
@@ -596,6 +644,13 @@ def delete_diary(
     ).first()
     
     if diary:
+        # 先处理城市计数
+        tags = db.query(DiaryCityTag).filter_by(diary_id=diary.id).all()
+        for tag in tags:
+            city = db.query(DiaryCity).filter_by(id=tag.city_id).first()
+            if city and city.diary_count > 0:
+                city.diary_count -= 1
+        
         db.delete(diary)
         db.commit()
         return {"success": True}

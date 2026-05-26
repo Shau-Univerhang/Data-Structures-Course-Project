@@ -1,0 +1,512 @@
+// 全球城市数据库 - 包含中国所有地级市以上城市 + 全球主要城市
+
+export const globalCities = [
+  // ==================== 中国城市 - 按省份分类 ====================
+  
+  // 直辖市
+  { name: '北京', lat: 39.9042, lng: 116.4074, country: '中国', province: '北京', level: '直辖市' },
+  { name: '上海', lat: 31.2304, lng: 121.4737, country: '中国', province: '上海', level: '直辖市' },
+  { name: '天津', lat: 39.3434, lng: 117.3616, country: '中国', province: '天津', level: '直辖市' },
+  { name: '重庆', lat: 29.5630, lng: 106.5516, country: '中国', province: '重庆', level: '直辖市' },
+  
+  // 河北省
+  { name: '石家庄', lat: 38.0428, lng: 114.5149, country: '中国', province: '河北' },
+  { name: '唐山', lat: 39.6243, lng: 118.1944, country: '中国', province: '河北' },
+  { name: '秦皇岛', lat: 39.9427, lng: 119.6088, country: '中国', province: '河北' },
+  { name: '邯郸', lat: 36.6123, lng: 114.4895, country: '中国', province: '河北' },
+  { name: '邢台', lat: 37.0682, lng: 114.5088, country: '中国', province: '河北' },
+  { name: '保定', lat: 38.8738, lng: 115.4648, country: '中国', province: '河北' },
+  { name: '张家口', lat: 40.8111, lng: 114.8834, country: '中国', province: '河北' },
+  { name: '承德', lat: 40.9519, lng: 117.9633, country: '中国', province: '河北' },
+  { name: '沧州', lat: 38.3037, lng: 116.8388, country: '中国', province: '河北' },
+  { name: '廊坊', lat: 39.5385, lng: 116.7144, country: '中国', province: '河北' },
+  { name: '衡水', lat: 37.7353, lng: 115.7021, country: '中国', province: '河北' },
+  
+  // 山西省
+  { name: '太原', lat: 37.8706, lng: 112.5489, country: '中国', province: '山西' },
+  { name: '大同', lat: 40.0769, lng: 113.3004, country: '中国', province: '山西' },
+  { name: '阳泉', lat: 37.8570, lng: 113.5830, country: '中国', province: '山西' },
+  { name: '长治', lat: 36.1911, lng: 113.1134, country: '中国', province: '山西' },
+  { name: '晋城', lat: 35.4905, lng: 112.8513, country: '中国', province: '山西' },
+  { name: '朔州', lat: 39.3249, lng: 112.4333, country: '中国', province: '山西' },
+  { name: '晋中', lat: 37.6872, lng: 112.7536, country: '中国', province: '山西' },
+  { name: '运城', lat: 35.0258, lng: 111.0088, country: '中国', province: '山西' },
+  { name: '忻州', lat: 38.4166, lng: 112.7339, country: '中国', province: '山西' },
+  { name: '临汾', lat: 36.0882, lng: 111.5190, country: '中国', province: '山西' },
+  { name: '吕梁', lat: 37.5207, lng: 111.1393, country: '中国', province: '山西' },
+  
+  // 辽宁省
+  { name: '沈阳', lat: 41.8057, lng: 123.4315, country: '中国', province: '辽宁' },
+  { name: '大连', lat: 38.9140, lng: 121.6147, country: '中国', province: '辽宁' },
+  { name: '鞍山', lat: 41.1087, lng: 122.9954, country: '中国', province: '辽宁' },
+  { name: '抚顺', lat: 41.8756, lng: 123.9211, country: '中国', province: '辽宁' },
+  { name: '本溪', lat: 41.2979, lng: 123.7705, country: '中国', province: '辽宁' },
+  { name: '丹东', lat: 40.1243, lng: 124.3547, country: '中国', province: '辽宁' },
+  { name: '锦州', lat: 41.1189, lng: 121.1413, country: '中国', province: '辽宁' },
+  { name: '营口', lat: 40.6673, lng: 122.2317, country: '中国', province: '辽宁' },
+  { name: '阜新', lat: 42.0118, lng: 121.6704, country: '中国', province: '辽宁' },
+  { name: '辽阳', lat: 41.2694, lng: 123.1725, country: '中国', province: '辽宁' },
+  { name: '盘锦', lat: 41.1197, lng: 122.0696, country: '中国', province: '辽宁' },
+  { name: '铁岭', lat: 42.2862, lng: 123.8444, country: '中国', province: '辽宁' },
+  { name: '朝阳', lat: 41.5759, lng: 120.4508, country: '中国', province: '辽宁' },
+  { name: '葫芦岛', lat: 40.7112, lng: 120.8548, country: '中国', province: '辽宁' },
+  
+  // 吉林省
+  { name: '长春', lat: 43.8171, lng: 125.3235, country: '中国', province: '吉林' },
+  { name: '吉林', lat: 43.8488, lng: 126.5523, country: '中国', province: '吉林' },
+  { name: '四平', lat: 43.1703, lng: 124.3706, country: '中国', province: '吉林' },
+  { name: '辽源', lat: 42.9023, lng: 125.1453, country: '中国', province: '吉林' },
+  { name: '通化', lat: 41.7211, lng: 125.9367, country: '中国', province: '吉林' },
+  { name: '白山', lat: 41.9424, lng: 126.4274, country: '中国', province: '吉林' },
+  { name: '松原', lat: 45.1372, lng: 124.8258, country: '中国', province: '吉林' },
+  { name: '白城', lat: 45.6196, lng: 122.8410, country: '中国', province: '吉林' },
+  
+  // 黑龙江省
+  { name: '哈尔滨', lat: 45.8038, lng: 126.5340, country: '中国', province: '黑龙江' },
+  { name: '齐齐哈尔', lat: 47.3420, lng: 123.9720, country: '中国', province: '黑龙江' },
+  { name: '鸡西', lat: 45.2950, lng: 130.9751, country: '中国', province: '黑龙江' },
+  { name: '鹤岗', lat: 47.3466, lng: 130.2783, country: '中国', province: '黑龙江' },
+  { name: '双鸭山', lat: 46.6435, lng: 131.1573, country: '中国', province: '黑龙江' },
+  { name: '大庆', lat: 46.5890, lng: 125.1033, country: '中国', province: '黑龙江' },
+  { name: '伊春', lat: 47.7271, lng: 128.8980, country: '中国', province: '黑龙江' },
+  { name: '佳木斯', lat: 46.8018, lng: 130.3620, country: '中国', province: '黑龙江' },
+  { name: '七台河', lat: 45.7709, lng: 130.8601, country: '中国', province: '黑龙江' },
+  { name: '牡丹江', lat: 44.5833, lng: 129.6000, country: '中国', province: '黑龙江' },
+  { name: '黑河', lat: 50.2446, lng: 127.4990, country: '中国', province: '黑龙江' },
+  { name: '绥化', lat: 46.6506, lng: 126.9925, country: '中国', province: '黑龙江' },
+  { name: '大兴安岭', lat: 50.4171, lng: 124.7116, country: '中国', province: '黑龙江' },
+  
+  // 江苏省
+  { name: '南京', lat: 32.0603, lng: 118.7969, country: '中国', province: '江苏' },
+  { name: '无锡', lat: 31.4912, lng: 120.3119, country: '中国', province: '江苏' },
+  { name: '徐州', lat: 34.2055, lng: 117.2847, country: '中国', province: '江苏' },
+  { name: '常州', lat: 31.8124, lng: 119.9740, country: '中国', province: '江苏' },
+  { name: '苏州', lat: 31.2990, lng: 120.5853, country: '中国', province: '江苏' },
+  { name: '南通', lat: 32.0095, lng: 120.8943, country: '中国', province: '江苏' },
+  { name: '连云港', lat: 34.5969, lng: 119.2216, country: '中国', province: '江苏' },
+  { name: '淮安', lat: 33.5975, lng: 119.0213, country: '中国', province: '江苏' },
+  { name: '盐城', lat: 33.3477, lng: 120.1631, country: '中国', province: '江苏' },
+  { name: '扬州', lat: 32.3942, lng: 119.4210, country: '中国', province: '江苏' },
+  { name: '镇江', lat: 32.1875, lng: 119.4522, country: '中国', province: '江苏' },
+  { name: '泰州', lat: 32.4555, lng: 119.9230, country: '中国', province: '江苏' },
+  { name: '宿迁', lat: 33.9631, lng: 118.2757, country: '中国', province: '江苏' },
+  
+  // 浙江省
+  { name: '杭州', lat: 30.2741, lng: 120.1551, country: '中国', province: '浙江' },
+  { name: '宁波', lat: 29.8683, lng: 121.5439, country: '中国', province: '浙江' },
+  { name: '温州', lat: 28.0006, lng: 120.6720, country: '中国', province: '浙江' },
+  { name: '嘉兴', lat: 30.7467, lng: 120.7508, country: '中国', province: '浙江' },
+  { name: '湖州', lat: 30.8702, lng: 120.0863, country: '中国', province: '浙江' },
+  { name: '绍兴', lat: 30.0003, lng: 120.5820, country: '中国', province: '浙江' },
+  { name: '金华', lat: 29.0789, lng: 119.6494, country: '中国', province: '浙江' },
+  { name: '衢州', lat: 28.9569, lng: 118.8759, country: '中国', province: '浙江' },
+  { name: '舟山', lat: 29.9854, lng: 122.2072, country: '中国', province: '浙江' },
+  { name: '台州', lat: 28.6564, lng: 121.4205, country: '中国', province: '浙江' },
+  { name: '丽水', lat: 28.4683, lng: 119.9219, country: '中国', province: '浙江' },
+  
+  // 安徽省
+  { name: '合肥', lat: 31.8206, lng: 117.2272, country: '中国', province: '安徽' },
+  { name: '芜湖', lat: 31.3526, lng: 118.4346, country: '中国', province: '安徽' },
+  { name: '蚌埠', lat: 32.9166, lng: 117.3632, country: '中国', province: '安徽' },
+  { name: '淮南', lat: 32.6474, lng: 117.0211, country: '中国', province: '安徽' },
+  { name: '马鞍山', lat: 31.6700, lng: 118.5070, country: '中国', province: '安徽' },
+  { name: '淮北', lat: 33.9717, lng: 116.7947, country: '中国', province: '安徽' },
+  { name: '铜陵', lat: 30.9295, lng: 117.8168, country: '中国', province: '安徽' },
+  { name: '安庆', lat: 30.5420, lng: 117.0434, country: '中国', province: '安徽' },
+  { name: '黄山', lat: 29.7091, lng: 118.3375, country: '中国', province: '安徽' },
+  { name: '滁州', lat: 32.2708, lng: 118.3163, country: '中国', province: '安徽' },
+  { name: '阜阳', lat: 32.8986, lng: 115.8043, country: '中国', province: '安徽' },
+  { name: '宿州', lat: 33.6363, lng: 116.9842, country: '中国', province: '安徽' },
+  { name: '六安', lat: 31.7333, lng: 116.5000, country: '中国', province: '安徽' },
+  { name: '亳州', lat: 33.8715, lng: 115.7842, country: '中国', province: '安徽' },
+  { name: '池州', lat: 30.6563, lng: 117.4894, country: '中国', province: '安徽' },
+  { name: '宣城', lat: 30.9408, lng: 118.7583, country: '中国', province: '安徽' },
+  
+  // 福建省
+  { name: '福州', lat: 26.0745, lng: 119.2965, country: '中国', province: '福建' },
+  { name: '厦门', lat: 24.4798, lng: 118.0894, country: '中国', province: '福建' },
+  { name: '莆田', lat: 25.4310, lng: 119.0070, country: '中国', province: '福建' },
+  { name: '三明', lat: 26.2633, lng: 117.6354, country: '中国', province: '福建' },
+  { name: '泉州', lat: 24.8740, lng: 118.6757, country: '中国', province: '福建' },
+  { name: '漳州', lat: 24.5129, lng: 117.6474, country: '中国', province: '福建' },
+  { name: '南平', lat: 26.6351, lng: 118.1765, country: '中国', province: '福建' },
+  { name: '龙岩', lat: 25.0917, lng: 117.0172, country: '中国', province: '福建' },
+  { name: '宁德', lat: 26.6617, lng: 119.5293, country: '中国', province: '福建' },
+  
+  // 江西省
+  { name: '南昌', lat: 28.6829, lng: 115.8580, country: '中国', province: '江西' },
+  { name: '景德镇', lat: 29.2941, lng: 117.2142, country: '中国', province: '江西' },
+  { name: '萍乡', lat: 27.6228, lng: 113.8539, country: '中国', province: '江西' },
+  { name: '九江', lat: 29.7122, lng: 115.9914, country: '中国', province: '江西' },
+  { name: '新余', lat: 27.8178, lng: 114.9304, country: '中国', province: '江西' },
+  { name: '鹰潭', lat: 28.2386, lng: 117.0338, country: '中国', province: '江西' },
+  { name: '赣州', lat: 25.8447, lng: 114.9335, country: '中国', province: '江西' },
+  { name: '吉安', lat: 27.1117, lng: 114.9865, country: '中国', province: '江西' },
+  { name: '宜春', lat: 27.8043, lng: 114.3913, country: '中国', province: '江西' },
+  { name: '抚州', lat: 27.9498, lng: 116.3584, country: '中国', province: '江西' },
+  { name: '上饶', lat: 28.4419, lng: 117.9712, country: '中国', province: '江西' },
+  
+  // 山东省
+  { name: '济南', lat: 36.6512, lng: 117.1209, country: '中国', province: '山东' },
+  { name: '青岛', lat: 36.0671, lng: 120.3826, country: '中国', province: '山东' },
+  { name: '淄博', lat: 36.8129, lng: 118.0549, country: '中国', province: '山东' },
+  { name: '枣庄', lat: 34.8564, lng: 117.3231, country: '中国', province: '山东' },
+  { name: '东营', lat: 37.4341, lng: 118.6746, country: '中国', province: '山东' },
+  { name: '烟台', lat: 37.4638, lng: 121.4479, country: '中国', province: '山东' },
+  { name: '潍坊', lat: 36.7069, lng: 119.1619, country: '中国', province: '山东' },
+  { name: '济宁', lat: 35.4149, lng: 116.5872, country: '中国', province: '山东' },
+  { name: '泰安', lat: 36.2000, lng: 117.0866, country: '中国', province: '山东' },
+  { name: '威海', lat: 37.5138, lng: 122.1200, country: '中国', province: '山东' },
+  { name: '日照', lat: 35.4164, lng: 119.5267, country: '中国', province: '山东' },
+  { name: '临沂', lat: 35.1041, lng: 118.3565, country: '中国', province: '山东' },
+  { name: '德州', lat: 37.4352, lng: 116.3572, country: '中国', province: '山东' },
+  { name: '聊城', lat: 36.4565, lng: 115.9800, country: '中国', province: '山东' },
+  { name: '滨州', lat: 37.3810, lng: 117.9746, country: '中国', province: '山东' },
+  { name: '菏泽', lat: 35.2457, lng: 115.4809, country: '中国', province: '山东' },
+  
+  // 河南省
+  { name: '郑州', lat: 34.7466, lng: 113.6253, country: '中国', province: '河南' },
+  { name: '开封', lat: 34.7972, lng: 114.3074, country: '中国', province: '河南' },
+  { name: '洛阳', lat: 34.6197, lng: 112.4540, country: '中国', province: '河南' },
+  { name: '平顶山', lat: 33.7352, lng: 113.3077, country: '中国', province: '河南' },
+  { name: '安阳', lat: 36.0997, lng: 114.3930, country: '中国', province: '河南' },
+  { name: '鹤壁', lat: 35.7480, lng: 114.2978, country: '中国', province: '河南' },
+  { name: '新乡', lat: 35.3030, lng: 113.8827, country: '中国', province: '河南' },
+  { name: '焦作', lat: 35.2158, lng: 113.2445, country: '中国', province: '河南' },
+  { name: '濮阳', lat: 35.7620, lng: 115.0440, country: '中国', province: '河南' },
+  { name: '许昌', lat: 34.0229, lng: 113.8262, country: '中国', province: '河南' },
+  { name: '漯河', lat: 33.5713, lng: 114.0264, country: '中国', province: '河南' },
+  { name: '三门峡', lat: 34.7728, lng: 111.1945, country: '中国', province: '河南' },
+  { name: '南阳', lat: 32.9908, lng: 112.5409, country: '中国', province: '河南' },
+  { name: '商丘', lat: 34.4149, lng: 115.6502, country: '中国', province: '河南' },
+  { name: '信阳', lat: 32.1235, lng: 114.0672, country: '中国', province: '河南' },
+  { name: '周口', lat: 33.6261, lng: 114.6495, country: '中国', province: '河南' },
+  { name: '驻马店', lat: 33.0129, lng: 114.0226, country: '中国', province: '河南' },
+  
+  // 湖北省
+  { name: '武汉', lat: 30.5928, lng: 114.3055, country: '中国', province: '湖北' },
+  { name: '黄石', lat: 30.2204, lng: 115.0770, country: '中国', province: '湖北' },
+  { name: '十堰', lat: 32.6279, lng: 110.7926, country: '中国', province: '湖北' },
+  { name: '宜昌', lat: 30.7026, lng: 111.2865, country: '中国', province: '湖北' },
+  { name: '襄阳', lat: 32.0087, lng: 112.1227, country: '中国', province: '湖北' },
+  { name: '鄂州', lat: 30.3908, lng: 114.8963, country: '中国', province: '湖北' },
+  { name: '荆门', lat: 31.0353, lng: 112.1995, country: '中国', province: '湖北' },
+  { name: '孝感', lat: 30.9279, lng: 113.9225, country: '中国', province: '湖北' },
+  { name: '荆州', lat: 30.3351, lng: 112.2390, country: '中国', province: '湖北' },
+  { name: '黄冈', lat: 30.4475, lng: 114.8723, country: '中国', province: '湖北' },
+  { name: '咸宁', lat: 29.8417, lng: 114.3225, country: '中国', province: '湖北' },
+  { name: '随州', lat: 31.6902, lng: 113.3823, country: '中国', province: '湖北' },
+  { name: '恩施', lat: 30.2865, lng: 109.4872, country: '中国', province: '湖北' },
+  
+  // 湖南省
+  { name: '长沙', lat: 28.2282, lng: 112.9388, country: '中国', province: '湖南' },
+  { name: '株洲', lat: 27.8274, lng: 113.1316, country: '中国', province: '湖南' },
+  { name: '湘潭', lat: 27.8295, lng: 112.9440, country: '中国', province: '湖南' },
+  { name: '衡阳', lat: 26.8968, lng: 112.5712, country: '中国', province: '湖南' },
+  { name: '邵阳', lat: 27.2389, lng: 111.4675, country: '中国', province: '湖南' },
+  { name: '岳阳', lat: 29.3570, lng: 113.0822, country: '中国', province: '湖南' },
+  { name: '常德', lat: 29.0318, lng: 111.6913, country: '中国', province: '湖南' },
+  { name: '张家界', lat: 29.1172, lng: 110.4790, country: '中国', province: '湖南' },
+  { name: '益阳', lat: 28.5536, lng: 112.3550, country: '中国', province: '湖南' },
+  { name: '郴州', lat: 25.7709, lng: 113.0320, country: '中国', province: '湖南' },
+  { name: '永州', lat: 26.4344, lng: 111.6080, country: '中国', province: '湖南' },
+  { name: '怀化', lat: 27.5502, lng: 109.9777, country: '中国', province: '湖南' },
+  { name: '娄底', lat: 27.7005, lng: 111.9934, country: '中国', province: '湖南' },
+  { name: '湘西', lat: 28.2651, lng: 109.7395, country: '中国', province: '湖南' },
+  
+  // 广东省
+  { name: '广州', lat: 23.1291, lng: 113.2644, country: '中国', province: '广东' },
+  { name: '深圳', lat: 22.5431, lng: 114.0579, country: '中国', province: '广东' },
+  { name: '珠海', lat: 22.2707, lng: 113.5767, country: '中国', province: '广东' },
+  { name: '汕头', lat: 23.3535, lng: 116.6820, country: '中国', province: '广东' },
+  { name: '佛山', lat: 23.0218, lng: 113.1219, country: '中国', province: '广东' },
+  { name: '韶关', lat: 24.8101, lng: 113.5964, country: '中国', province: '广东' },
+  { name: '湛江', lat: 21.2707, lng: 110.3594, country: '中国', province: '广东' },
+  { name: '肇庆', lat: 23.0793, lng: 112.4727, country: '中国', province: '广东' },
+  { name: '江门', lat: 22.5790, lng: 113.0815, country: '中国', province: '广东' },
+  { name: '茂名', lat: 21.6603, lng: 110.9254, country: '中国', province: '广东' },
+  { name: '惠州', lat: 23.1115, lng: 114.4152, country: '中国', province: '广东' },
+  { name: '梅州', lat: 24.2888, lng: 116.1225, country: '中国', province: '广东' },
+  { name: '汕尾', lat: 22.7748, lng: 115.3640, country: '中国', province: '广东' },
+  { name: '河源', lat: 23.7432, lng: 114.6974, country: '中国', province: '广东' },
+  { name: '阳江', lat: 21.8590, lng: 111.9749, country: '中国', province: '广东' },
+  { name: '清远', lat: 23.6817, lng: 113.0565, country: '中国', province: '广东' },
+  { name: '东莞', lat: 23.0488, lng: 113.7447, country: '中国', province: '广东' },
+  { name: '中山', lat: 22.5208, lng: 113.3927, country: '中国', province: '广东' },
+  { name: '潮州', lat: 23.6618, lng: 116.6225, country: '中国', province: '广东' },
+  { name: '揭阳', lat: 23.5418, lng: 116.3655, country: '中国', province: '广东' },
+  { name: '云浮', lat: 22.9290, lng: 112.0445, country: '中国', province: '广东' },
+  
+  // 广西壮族自治区
+  { name: '南宁', lat: 22.8170, lng: 108.3665, country: '中国', province: '广西' },
+  { name: '柳州', lat: 24.3147, lng: 109.4160, country: '中国', province: '广西' },
+  { name: '桂林', lat: 25.2742, lng: 110.2906, country: '中国', province: '广西' },
+  { name: '梧州', lat: 23.4834, lng: 111.2789, country: '中国', province: '广西' },
+  { name: '北海', lat: 21.4734, lng: 109.1199, country: '中国', province: '广西' },
+  { name: '防城港', lat: 21.7649, lng: 108.3450, country: '中国', province: '广西' },
+  { name: '钦州', lat: 21.9671, lng: 108.6541, country: '中国', province: '广西' },
+  { name: '贵港', lat: 23.1019, lng: 109.6022, country: '中国', province: '广西' },
+  { name: '玉林', lat: 22.6268, lng: 110.1536, country: '中国', province: '广西' },
+  { name: '百色', lat: 23.8971, lng: 106.6185, country: '中国', province: '广西' },
+  { name: '贺州', lat: 24.4033, lng: 111.5520, country: '中国', province: '广西' },
+  { name: '河池', lat: 24.6950, lng: 108.0855, country: '中国', province: '广西' },
+  { name: '来宾', lat: 23.7337, lng: 109.2288, country: '中国', province: '广西' },
+  { name: '崇左', lat: 22.4043, lng: 107.3537, country: '中国', province: '广西' },
+  
+  // 海南省
+  { name: '海口', lat: 20.0444, lng: 110.3450, country: '中国', province: '海南' },
+  { name: '三亚', lat: 18.2528, lng: 109.5117, country: '中国', province: '海南' },
+  { name: '三沙', lat: 16.8310, lng: 112.3488, country: '中国', province: '海南' },
+  { name: '儋州', lat: 19.5205, lng: 109.5770, country: '中国', province: '海南' },
+  
+  // 四川省
+  { name: '成都', lat: 30.5728, lng: 104.0668, country: '中国', province: '四川' },
+  { name: '自贡', lat: 29.3520, lng: 104.7784, country: '中国', province: '四川' },
+  { name: '攀枝花', lat: 26.5804, lng: 101.7183, country: '中国', province: '四川' },
+  { name: '泸州', lat: 28.8891, lng: 105.4433, country: '中国', province: '四川' },
+  { name: '德阳', lat: 31.1270, lng: 104.3986, country: '中国', province: '四川' },
+  { name: '绵阳', lat: 31.4641, lng: 104.7417, country: '中国', province: '四川' },
+  { name: '广元', lat: 32.4354, lng: 105.8297, country: '中国', province: '四川' },
+  { name: '遂宁', lat: 30.5327, lng: 105.5713, country: '中国', province: '四川' },
+  { name: '内江', lat: 29.5802, lng: 105.0583, country: '中国', province: '四川' },
+  { name: '乐山', lat: 29.5520, lng: 103.7664, country: '中国', province: '四川' },
+  { name: '南充', lat: 30.8378, lng: 106.1106, country: '中国', province: '四川' },
+  { name: '眉山', lat: 30.0483, lng: 103.8317, country: '中国', province: '四川' },
+  { name: '宜宾', lat: 28.7600, lng: 104.6308, country: '中国', province: '四川' },
+  { name: '广安', lat: 30.4736, lng: 106.6333, country: '中国', province: '四川' },
+  { name: '达州', lat: 31.2094, lng: 107.5023, country: '中国', province: '四川' },
+  { name: '雅安', lat: 29.9967, lng: 103.0129, country: '中国', province: '四川' },
+  { name: '巴中', lat: 31.8678, lng: 106.7537, country: '中国', province: '四川' },
+  { name: '资阳', lat: 30.1298, lng: 104.6494, country: '中国', province: '四川' },
+  { name: '阿坝', lat: 31.8998, lng: 102.2213, country: '中国', province: '四川' },
+  { name: '甘孜', lat: 30.0504, lng: 101.9636, country: '中国', province: '四川' },
+  { name: '凉山', lat: 27.8866, lng: 102.2584, country: '中国', province: '四川' },
+  
+  // 贵州省
+  { name: '贵阳', lat: 26.6470, lng: 106.6302, country: '中国', province: '贵州' },
+  { name: '六盘水', lat: 26.5847, lng: 104.8466, country: '中国', province: '贵州' },
+  { name: '遵义', lat: 27.7067, lng: 106.9228, country: '中国', province: '贵州' },
+  { name: '安顺', lat: 26.2456, lng: 105.9320, country: '中国', province: '贵州' },
+  { name: '毕节', lat: 27.2984, lng: 105.2853, country: '中国', province: '贵州' },
+  { name: '铜仁', lat: 27.7316, lng: 109.1891, country: '中国', province: '贵州' },
+  { name: '黔西南', lat: 25.0940, lng: 104.8970, country: '中国', province: '贵州' },
+  { name: '黔东南', lat: 26.5835, lng: 107.9775, country: '中国', province: '贵州' },
+  { name: '黔南', lat: 26.2584, lng: 107.5172, country: '中国', province: '贵州' },
+  
+  // 云南省
+  { name: '昆明', lat: 25.0406, lng: 102.7129, country: '中国', province: '云南' },
+  { name: '曲靖', lat: 25.5015, lng: 103.7979, country: '中国', province: '云南' },
+  { name: '玉溪', lat: 24.3520, lng: 102.5433, country: '中国', province: '云南' },
+  { name: '保山', lat: 25.1182, lng: 99.1613, country: '中国', province: '云南' },
+  { name: '昭通', lat: 27.3369, lng: 103.7171, country: '中国', province: '云南' },
+  { name: '丽江', lat: 26.8721, lng: 100.2294, country: '中国', province: '云南' },
+  { name: '普洱', lat: 22.7774, lng: 100.9722, country: '中国', province: '云南' },
+  { name: '临沧', lat: 23.8777, lng: 100.0869, country: '中国', province: '云南' },
+  { name: '楚雄', lat: 25.0419, lng: 101.5460, country: '中国', province: '云南' },
+  { name: '红河', lat: 23.3647, lng: 103.3756, country: '中国', province: '云南' },
+  { name: '文山', lat: 23.3862, lng: 104.2290, country: '中国', province: '云南' },
+  { name: '西双版纳', lat: 22.0017, lng: 100.7994, country: '中国', province: '云南' },
+  { name: '大理', lat: 25.6064, lng: 100.2676, country: '中国', province: '云南' },
+  { name: '德宏', lat: 24.4333, lng: 98.5833, country: '中国', province: '云南' },
+  { name: '怒江', lat: 25.8509, lng: 98.8533, country: '中国', province: '云南' },
+  { name: '迪庆', lat: 27.8262, lng: 99.7068, country: '中国', province: '云南' },
+  
+  // 陕西省
+  { name: '西安', lat: 34.3416, lng: 108.9398, country: '中国', province: '陕西' },
+  { name: '铜川', lat: 34.9075, lng: 108.9633, country: '中国', province: '陕西' },
+  { name: '宝鸡', lat: 34.3693, lng: 107.2372, country: '中国', province: '陕西' },
+  { name: '咸阳', lat: 34.3292, lng: 108.7083, country: '中国', province: '陕西' },
+  { name: '渭南', lat: 34.4994, lng: 109.4693, country: '中国', province: '陕西' },
+  { name: '延安', lat: 36.5968, lng: 109.4895, country: '中国', province: '陕西' },
+  { name: '汉中', lat: 33.0618, lng: 107.0239, country: '中国', province: '陕西' },
+  { name: '榆林', lat: 38.2854, lng: 109.7345, country: '中国', province: '陕西' },
+  { name: '安康', lat: 32.6849, lng: 109.0293, country: '中国', province: '陕西' },
+  { name: '商洛', lat: 33.8687, lng: 109.9399, country: '中国', province: '陕西' },
+  
+  // 甘肃省
+  { name: '兰州', lat: 36.0611, lng: 103.8343, country: '中国', province: '甘肃' },
+  { name: '嘉峪关', lat: 39.7728, lng: 98.2772, country: '中国', province: '甘肃' },
+  { name: '金昌', lat: 38.5182, lng: 102.1880, country: '中国', province: '甘肃' },
+  { name: '白银', lat: 36.5449, lng: 104.1383, country: '中国', province: '甘肃' },
+  { name: '天水', lat: 34.5808, lng: 105.7249, country: '中国', province: '甘肃' },
+  { name: '武威', lat: 37.9342, lng: 102.6344, country: '中国', province: '甘肃' },
+  { name: '张掖', lat: 38.9329, lng: 100.4552, country: '中国', province: '甘肃' },
+  { name: '平凉', lat: 35.5427, lng: 106.6866, country: '中国', province: '甘肃' },
+  { name: '酒泉', lat: 39.7326, lng: 98.4940, country: '中国', province: '甘肃' },
+  { name: '庆阳', lat: 35.7342, lng: 107.6382, country: '中国', province: '甘肃' },
+  { name: '定西', lat: 35.5795, lng: 104.6265, country: '中国', province: '甘肃' },
+  { name: '陇南', lat: 33.3888, lng: 104.9293, country: '中国', province: '甘肃' },
+  { name: '临夏', lat: 35.5992, lng: 103.2117, country: '中国', province: '甘肃' },
+  { name: '甘南', lat: 34.9863, lng: 102.9110, country: '中国', province: '甘肃' },
+  
+  // 青海省
+  { name: '西宁', lat: 36.6171, lng: 101.7782, country: '中国', province: '青海' },
+  { name: '海东', lat: 36.5027, lng: 102.1032, country: '中国', province: '青海' },
+  { name: '海北', lat: 36.9584, lng: 100.9038, country: '中国', province: '青海' },
+  { name: '黄南', lat: 35.5169, lng: 102.0198, country: '中国', province: '青海' },
+  { name: '海南', lat: 36.2767, lng: 100.6195, country: '中国', province: '青海' },
+  { name: '果洛', lat: 34.4738, lng: 100.2423, country: '中国', province: '青海' },
+  { name: '玉树', lat: 33.0062, lng: 97.0086, country: '中国', province: '青海' },
+  { name: '海西', lat: 37.3743, lng: 97.3705, country: '中国', province: '青海' },
+  
+  // 台湾省
+  { name: '台北', lat: 25.0330, lng: 121.5654, country: '中国', province: '台湾' },
+  { name: '新北', lat: 25.0133, lng: 121.4637, country: '中国', province: '台湾' },
+  { name: '桃园', lat: 24.9936, lng: 121.3010, country: '中国', province: '台湾' },
+  { name: '台中', lat: 24.1477, lng: 120.6736, country: '中国', province: '台湾' },
+  { name: '台南', lat: 22.9991, lng: 120.2318, country: '中国', province: '台湾' },
+  { name: '高雄', lat: 22.6273, lng: 120.3014, country: '中国', province: '台湾' },
+  
+  // 香港特别行政区
+  { name: '香港', lat: 22.3193, lng: 114.1694, country: '中国', province: '香港', level: '特别行政区' },
+  
+  // 澳门特别行政区
+  { name: '澳门', lat: 22.1987, lng: 113.5439, country: '中国', province: '澳门', level: '特别行政区' },
+  
+  // 内蒙古自治区
+  { name: '呼和浩特', lat: 40.8424, lng: 111.7497, country: '中国', province: '内蒙古' },
+  { name: '包头', lat: 40.6582, lng: 109.8403, country: '中国', province: '内蒙古' },
+  { name: '乌海', lat: 39.6738, lng: 106.8256, country: '中国', province: '内蒙古' },
+  { name: '赤峰', lat: 42.2575, lng: 118.9577, country: '中国', province: '内蒙古' },
+  { name: '通辽', lat: 43.6173, lng: 122.2631, country: '中国', province: '内蒙古' },
+  { name: '鄂尔多斯', lat: 39.8175, lng: 109.7813, country: '中国', province: '内蒙古' },
+  { name: '呼伦贝尔', lat: 49.2118, lng: 119.7592, country: '中国', province: '内蒙古' },
+  { name: '巴彦淖尔', lat: 40.7574, lng: 107.3985, country: '中国', province: '内蒙古' },
+  { name: '乌兰察布', lat: 41.0257, lng: 113.1116, country: '中国', province: '内蒙古' },
+  { name: '兴安', lat: 46.0763, lng: 122.0701, country: '中国', province: '内蒙古' },
+  { name: '锡林郭勒', lat: 43.9445, lng: 115.9637, country: '中国', province: '内蒙古' },
+  { name: '阿拉善', lat: 38.8448, lng: 105.7064, country: '中国', province: '内蒙古' },
+  
+  // 新疆维吾尔自治区
+  { name: '乌鲁木齐', lat: 43.8256, lng: 87.6168, country: '中国', province: '新疆' },
+  { name: '克拉玛依', lat: 45.5795, lng: 84.8788, country: '中国', province: '新疆' },
+  { name: '吐鲁番', lat: 42.9480, lng: 89.1848, country: '中国', province: '新疆' },
+  { name: '哈密', lat: 42.8333, lng: 93.5167, country: '中国', province: '新疆' },
+  { name: '昌吉', lat: 44.0147, lng: 87.3040, country: '中国', province: '新疆' },
+  { name: '博尔塔拉', lat: 44.9047, lng: 82.0750, country: '中国', province: '新疆' },
+  { name: '巴音郭楞', lat: 41.7639, lng: 86.1538, country: '中国', province: '新疆' },
+  { name: '阿克苏', lat: 41.1681, lng: 80.2607, country: '中国', province: '新疆' },
+  { name: '克孜勒苏', lat: 39.7134, lng: 76.1704, country: '中国', province: '新疆' },
+  { name: '喀什', lat: 39.4704, lng: 75.9932, country: '中国', province: '新疆' },
+  { name: '和田', lat: 37.1105, lng: 79.9294, country: '中国', province: '新疆' },
+  { name: '伊犁', lat: 43.9226, lng: 81.3178, country: '中国', province: '新疆' },
+  { name: '塔城', lat: 46.7463, lng: 82.9835, country: '中国', province: '新疆' },
+  { name: '阿勒泰', lat: 47.8496, lng: 88.1397, country: '中国', province: '新疆' },
+  
+  // 西藏自治区
+  { name: '拉萨', lat: 29.6500, lng: 91.1400, country: '中国', province: '西藏' },
+  { name: '日喀则', lat: 29.2678, lng: 88.8851, country: '中国', province: '西藏' },
+  { name: '昌都', lat: 31.1404, lng: 97.1785, country: '中国', province: '西藏' },
+  { name: '林芝', lat: 29.6542, lng: 94.3620, country: '中国', province: '西藏' },
+  { name: '山南', lat: 29.2360, lng: 91.7665, country: '中国', province: '西藏' },
+  { name: '那曲', lat: 31.4769, lng: 92.0558, country: '中国', province: '西藏' },
+  { name: '阿里', lat: 32.5033, lng: 80.1055, country: '中国', province: '西藏' },
+  
+  // 宁夏回族自治区
+  { name: '银川', lat: 38.4872, lng: 106.2309, country: '中国', province: '宁夏' },
+  { name: '石嘴山', lat: 39.0133, lng: 106.3761, country: '中国', province: '宁夏' },
+  { name: '吴忠', lat: 37.9875, lng: 106.1993, country: '中国', province: '宁夏' },
+  { name: '固原', lat: 36.0045, lng: 106.2853, country: '中国', province: '宁夏' },
+  { name: '中卫', lat: 37.4853, lng: 105.1896, country: '中国', province: '宁夏' },
+  
+  // ==================== 亚洲 ====================
+  { name: '东京', lat: 35.6762, lng: 139.6503, country: '日本', continent: '亚洲' },
+  { name: '大阪', lat: 34.6937, lng: 135.5023, country: '日本', continent: '亚洲' },
+  { name: '京都', lat: 35.0116, lng: 135.7681, country: '日本', continent: '亚洲' },
+  { name: '首尔', lat: 37.5665, lng: 126.9780, country: '韩国', continent: '亚洲' },
+  { name: '釜山', lat: 35.1796, lng: 129.0756, country: '韩国', continent: '亚洲' },
+  { name: '曼谷', lat: 13.7563, lng: 100.5018, country: '泰国', continent: '亚洲' },
+  { name: '新加坡', lat: 1.3521, lng: 103.8198, country: '新加坡', continent: '亚洲' },
+  { name: '吉隆坡', lat: 3.1390, lng: 101.6869, country: '马来西亚', continent: '亚洲' },
+  { name: '河内', lat: 21.0285, lng: 105.8542, country: '越南', continent: '亚洲' },
+  { name: '胡志明市', lat: 10.8231, lng: 106.6297, country: '越南', continent: '亚洲' },
+  { name: '马尼拉', lat: 14.5995, lng: 120.9842, country: '菲律宾', continent: '亚洲' },
+  { name: '雅加达', lat: -6.2088, lng: 106.8456, country: '印度尼西亚', continent: '亚洲' },
+  { name: '德里', lat: 28.7041, lng: 77.1025, country: '印度', continent: '亚洲' },
+  { name: '孟买', lat: 19.0760, lng: 72.8777, country: '印度', continent: '亚洲' },
+  { name: '班加罗尔', lat: 12.9716, lng: 77.5946, country: '印度', continent: '亚洲' },
+  { name: '迪拜', lat: 25.2048, lng: 55.2708, country: '阿联酋', continent: '亚洲' },
+  { name: '多哈', lat: 25.2854, lng: 51.5310, country: '卡塔尔', continent: '亚洲' },
+  { name: '伊斯坦布尔', lat: 41.0082, lng: 28.9784, country: '土耳其', continent: '亚洲' },
+  
+  // ==================== 欧洲 ====================
+  { name: '伦敦', lat: 51.5074, lng: -0.1278, country: '英国', continent: '欧洲' },
+  { name: '巴黎', lat: 48.8566, lng: 2.3522, country: '法国', continent: '欧洲' },
+  { name: '柏林', lat: 52.5200, lng: 13.4050, country: '德国', continent: '欧洲' },
+  { name: '罗马', lat: 41.9028, lng: 12.4964, country: '意大利', continent: '欧洲' },
+  { name: '马德里', lat: 40.4168, lng: -3.7038, country: '西班牙', continent: '欧洲' },
+  { name: '巴塞罗那', lat: 41.3874, lng: 2.1686, country: '西班牙', continent: '欧洲' },
+  { name: '阿姆斯特丹', lat: 52.3676, lng: 4.9041, country: '荷兰', continent: '欧洲' },
+  { name: '布鲁塞尔', lat: 50.8503, lng: 4.3517, country: '比利时', continent: '欧洲' },
+  { name: '苏黎世', lat: 47.3769, lng: 8.5417, country: '瑞士', continent: '欧洲' },
+  { name: '维也纳', lat: 48.2082, lng: 16.3738, country: '奥地利', continent: '欧洲' },
+  { name: '布拉格', lat: 50.0755, lng: 14.4378, country: '捷克', continent: '欧洲' },
+  { name: '华沙', lat: 52.2297, lng: 21.0122, country: '波兰', continent: '欧洲' },
+  { name: '布达佩斯', lat: 47.4979, lng: 19.0402, country: '匈牙利', continent: '欧洲' },
+  { name: '里斯本', lat: 38.7223, lng: -9.1393, country: '葡萄牙', continent: '欧洲' },
+  { name: '雅典', lat: 37.9838, lng: 23.7275, country: '希腊', continent: '欧洲' },
+  { name: '莫斯科', lat: 55.7558, lng: 37.6173, country: '俄罗斯', continent: '欧洲' },
+  { name: '斯德哥尔摩', lat: 59.3293, lng: 18.0686, country: '瑞典', continent: '欧洲' },
+  { name: '奥斯陆', lat: 59.9139, lng: 10.7522, country: '挪威', continent: '欧洲' },
+  { name: '哥本哈根', lat: 55.6761, lng: 12.5683, country: '丹麦', continent: '欧洲' },
+  { name: '赫尔辛基', lat: 60.1699, lng: 24.9384, country: '芬兰', continent: '欧洲' },
+  { name: '都柏林', lat: 53.3498, lng: -6.2603, country: '爱尔兰', continent: '欧洲' },
+  { name: '雷克雅未克', lat: 64.1466, lng: -21.9426, country: '冰岛', continent: '欧洲' },
+  
+  // ==================== 北美洲 ====================
+  { name: '纽约', lat: 40.7128, lng: -74.0060, country: '美国', continent: '北美洲' },
+  { name: '洛杉矶', lat: 34.0522, lng: -118.2437, country: '美国', continent: '北美洲' },
+  { name: '芝加哥', lat: 41.8781, lng: -87.6298, country: '美国', continent: '北美洲' },
+  { name: '旧金山', lat: 37.7749, lng: -122.4194, country: '美国', continent: '北美洲' },
+  { name: '拉斯维加斯', lat: 36.1699, lng: -115.1398, country: '美国', continent: '北美洲' },
+  { name: '华盛顿', lat: 38.9072, lng: -77.0369, country: '美国', continent: '北美洲' },
+  { name: '波士顿', lat: 42.3601, lng: -71.0589, country: '美国', continent: '北美洲' },
+  { name: '西雅图', lat: 47.6062, lng: -122.3321, country: '美国', continent: '北美洲' },
+  { name: '迈阿密', lat: 25.7617, lng: -80.1918, country: '美国', continent: '北美洲' },
+  { name: '多伦多', lat: 43.6532, lng: -79.3832, country: '加拿大', continent: '北美洲' },
+  { name: '温哥华', lat: 49.2827, lng: -123.1207, country: '加拿大', continent: '北美洲' },
+  { name: '蒙特利尔', lat: 45.5017, lng: -73.5673, country: '加拿大', continent: '北美洲' },
+  { name: '墨西哥城', lat: 19.4326, lng: -99.1332, country: '墨西哥', continent: '北美洲' },
+  
+  // ==================== 南美洲 ====================
+  { name: '圣保罗', lat: -23.5505, lng: -46.6333, country: '巴西', continent: '南美洲' },
+  { name: '布宜诺斯艾利斯', lat: -34.6037, lng: -58.3816, country: '阿根廷', continent: '南美洲' },
+  { name: '圣地亚哥', lat: -33.4489, lng: -70.6693, country: '智利', continent: '南美洲' },
+  { name: '利马', lat: -12.0464, lng: -77.0428, country: '秘鲁', continent: '南美洲' },
+  { name: '波哥大', lat: 4.7110, lng: -74.0721, country: '哥伦比亚', continent: '南美洲' },
+  { name: '加拉加斯', lat: 10.4806, lng: -66.9036, country: '委内瑞拉', continent: '南美洲' },
+  
+  // ==================== 大洋洲 ====================
+  { name: '悉尼', lat: -33.8688, lng: 151.2093, country: '澳大利亚', continent: '大洋洲' },
+  { name: '墨尔本', lat: -37.8136, lng: 144.9631, country: '澳大利亚', continent: '大洋洲' },
+  { name: '奥克兰', lat: -36.8485, lng: 174.7633, country: '新西兰', continent: '大洋洲' },
+  
+  // ==================== 非洲 ====================
+  { name: '开罗', lat: 30.0444, lng: 31.2357, country: '埃及', continent: '非洲' },
+  { name: '开普敦', lat: -33.9249, lng: 18.4241, country: '南非', continent: '非洲' },
+  { name: '内罗毕', lat: -1.2921, lng: 36.8219, country: '肯尼亚', continent: '非洲' },
+  { name: '拉各斯', lat: 6.5244, lng: 3.3792, country: '尼日利亚', continent: '非洲' },
+  { name: '卡萨布兰卡', lat: 33.5731, lng: -7.5898, country: '摩洛哥', continent: '非洲' },
+];
+
+export const findCityByName = (name) => {
+  return globalCities.find(city => city.name === name) || null;
+};
+
+export const getCitiesByCountry = (country) => {
+  return globalCities.filter(city => city.country === country);
+};
+
+export const getCitiesByContinent = (continent) => {
+  return globalCities.filter(city => city.continent === continent);
+};
+
+export const getChinaCities = () => {
+  return globalCities.filter(city => city.country === '中国');
+};
+
+export const getCitiesByProvince = (province) => {
+  return globalCities.filter(city => city.country === '中国' && city.province === province);
+};
+
+export default globalCities;

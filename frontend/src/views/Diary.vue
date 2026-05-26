@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-page">
     <Navbar />
     
@@ -301,8 +301,21 @@
               <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
+          
+          <!-- 微缩版旅行印痕预览 -->
+          <div class="earth-mini-preview" @click="showMiniEarth = true">
+            <EarthGlobe :traces="diaryTraces" :mini="true" />
+          </div>
         </div>
       </aside>
+      
+      <transition name="fade-scale">
+        <div v-if="showMiniEarth" class="earth-mini-modal" @click.self="showMiniEarth = false">
+          <div class="earth-mini-modal-content">
+            <EarthGlobe :traces="diaryTraces" :show-close="true" @close="showMiniEarth = false" />
+          </div>
+        </div>
+      </transition>
       
       <!-- 悬浮添加按钮 -->
       <button class="fab-button" @click="openAIEditor" title="写日记">
@@ -330,12 +343,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import Navbar from '../components/Navbar.vue'
 import SmartDiaryEditor from '../components/SmartDiaryEditor.vue'
+import EarthGlobe from '../components/EarthGlobe.vue'
 import { useDiaryStore } from '../stores/diary.js'
+import { globalCities } from '../data/globalCities.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -343,6 +358,7 @@ const diaryStore = useDiaryStore()
 
 const searchQuery = ref('')
 const showCreateModal = ref(false)
+const showMiniEarth = ref(false)
 const publicDiaries = ref([])
 const currentSlide = ref(0)
 
@@ -478,6 +494,7 @@ onMounted(() => {
   
   // 获取用户日记列表
   diaryStore.fetchDiaries()
+  diaryStore.fetchFootprints()
   
   // 从API加载公开日记（精美日记）
   fetchPublicDiaries()
@@ -536,6 +553,53 @@ const filteredDiaries = computed(() => {
     d.title?.includes(searchQuery.value) || 
     d.content?.includes(searchQuery.value)
   )
+})
+
+const diaryTraces = computed(() => {
+  return diaryStore.footprints.map(fp => {
+    const cityData = globalCities.find(c => c.name === fp.name)
+    return {
+      ...fp,
+      lat: cityData?.lat || 0,
+      lng: cityData?.lng || 0,
+      country: cityData?.country || '',
+      province: cityData?.province || '',
+      visitCount: fp.diaries.length
+    }
+  }).filter(fp => fp.lat !== 0 || fp.lng !== 0)
+})
+
+// 演示数据 - 当没有真实日记数据时使用
+const demoTraces = [
+  {
+    name: '京都',
+    lat: 35.0116,
+    lng: 135.7681,
+    diaries: [
+      { id: 1, title: '京都：千年古都的秋日私语', cover: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80', created_at: '2024-11-15' }
+    ]
+  },
+  {
+    name: '成都',
+    lat: 30.5728,
+    lng: 104.0668,
+    diaries: [
+      { id: 2, title: '成都美食探店：藏在巷子里的烟火气', cover: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&q=80', created_at: '2024-12-01' }
+    ]
+  },
+  {
+    name: '雷克雅未克',
+    lat: 64.1466,
+    lng: -21.9426,
+    diaries: [
+      { id: 3, title: '冰岛环岛自驾：追逐极光的14天', cover: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800&q=80', created_at: '2024-10-20' }
+    ]
+  }
+]
+
+// 最终展示的印痕数据（真实数据优先，无数据则用演示数据）
+const displayTraces = computed(() => {
+  return diaryTraces.value.length > 0 ? diaryTraces.value : demoTraces
 })
 
 const getTypeEmoji = (type) => {
@@ -1798,5 +1862,42 @@ const goToDiaryLibrary = () => {
 .user-diary-entry:hover .entry-arrow {
   color: #00d4ff;
   transform: translateX(4px);
+}
+
+/* 微缩版旅行印痕预览 - 与日记库入口等宽的正方形窗口 */
+.earth-mini-preview {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-top: 16px;
+  box-shadow: 0 8px 30px rgba(0, 212, 255, 0.25);
+  border: 2px solid rgba(0, 212, 255, 0.3);
+}
+
+.earth-mini-preview:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 40px rgba(0, 212, 255, 0.4);
+  border-color: rgba(0, 212, 255, 0.6);
+}
+
+/* 微缩地球弹窗 */
+.earth-mini-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #050d1a;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.earth-mini-modal-content {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 </style>

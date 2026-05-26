@@ -10,6 +10,8 @@ declare module 'vue' {
     AmapContainer: typeof import('./src/components/AmapContainer.vue')['default']
     AmapExample: typeof import('./src/components/AmapExample.vue')['default']
     CommentsRatings: typeof import('./src/components/CommentsRatings.vue')['default']
+    EarthComponent: typeof import('./src/components/EarthComponent.vue')['default']
+    EarthGlobe: typeof import('./src/components/EarthGlobe.vue')['default']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElInput: typeof import('element-plus/es')['ElInput']
     Navbar: typeof import('./src/components/Navbar.vue')['default']

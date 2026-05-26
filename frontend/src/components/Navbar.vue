@@ -32,7 +32,7 @@ const currentRoute = computed(() => {
   if (path === '/') return 'home'
   if (path === '/trips' || path === '/create-trip' || path.startsWith('/trip')) return 'plan'
   if (path === '/explore' || path === '/spot-recommend' || path === '/food') return 'explore'
-  if (path === '/diary') return 'diary'
+  if (path === '/diary' || path === '/diary-library') return 'diary'
   if (path === '/ai') return 'ai'
   if (path === '/presentation') return 'presentation'
   if (path === '/profile' || path === '/setting' || path === '/photos' || path === '/collection') return 'profile'

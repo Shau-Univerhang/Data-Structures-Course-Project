@@ -214,6 +214,7 @@
     >
       ↑
     </button>
+    
   </div>
 </template>
 
@@ -387,6 +388,113 @@ const scrollToTop = () => {
 
 const handleScroll = () => {
   showBackToTop.value = window.scrollY > 300
+}
+
+// 城市坐标映射表
+const cityCoordinates = {
+  '北京': { lat: 39.9042, lng: 116.4074 },
+  '上海': { lat: 31.2304, lng: 121.4737 },
+  '广州': { lat: 23.1291, lng: 113.2644 },
+  '深圳': { lat: 22.5431, lng: 114.0579 },
+  '成都': { lat: 30.5728, lng: 104.0668 },
+  '杭州': { lat: 30.2741, lng: 120.1551 },
+  '西安': { lat: 34.3416, lng: 108.9398 },
+  '重庆': { lat: 29.5630, lng: 106.5516 },
+  '武汉': { lat: 30.5928, lng: 114.3055 },
+  '南京': { lat: 32.0603, lng: 118.7969 },
+  '京都': { lat: 35.0116, lng: 135.7681 },
+  '东京': { lat: 35.6762, lng: 139.6503 },
+  '大阪': { lat: 34.6937, lng: 135.5023 },
+  '首尔': { lat: 37.5665, lng: 126.9780 },
+  '曼谷': { lat: 13.7563, lng: 100.5018 },
+  '新加坡': { lat: 1.3521, lng: 103.8198 },
+  '巴黎': { lat: 48.8566, lng: 2.3522 },
+  '伦敦': { lat: 51.5074, lng: -0.1278 },
+  '纽约': { lat: 40.7128, lng: -74.0060 },
+  '洛杉矶': { lat: 34.0522, lng: -118.2437 },
+  '悉尼': { lat: -33.8688, lng: 151.2093 },
+  '雷克雅未克': { lat: 64.1466, lng: -21.9426 },
+  '冰岛': { lat: 64.9631, lng: -19.0208 }
+}
+
+// 从日记中提取城市印痕数据
+const diaryTraces = computed(() => {
+  const traces = []
+  const cityMap = new Map()
+  
+  diaries.value.forEach(diary => {
+    const cityName = extractCityFromDiary(diary)
+    if (cityName && cityCoordinates[cityName]) {
+      if (!cityMap.has(cityName)) {
+        cityMap.set(cityName, {
+          name: cityName,
+          lat: cityCoordinates[cityName].lat,
+          lng: cityCoordinates[cityName].lng,
+          diaries: []
+        })
+        traces.push(cityMap.get(cityName))
+      }
+      cityMap.get(cityName).diaries.push({
+        id: diary.id,
+        title: diary.title,
+        cover: diary.cover_image || diary.images?.[0] || '',
+        created_at: diary.created_at
+      })
+    }
+  })
+  
+  // 如果没有真实数据，返回演示数据
+  if (traces.length === 0) {
+    return [
+      {
+        name: '京都',
+        lat: 35.0116,
+        lng: 135.7681,
+        diaries: [
+          { id: 1, title: '京都：千年古都的秋日私语', cover: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=800&q=80', created_at: '2024-11-15' }
+        ]
+      },
+      {
+        name: '成都',
+        lat: 30.5728,
+        lng: 104.0668,
+        diaries: [
+          { id: 2, title: '成都美食探店：藏在巷子里的烟火气', cover: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&q=80', created_at: '2024-12-01' }
+        ]
+      },
+      {
+        name: '雷克雅未克',
+        lat: 64.1466,
+        lng: -21.9426,
+        diaries: [
+          { id: 3, title: '冰岛环岛自驾：追逐极光的14天', cover: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=800&q=80', created_at: '2024-10-20' }
+        ]
+      }
+    ]
+  }
+  
+  return traces
+})
+
+// 从日记中提取城市名
+const extractCityFromDiary = (diary) => {
+  if (!diary) return null
+  
+  const title = diary.title || ''
+  for (const city of Object.keys(cityCoordinates)) {
+    if (title.includes(city)) {
+      return city
+    }
+  }
+  
+  const content = diary.content || ''
+  for (const city of Object.keys(cityCoordinates)) {
+    if (content.includes(city)) {
+      return city
+    }
+  }
+  
+  return null
 }
 
 // 生命周期
@@ -858,6 +966,150 @@ watch([selectedCity, selectedType, sortBy], () => {
 .back-to-top:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 30px rgba(0, 212, 255, 0.4);
+}
+
+/* 探索印痕入口 - 更醒目的设计 */
+.earth-trace-entry {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  cursor: pointer;
+  padding: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background-size: 200% 200%;
+  border-radius: 60px;
+  animation: gradient-shift 4s ease infinite, glow-pulse 2s ease-in-out infinite;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+}
+
+.earth-entry-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 28px;
+  background: linear-gradient(135deg, rgba(20, 20, 35, 0.98) 0%, rgba(30, 30, 50, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.earth-trace-entry:hover .earth-entry-content {
+  background: linear-gradient(135deg, rgba(30, 30, 50, 0.98) 0%, rgba(40, 40, 65, 0.98) 100%);
+  transform: scale(1.03);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.earth-entry-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.6));
+  animation: earth-float 3s ease-in-out infinite;
+}
+
+.earth-entry-text h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #fff 0%, #c9d6ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.earth-entry-text p {
+  font-size: 12px;
+  color: rgba(201, 214, 255, 0.7);
+  margin: 4px 0 0 0;
+  font-weight: 400;
+}
+
+.earth-entry-arrow {
+  font-size: 20px;
+  color: #fff;
+  transition: all 0.3s ease;
+  opacity: 0.8;
+}
+
+.earth-trace-entry:hover .earth-entry-arrow {
+  transform: translateX(6px);
+  opacity: 1;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4), 0 0 0 0 rgba(102, 126, 234, 0.4);
+  }
+  50% {
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.6), 0 0 0 8px rgba(102, 126, 234, 0);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes earth-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* 3D地球弹窗 */
+.earth-globe-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-earth-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.close-earth-btn:hover {
+  background: rgba(255, 71, 87, 0.3);
+  border-color: rgba(255, 71, 87, 0.5);
+  transform: rotate(90deg);
+}
+
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: all 0.4s ease;
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
 }
 
 /* 响应式 */

@@ -59,6 +59,19 @@
         </div>
       </div>
 
+      <!-- 旅行印痕入口 -->
+      <div class="earth-trace-entry" @click="showEarthGlobe = true">
+        <div class="earth-entry-content">
+          <div class="earth-entry-icon">🌍</div>
+          <div class="earth-entry-text">
+            <h3>探索我的旅行印痕</h3>
+            <p>在3D地球上查看你去过的所有城市</p>
+          </div>
+          <span class="earth-entry-arrow">→</span>
+        </div>
+        <div class="earth-entry-glow"></div>
+      </div>
+
       <!-- 筛选栏 -->
       <div class="filter-bar">
         <div class="search-box">
@@ -207,6 +220,18 @@
         <path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
+    
+    <!-- 3D地球全屏弹窗 -->
+    <transition name="fade-scale">
+      <div v-if="showEarthGlobe" class="earth-globe-modal" @click.self="showEarthGlobe = false">
+        <button class="close-earth-btn" @click="showEarthGlobe = false">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+        <EarthGlobe :traces="diaryTraces" />
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -216,7 +241,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Navbar from '../components/Navbar.vue'
 import SmartDiaryEditor from '../components/SmartDiaryEditor.vue'
+import EarthGlobe from '../components/EarthGlobe.vue'
 import { useDiaryStore } from '../stores/diary.js'
+import { globalCities } from '../data/globalCities.js'
 
 const router = useRouter()
 const diaryStore = useDiaryStore()
@@ -226,6 +253,7 @@ const searchQuery = ref('')
 const filterType = ref('all')
 const sortBy = ref('newest')
 const showCreateModal = ref(false)
+const showEarthGlobe = ref(false)
 const isEditing = ref(false)
 const editingId = ref(null)
 
@@ -256,6 +284,7 @@ onMounted(() => {
     return
   }
   diaryStore.fetchDiaries()
+  diaryStore.fetchFootprints()
 })
 
 // 过滤和排序日记
@@ -293,6 +322,22 @@ const filteredDiaries = computed(() => {
   }
   
   return result
+})
+
+
+
+const diaryTraces = computed(() => {
+  return diaryStore.footprints.map(fp => {
+    const cityData = globalCities.find(c => c.name === fp.name)
+    return {
+      ...fp,
+      lat: cityData?.lat || 0,
+      lng: cityData?.lng || 0,
+      country: cityData?.country || '',
+      province: cityData?.province || '',
+      visitCount: fp.diaries.length
+    }
+  }).filter(fp => fp.lat !== 0 || fp.lng !== 0)
 })
 
 // 获取类型标签
@@ -1291,6 +1336,162 @@ const handleDelete = async (diaryId) => {
   .editor-modal {
     max-width: 100%;
     margin: 10px;
+  }
+}
+
+/* 旅行印痕入口 */
+.earth-trace-entry {
+  position: relative;
+  margin: 24px 0;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.12), rgba(123, 44, 191, 0.12));
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+.earth-trace-entry:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0, 212, 255, 0.5);
+  box-shadow: 0 12px 40px rgba(0, 212, 255, 0.25);
+}
+
+.earth-entry-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.earth-entry-icon {
+  font-size: 40px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.earth-entry-text {
+  flex: 1;
+}
+
+.earth-entry-text h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 6px 0;
+}
+
+.earth-entry-text p {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.earth-entry-arrow {
+  font-size: 24px;
+  color: #00d4ff;
+  transition: all 0.3s ease;
+}
+
+.earth-trace-entry:hover .earth-entry-arrow {
+  transform: translateX(8px);
+}
+
+.earth-entry-glow {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(0, 212, 255, 0.15) 0%, transparent 50%);
+  animation: glow-rotate 10s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 地球弹窗 */
+.earth-globe-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: #050510;
+}
+
+.close-earth-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.close-earth-btn:hover {
+  background: rgba(255, 71, 87, 0.2);
+  border-color: rgba(255, 71, 87, 0.3);
+}
+
+/* 弹窗过渡动画 */
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .earth-trace-entry {
+    margin: 16px 0;
+    padding: 20px;
+  }
+  
+  .earth-entry-icon {
+    font-size: 32px;
+  }
+  
+  .earth-entry-text h3 {
+    font-size: 16px;
+  }
+  
+  .earth-entry-text p {
+    font-size: 13px;
+  }
+  
+  .earth-entry-arrow {
+    font-size: 20px;
+  }
+  
+  .close-earth-btn {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
   }
 }
 </style>

@@ -39,3 +39,17 @@ node_modules/
 dist/
 .vite/
 .env
+
+# Python 编译缓存
+__pycache__/
+*.pyc
+
+# 前端依赖和 Vite 缓存
+node_modules/
+.vite/
+
+# 数据库文件（如果是本地测试库，建议忽略）
+backend/data/travel.db
+
+# Vite 临时时间戳文件
+*.mjs

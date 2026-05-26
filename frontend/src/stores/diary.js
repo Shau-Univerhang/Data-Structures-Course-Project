@@ -11,6 +11,7 @@ export const useDiaryStore = defineStore('diary', () => {
     total: 0,
     byType: { travel: 0, food: 0, photo: 0, notes: 0 }
   })
+  const footprints = ref([])
   const loading = ref(false)
 
   // Getters
@@ -104,6 +105,20 @@ export const useDiaryStore = defineStore('diary', () => {
       console.error('Error fetching diaries:', error)
     } finally {
       loading.value = false
+    }
+  }
+
+  // 获取用户的印痕数据
+  const fetchFootprints = async () => {
+    if (!currentUser.value?.id) return
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/diaries/footprints?user_id=${currentUser.value.id}`)
+      if (response.ok) {
+        footprints.value = await response.json()
+      }
+    } catch (error) {
+      console.error('Error fetching footprints:', error)
     }
   }
 
@@ -240,6 +255,7 @@ export const useDiaryStore = defineStore('diary', () => {
     currentUser,
     diaryList,
     diaryStats,
+    footprints,
     loading,
     // Getters
     hasDiaries,
@@ -250,6 +266,7 @@ export const useDiaryStore = defineStore('diary', () => {
     setCurrentUser,
     clearData,
     fetchDiaries,
+    fetchFootprints,
     createDiary,
     addDiary,
     updateDiary,

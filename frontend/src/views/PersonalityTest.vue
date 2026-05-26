@@ -83,6 +83,9 @@
       <!-- 结果页面 -->
       <div v-else-if="step === 'result' && result" class="result-section">
         <div class="result-card">
+          <div class="character-wrapper" v-if="personaConfig">
+            <PersonaSVG :config="personaConfig" />
+          </div>
           <div class="result-code">{{ result.type_code }}</div>
           <h1 class="result-name">{{ result.name }}</h1>
           <p class="result-tagline">"{{ result.tagline }}"</p>
@@ -154,7 +157,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
+import PersonaSVG from '../components/personas/PersonaSVG.vue'
 import { API } from '../api'
+import { getPersonaById } from '../components/personas/config.js'
 
 const router = useRouter()
 const step = ref('intro')
@@ -163,6 +168,11 @@ const answers = ref([])
 const currentIndex = ref(0)
 const result = ref(null)
 const loading = ref(false)
+
+const personaConfig = computed(() => {
+  if (!result.value?.type_code) return null
+  return getPersonaById(result.value.type_code)
+})
 
 const currentQuestion = computed(() => {
   return questions.value[currentIndex.value] || null
@@ -482,6 +492,12 @@ const retakeTest = () => {
   border-radius: 24px;
   padding: 40px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.character-wrapper {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 .result-code {

@@ -24,6 +24,10 @@ export const API = {
     },
     search: (q, city) => fetchJSON(`${API_BASE_URL}/api/spots/search?q=${encodeURIComponent(q || '')}&city=${encodeURIComponent(city || '')}`),
     get: (id) => fetchJSON(`${API_BASE_URL}/api/spots/${id}`),
+    getNearbyRestaurants: (params = {}) => {
+      const query = new URLSearchParams(params).toString()
+      return fetchJSON(`${API_BASE_URL}/api/spots/restaurants/nearby${query ? '?' + query : ''}`)
+    },
   },
   
   // 行程相关

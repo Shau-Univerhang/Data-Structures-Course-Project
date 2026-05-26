@@ -28,69 +28,164 @@
           </div>
         </div>
 
-        <!-- 当前天的景点列表（可拖拽） -->
-        <div class="spots-container">
-          <div class="spots-header">
-            <h3>第{{ selectedDay }}天行程</h3>
-            <button class="add-spot-btn" @click="showAddSpotModal">
-              <span>+</span> 添加景点
-            </button>
+        <!-- 行程与美食可滚动区域 -->
+        <div class="scrollable-sections">
+          <!-- 当前天的景点列表（可拖拽） -->
+          <div class="spots-container">
+            <div class="spots-header">
+              <h3>第{{ selectedDay }}天行程</h3>
+              <button class="add-spot-btn" @click="showAddSpotModal">
+                <span>+</span> 添加景点
+              </button>
+            </div>
+
+            <draggable
+              v-model="currentDaySpots"
+              item-key="id"
+              class="spots-list"
+              ghost-class="spot-ghost"
+              drag-class="spot-dragging"
+              :animation="200"
+              :delay="0"
+              :delay-on-touch-only="true"
+              @end="onDragEnd"
+            >
+              <template #item="{ element: spot, index }">
+                <div
+                  class="spot-card"
+                  title="按住拖动可调整顺序"
+                  @click="focusSpot(spot)"
+                >
+                  <div class="drag-handle">
+                    <span class="drag-icon">⋮⋮</span>
+                  </div>
+                  <div class="spot-order">{{ index + 1 }}</div>
+                  <div class="spot-image">
+                    <img :src="getFullImageUrl(spot.image)" :alt="spot.name" />
+                  </div>
+                  <div class="spot-info">
+                    <h4 class="spot-name">{{ spot.name }}</h4>
+                    <div class="spot-meta">
+                      <span class="spot-rating"
+                        >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
+                      >
+                      <span class="spot-duration"
+                        >⏱️ {{ spot.duration || "2 小时" }}</span
+                      >
+                    </div>
+                    <div class="spot-tags" v-if="spot.tags?.length">
+                      <span
+                        v-for="tag in spot.tags.slice(0, 2)"
+                        :key="tag"
+                        class="tag"
+                        >{{ tag }}</span
+                      >
+                    </div>
+                  </div>
+                  <button class="delete-btn" @click="removeSpot(index)">
+                    <span>×</span>
+                  </button>
+                </div>
+              </template>
+            </draggable>
+
+            <!-- 空状态 -->
+            <div v-if="currentDaySpots.length === 0" class="empty-state">
+              <div class="empty-icon">🗺️</div>
+              <p>暂无景点，点击上方按钮添加</p>
+            </div>
           </div>
 
-          <draggable
-            v-model="currentDaySpots"
-            item-key="id"
-            class="spots-list"
-            ghost-class="spot-ghost"
-            drag-class="spot-dragging"
-            :animation="200"
-            :delay="0"
-            :delay-on-touch-only="true"
-            @end="onDragEnd"
-          >
-            <template #item="{ element: spot, index }">
-              <div
-                class="spot-card"
-                title="按住拖动可调整顺序"
-                @click="focusSpot(spot)"
-              >
-                <div class="drag-handle">
-                  <span class="drag-icon">⋮⋮</span>
-                </div>
-                <div class="spot-order">{{ index + 1 }}</div>
-                <div class="spot-image">
-                  <img :src="getFullImageUrl(spot.image)" :alt="spot.name" />
-                </div>
-                <div class="spot-info">
-                  <h4 class="spot-name">{{ spot.name }}</h4>
-                  <div class="spot-meta">
-                    <span class="spot-rating"
-                      >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
-                    >
-                    <span class="spot-duration"
-                      >⏱️ {{ spot.duration || "2 小时" }}</span
-                    >
-                  </div>
-                  <div class="spot-tags" v-if="spot.tags?.length">
-                    <span
-                      v-for="tag in spot.tags.slice(0, 2)"
-                      :key="tag"
-                      class="tag"
-                      >{{ tag }}</span
-                    >
-                  </div>
-                </div>
-                <button class="delete-btn" @click="removeSpot(index)">
-                  <span>×</span>
+          <!-- 附近美食 -->
+          <div class="food-panel">
+            <div class="food-panel-header">
+              <div>
+                <h3>附近美食</h3>
+                <p v-if="activeFoodSpot" class="food-panel-subtitle">
+                  {{ activeFoodSpot.name }} 附近商家
+                </p>
+                <p v-else class="food-panel-subtitle">点击景点后查看附近美食</p>
+              </div>
+            </div>
+
+            <div class="food-panel-controls">
+              <input
+                v-model="foodKeyword"
+                type="text"
+                placeholder="搜索美食名称、菜系或饭店名称"
+                class="search-input"
+                :disabled="!activeFoodSpot"
+              />
+              <div class="food-sort-group">
+                <button
+                  v-for="option in [
+                    { label: '距离', value: 'distance' },
+                    { label: '评分', value: 'rating' },
+                    { label: '热度', value: 'popularity' },
+                  ]"
+                  :key="option.value"
+                  class="food-sort-btn"
+                  :class="{ active: foodSortBy === option.value }"
+                  :disabled="!activeFoodSpot"
+                  @click="foodSortBy = option.value"
+                >
+                  {{ option.label }}
                 </button>
               </div>
-            </template>
-          </draggable>
+              <div class="food-cuisine-list">
+                <button
+                  class="food-cuisine-chip"
+                  :class="{ active: selectedCuisine === '全部' }"
+                  :disabled="!activeFoodSpot"
+                  @click="selectedCuisine = '全部'"
+                >
+                  全部
+                </button>
+                <button
+                  v-for="cuisine in foodCuisineOptions"
+                  :key="cuisine"
+                  class="food-cuisine-chip"
+                  :class="{ active: selectedCuisine === cuisine }"
+                  :disabled="!activeFoodSpot"
+                  @click="selectedCuisine = cuisine"
+                >
+                  {{ cuisine }}
+                </button>
+              </div>
+            </div>
 
-          <!-- 空状态 -->
-          <div v-if="currentDaySpots.length === 0" class="empty-state">
-            <div class="empty-icon">🗺️</div>
-            <p>暂无景点，点击上方按钮添加</p>
+            <div class="food-list-scrollable">
+              <div v-if="foodLoading" class="food-panel-empty">附近美食加载中...</div>
+              <div v-else-if="foodError" class="food-panel-empty">{{ foodError }}</div>
+              <div v-else-if="!activeFoodSpot" class="food-panel-empty">
+                选中左侧景点后，这里会显示附近美食。
+              </div>
+              <div v-else-if="nearbyFoods.length === 0" class="food-panel-empty">
+                暂无匹配的美食商家。
+              </div>
+              <div v-else class="food-list">
+                <button
+                  v-for="food in nearbyFoods"
+                  :key="food.id"
+                  class="food-item"
+                  :class="{ active: activeFoodId === food.id }"
+                  @click="focusFood(food)"
+                >
+                  <div class="food-item-main">
+                    <strong>{{ food.name }}</strong>
+                    <span class="food-item-cuisine">{{ food.cuisine_type || '未知菜系' }}</span>
+                  </div>
+                  <div class="food-item-meta">
+                    <span>⭐ {{ Number(food.rating || 0).toFixed(1) }}</span>
+                    <span>🔥 {{ food.heat_score || 0 }}</span>
+                    <span>📍 {{ Math.round(food.distance_m || 0) }}米</span>
+                  </div>
+                  <div v-if="food.matched_fields?.length" class="food-item-match">
+                    匹配字段：{{ food.matched_fields.join(' / ') }}
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -225,7 +320,7 @@ import draggable from "vuedraggable";
 import AMapLoader from "@amap/amap-jsapi-loader";
 import { buildGraphFromSpots, haversineDistance, TransportType } from "@/pathfinder/graph.js";
 import { dijkstra, reconstructPath } from "@/pathfinder/dijkstra.js";
-import { solveTSP, buildCostMatrix } from "@/pathfinder/tsp.js";
+import { API } from "../api";
 
 const router = useRouter();
 const route = useRoute();
@@ -258,10 +353,21 @@ const daySpotsMap = ref({});
 
 // 高德地图相关
 const map = shallowRef(null);
-let markers = [];
-let polylines = [];
+let routeMarkers = [];
+let routePolylines = [];
+let foodMarkers = [];
 let trafficLayer = null;
 let drivingPlugin = null;
+
+const activeFoodSpot = ref(null);
+const foodKeyword = ref("");
+const selectedCuisine = ref("全部");
+const foodSortBy = ref("distance");
+const nearbyFoods = ref([]);
+const foodCuisineOptions = ref([]);
+const foodLoading = ref(false);
+const foodError = ref("");
+const activeFoodId = ref(null);
 
 // 算法控制状态
 const currentTransport = ref(TransportType.WALK);
@@ -944,6 +1050,128 @@ const getRoadPath = (from, to) => {
   });
 };
 
+const getVisibleMarkers = () => [...routeMarkers, ...foodMarkers];
+
+const clearRouteOverlays = () => {
+  routeMarkers.forEach((marker) => marker.setMap(null));
+  routePolylines.forEach((polyline) => polyline.setMap(null));
+  routeMarkers = [];
+  routePolylines = [];
+};
+
+const clearFoodMarkers = () => {
+  foodMarkers.forEach((marker) => marker.setMap(null));
+  foodMarkers = [];
+};
+
+const clearNearbyFoods = ({ clearFilters = false } = {}) => {
+  activeFoodSpot.value = null;
+  nearbyFoods.value = [];
+  foodCuisineOptions.value = [];
+  foodError.value = "";
+  foodLoading.value = false;
+  activeFoodId.value = null;
+  clearFoodMarkers();
+
+  if (clearFilters) {
+    foodKeyword.value = "";
+    selectedCuisine.value = "全部";
+    foodSortBy.value = "distance";
+  }
+};
+
+const renderFoodMarkers = () => {
+  if (!map.value || !window.AMap) return;
+
+  clearFoodMarkers();
+  nearbyFoods.value.forEach((food) => {
+    const position = getValidLngLat(food);
+    if (!position) return;
+
+    const marker = new window.AMap.Marker({
+      position,
+      content: '<div class="food-marker">🍜</div>',
+      offset: new window.AMap.Pixel(-14, -14),
+      zIndex: 120,
+    });
+
+    const infoWindow = new window.AMap.InfoWindow({
+      content: `<div style="padding:10px"><h4>${food.name}</h4><p>${food.cuisine_type || "未知菜系"}</p><p>⭐ ${Number(food.rating || 0).toFixed(1)} · 🔥 ${food.heat_score || 0}</p><p>📍 ${Math.round(food.distance_m || 0)} 米</p></div>`,
+      offset: new window.AMap.Pixel(0, -18),
+    });
+
+    marker.on("click", () => {
+      activeFoodId.value = food.id;
+      infoWindow.open(map.value, marker.getPosition());
+    });
+
+    marker.__restaurantId = food.id;
+    marker.__infoWindow = infoWindow;
+    marker.setMap(map.value);
+    foodMarkers.push(marker);
+  });
+};
+
+const fetchNearbyFoods = async (spot = activeFoodSpot.value) => {
+  if (!spot?.id) return;
+
+  const requestSpotId = spot.id;
+  activeFoodSpot.value = spot;
+  foodLoading.value = true;
+  foodError.value = "";
+
+  try {
+    const data = await API.spots.getNearbyRestaurants({
+      spot_id: spot.id,
+      sort_by: foodSortBy.value,
+      cuisine: selectedCuisine.value === "全部" ? "" : selectedCuisine.value,
+      keyword: foodKeyword.value.trim(),
+      top_k: 10,
+    });
+
+    if (activeFoodSpot.value?.id !== requestSpotId) {
+      return;
+    }
+
+    nearbyFoods.value = data.restaurants || [];
+    foodCuisineOptions.value = data.cuisine_options || [];
+
+    if (
+      selectedCuisine.value !== "全部" &&
+      !foodCuisineOptions.value.includes(selectedCuisine.value)
+    ) {
+      selectedCuisine.value = "全部";
+      return;
+    }
+
+    activeFoodId.value = nearbyFoods.value[0]?.id || null;
+    renderFoodMarkers();
+  } catch (error) {
+    if (activeFoodSpot.value?.id !== requestSpotId) {
+      return;
+    }
+
+    console.error("获取附近美食失败:", error);
+    nearbyFoods.value = [];
+    foodCuisineOptions.value = [];
+    activeFoodId.value = null;
+    clearFoodMarkers();
+    foodError.value = "附近美食加载失败，请重试";
+  } finally {
+    if (activeFoodSpot.value?.id === requestSpotId) {
+      foodLoading.value = false;
+    }
+  }
+};
+
+const focusFood = (food) => {
+  const position = getValidLngLat(food);
+  if (!map.value || !position) return;
+
+  activeFoodId.value = food.id;
+  map.value.setZoomAndCenter(17, position, true);
+};
+
 /**
  * 更新地图路线
  * 决策层：自研 Dijkstra 算法（权重 = 距离 / 速度×(1-拥挤度)）
@@ -952,9 +1180,7 @@ const getRoadPath = (from, to) => {
 const updateMapRoute = async () => {
   if (!map.value) return;
 
-  map.value.clearMap();
-  markers = [];
-  polylines = [];
+  clearRouteOverlays();
 
   const spots = currentDaySpots.value;
   if (spots.length === 0) return;
@@ -965,7 +1191,6 @@ const updateMapRoute = async () => {
 
   if (validSpots.length === 0) return;
 
-  // 绘制景点编号标记
   validSpots.forEach((spot, index) => {
     const marker = new AMap.Marker({
       position: spot.location,
@@ -974,7 +1199,7 @@ const updateMapRoute = async () => {
       zIndex: 110,
     });
     marker.setMap(map.value);
-    markers.push(marker);
+    routeMarkers.push(marker);
 
     const infoWindow = new AMap.InfoWindow({
       content: `<div style="padding:10px"><h4>${spot.name}</h4><p>⭐ ${spot.rating?.toFixed(1) || "4.5"}</p></div>`,
@@ -985,18 +1210,20 @@ const updateMapRoute = async () => {
 
   if (validSpots.length < 2) {
     routeInfo.value = null;
-    nextTick(() => map.value.setFitView(markers));
+    nextTick(() => {
+      const visibleMarkers = getVisibleMarkers();
+      if (visibleMarkers.length > 0) {
+        map.value.setFitView(visibleMarkers);
+      }
+    });
     return;
   }
 
-  // ── 自研算法决策层 ──
-  // 构建图，注入当前交通方式和拥挤度
   const graph = buildGraphFromSpots(validSpots, currentTransport.value);
   for (const edges of graph.adjList.values()) {
     edges.forEach((e) => { e.congestion = congestionLevel.value; });
   }
 
-  // Dijkstra 计算各段权重（时间代价），用于 routeInfo 统计
   let totalDistance = 0;
   let totalDuration = 0;
 
@@ -1007,8 +1234,6 @@ const updateMapRoute = async () => {
     totalDistance += haversineDistance(validSpots[i].location, validSpots[i + 1].location);
   }
 
-  // ── 可视化层：高德插件获取真实道路折线坐标 ──
-  // 逐段异步获取，然后拼接绘制
   const segPromises = [];
   for (let i = 0; i < validSpots.length - 1; i++) {
     segPromises.push(getRoadPath(validSpots[i].location, validSpots[i + 1].location));
@@ -1016,14 +1241,12 @@ const updateMapRoute = async () => {
 
   const segments = await Promise.all(segPromises);
 
-  // 拼接所有段坐标（去重连接点）
   const allCoords = [];
   segments.forEach((seg, i) => {
     if (i === 0) allCoords.push(...seg);
     else allCoords.push(...seg.slice(1));
   });
 
-  // 绘制真实道路折线（带方向箭头）
   const polyline = new AMap.Polyline({
     path: allCoords,
     strokeColor: "#00d4ff",
@@ -1034,14 +1257,19 @@ const updateMapRoute = async () => {
     lineCap: "round",
   });
   polyline.setMap(map.value);
-  polylines.push(polyline);
+  routePolylines.push(polyline);
 
   routeInfo.value = {
     distance: (totalDistance / 1000).toFixed(2),
     duration: Math.ceil(totalDuration),
   };
 
-  nextTick(() => { if (markers.length > 0) map.value.setFitView(markers); });
+  nextTick(() => {
+    const visibleMarkers = getVisibleMarkers();
+    if (visibleMarkers.length > 0) {
+      map.value.setFitView(visibleMarkers);
+    }
+  });
 };
 
 // 切换交通方式：先 TSP 重排景点顺序，再重绘真实路径
@@ -1112,10 +1340,12 @@ const runTSP = () => {
 // 清除地图覆盖物
 const clearMapOverlays = () => {
   if (map.value) {
-    map.value.clearMap();
+    clearRouteOverlays();
+    clearFoodMarkers();
+    if (trafficLayer && showTraffic.value) {
+      trafficLayer.setMap(map.value);
+    }
   }
-  markers = [];
-  polylines = [];
 };
 
 // 计算路线信息
@@ -1132,32 +1362,30 @@ const calculateRouteInfo = (path) => {
 };
 
 // 聚焦到指定景点
-const focusSpot = (spot) => {
-  if (!map.value || !spot.location) return;
+const focusSpot = async (spot) => {
+  const spotLocation = getValidLngLat(spot);
+  if (!map.value || !spotLocation) return;
 
-  // 根据景点类型和位置动态调整缩放级别
-  // 城市中心区域使用更大的缩放级别（17-18），郊区使用较小的缩放级别（15-16）
   let zoomLevel = 17;
 
-  // 对于某些特殊景点，使用更大的缩放级别
   const largeAreaSpots = ["博物馆", "公园", "广场", "古城", "遗址"];
   if (
     spot.tags?.some((tag) => largeAreaSpots.some((area) => tag.includes(area)))
   ) {
-    zoomLevel = 16; // 大型景点稍微缩小一点，展示全貌
+    zoomLevel = 16;
   }
 
-  // 放大到景点位置，使用平滑动画
-  // 第三个参数 true 表示使用动画过渡
-  map.value.setZoomAndCenter(zoomLevel, spot.location, true);
+  map.value.setZoomAndCenter(zoomLevel, spotLocation, true);
+  await fetchNearbyFoods({ ...spot, location: spotLocation });
 
-  console.log(`聚焦景点：${spot.name} [缩放级别：${zoomLevel}]`, spot.location);
+  console.log(`聚焦景点：${spot.name} [缩放级别：${zoomLevel}]`, spotLocation);
 };
 
 // 适应视图
 const fitView = () => {
-  if (!map.value || markers.length === 0) return;
-  map.value.setFitView(markers);
+  const visibleMarkers = getVisibleMarkers();
+  if (!map.value || visibleMarkers.length === 0) return;
+  map.value.setFitView(visibleMarkers);
 };
 
 // 切换路况
@@ -1184,16 +1412,19 @@ const toggleTraffic = () => {
 
 // 选择天数
 const selectDay = (day) => {
+  if (selectedDay.value === day) return;
   selectedDay.value = day;
-  nextTick(() => {
-    updateMapRoute();
-  });
 };
 
 // 拖拽结束
 const onDragEnd = (evt) => {
   console.log("拖拽结束", evt);
-  // 强制更新视图
+  if (
+    activeFoodSpot.value &&
+    !currentDaySpots.value.some((spot) => spot.id === activeFoodSpot.value.id)
+  ) {
+    clearNearbyFoods();
+  }
   nextTick(() => {
     updateMapRoute();
     ElMessage.success("顺序已更新");
@@ -1241,7 +1472,6 @@ const closeModal = () => {
 
 // 添加景点
 const addSpot = (spot) => {
-  // 创建新数组而不是直接修改，以触发响应式更新
   currentDaySpots.value = [...currentDaySpots.value, spot];
   closeModal();
   nextTick(() => {
@@ -1253,10 +1483,14 @@ const addSpot = (spot) => {
 // 删除景点
 const removeSpot = (index) => {
   const spot = currentDaySpots.value[index];
+  const removingActiveFood = activeFoodSpot.value?.id === spot?.id;
   // 创建新数组而不是直接修改，以触发响应式更新
   const newSpots = [...currentDaySpots.value];
   newSpots.splice(index, 1);
   currentDaySpots.value = newSpots;
+  if (removingActiveFood) {
+    clearNearbyFoods();
+  }
   nextTick(() => {
     updateMapRoute();
   });
@@ -1389,18 +1623,25 @@ const saveTrip = async () => {
 
 // 监听当前天变化，更新地图
 watch(selectedDay, () => {
+  clearNearbyFoods();
   nextTick(() => {
     updateMapRoute();
   });
+});
+
+watch([foodKeyword, selectedCuisine, foodSortBy], () => {
+  if (!activeFoodSpot.value) return;
+  fetchNearbyFoods();
 });
 </script>
 
 <style scoped>
 .trip-detail-page {
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(180deg, #0a0a1a 0%, #1a1a2e 100%);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* 顶部导航 */
@@ -1464,6 +1705,16 @@ watch(selectedDay, () => {
   flex-direction: column;
   border-right: 1px solid var(--border-color);
   background: rgba(10, 10, 26, 0.5);
+  overflow: hidden;
+}
+
+/* 可滚动区域容器（行程 + 美食） */
+.scrollable-sections {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* 天数标签 */
@@ -1527,8 +1778,10 @@ watch(selectedDay, () => {
 /* 景点容器 */
 .spots-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 15px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .spots-header {
@@ -1723,6 +1976,167 @@ watch(selectedDay, () => {
   border-top: 1px solid var(--border-color);
   background: rgba(10, 10, 26, 0.8);
   flex-shrink: 0;
+}
+
+/* 美食面板 */
+.food-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: rgba(10, 10, 26, 0.72);
+  padding: 15px 15px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 美食列表可滚动区域 */
+.food-list-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.food-list-scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+
+.food-list-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.food-list-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* 景点容器滚动条 */
+.spots-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.spots-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.spots-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.food-panel-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.food-panel-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.food-panel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-sort-group,
+.food-cuisine-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.food-sort-btn,
+.food-cuisine-chip {
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.food-sort-btn.active,
+.food-cuisine-chip.active {
+  background: rgba(0, 212, 255, 0.16);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.food-sort-btn:disabled,
+.food-cuisine-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.food-panel-empty {
+  padding: 18px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.food-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.food-item:hover,
+.food-item.active {
+  border-color: var(--primary-color);
+  background: rgba(0, 212, 255, 0.08);
+}
+
+.food-item-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.food-item-cuisine,
+.food-item-match,
+.food-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.food-item-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+:global(.food-marker) {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff9f43, #ff6b6b);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .stat-item {

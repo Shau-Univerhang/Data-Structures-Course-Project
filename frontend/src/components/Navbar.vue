@@ -11,6 +11,7 @@
       <button class="nav-btn" :class="{ active: currentRoute === 'diary' }" @click="goDiary">日记</button>
       <button class="nav-btn" :class="{ active: currentRoute === 'ai' }" @click="goAI">AI助手</button>
       <button class="nav-btn" :class="{ active: currentRoute === 'presentation' }" @click="goPresentation">方案讲解</button>
+      <button class="nav-btn" :class="{ active: currentRoute === 'indoor' }" @click="goIndoor">室内导航</button>
       <button class="nav-btn" :class="{ active: currentRoute === 'profile' }" @click="goProfile">我的</button>
     </div>
   </nav>
@@ -35,6 +36,7 @@ const currentRoute = computed(() => {
   if (path === '/diary' || path === '/diary-library') return 'diary'
   if (path === '/ai') return 'ai'
   if (path === '/presentation') return 'presentation'
+  if (path === '/indoor') return 'indoor'
   if (path === '/profile' || path === '/setting' || path === '/photos' || path === '/collection') return 'profile'
   return ''
 })
@@ -72,6 +74,10 @@ const goAI = () => {
 
 const goPresentation = () => {
   router.push('/presentation')
+}
+
+const goIndoor = () => {
+  router.push('/indoor')
 }
 
 const goProfile = () => {

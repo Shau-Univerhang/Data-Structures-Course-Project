@@ -15,6 +15,9 @@
       <!-- 已测试状态 -->
       <div v-else-if="hasResult && result" class="result-display">
         <div class="result-header">
+          <div class="character-wrapper" v-if="personaConfig">
+            <PersonaSVG :config="personaConfig" />
+          </div>
           <div class="result-code">{{ result.type_code }}</div>
           <h1 class="result-name">{{ result.name }}</h1>
           <p class="result-tagline">"{{ result.tagline }}"</p>
@@ -97,15 +100,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
+import PersonaSVG from '../components/personas/PersonaSVG.vue'
 import { API } from '../api'
+import { getPersonaById } from '../components/personas/config.js'
 
 const router = useRouter()
 const hasResult = ref(false)
 const result = ref(null)
 const loading = ref(true)
+
+const personaConfig = computed(() => {
+  if (!result.value?.type_code) return null
+  return getPersonaById(result.value.type_code)
+})
 
 onMounted(async () => {
   await loadResult()
@@ -232,6 +242,12 @@ const shareResult = () => {
   border-radius: 24px;
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.character-wrapper {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
 }
 
 .result-code {

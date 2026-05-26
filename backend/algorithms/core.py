@@ -7,6 +7,7 @@
 5. 无损压缩算法
 """
 import heapq
+import math
 from typing import Dict, List, Tuple, Optional
 from itertools import permutations
 import gzip
@@ -55,6 +56,28 @@ def top_k_spots(spots: List[dict], k: int = 50, sort_by: str = 'heat') -> List[d
 def top_k_restaurants(restaurants: List[dict], k: int = 10) -> List[dict]:
     """餐厅Top K排序（使用部分排序）"""
     return top_k_spots(restaurants, k, sort_by='composite')
+
+
+def top_k_restaurants_by_sort(restaurants: List[dict], k: int = 10, sort_by: str = 'composite') -> List[dict]:
+    """按指定维度对餐厅做 Top K 排序。"""
+    return top_k_spots(restaurants, k, sort_by=sort_by)
+
+
+def haversine_distance_m(lng1: float, lat1: float, lng2: float, lat2: float) -> float:
+    """计算两点之间的球面距离，单位米。"""
+    earth_radius_m = 6371000
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lng2 - lng1)
+
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_m * c
 
 
 # ==================== 2. 最短路径算法（Dijkstra）====================
@@ -470,6 +493,32 @@ def fuzzy_search_spots(spots: List[dict], query: str, threshold: float = 0.5) ->
         spot['_match_score'] = score
         result.append(spot)
     
+    return result
+
+
+def fuzzy_search_restaurants(restaurants: List[dict], query: str, threshold: float = 0.5) -> List[dict]:
+    """模糊搜索餐厅。"""
+    if not query:
+        return restaurants
+
+    candidates = [r.get('name', '') for r in restaurants if r.get('name')]
+    matches = fuzzy_search(query, candidates, threshold)
+
+    name_to_restaurant = {}
+    for restaurant in restaurants:
+        name = restaurant.get('name')
+        if name and name not in name_to_restaurant:
+            name_to_restaurant[name] = restaurant
+
+    result = []
+    for name, score in matches:
+        restaurant = name_to_restaurant.get(name)
+        if not restaurant:
+            continue
+        item = restaurant.copy()
+        item['_match_score'] = score
+        result.append(item)
+
     return result
 
 

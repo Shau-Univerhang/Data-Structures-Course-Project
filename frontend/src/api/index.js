@@ -55,6 +55,11 @@ export const API = {
       body: JSON.stringify(data)
     }),
     chat: (message) => fetchJSON(`${API_BASE_URL}/api/ai/chat?message=${encodeURIComponent(message)}`),
+    tourGuide: (spotId, style = 'rational') => fetchJSON(`${API_BASE_URL}/api/ai/tour-guide`, {
+      method: 'POST',
+      body: JSON.stringify({ spot_id: spotId, style })
+    }),
+    getTourGuide: (spotId) => fetchJSON(`${API_BASE_URL}/api/ai/tour-guide/${spotId}`),
   },
   
   // 日记

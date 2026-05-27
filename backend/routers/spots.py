@@ -247,7 +247,16 @@ SPOT_IMAGES = {
     '前门大街': ['/images/spots/beijing/beijing_qianmendajie.jpg'],
     '环球影城': ['/images/spots/beijing/beijing_huanqiuyingcheng.jpg'],
     '军事博物馆': ['/images/spots/beijing/beijing_junshibowuguan.jpg'],
-    '国家博物馆': ['/images/spots/beijing/beijing_guojiabowuguan.jpg'],
+    '国家博物馆': [
+        '/images/spots/beijing/beijing_guojiabowuguan_01.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_02.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_03.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_04.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_05.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_06.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_07.jpg',
+        '/images/spots/beijing/beijing_guojiabowuguan_08.jpg',
+    ],
     '人民大会堂': ['/images/spots/beijing/beijing_renmindahuitang.jpg'],
     '地坛公园': ['/images/spots/beijing/beijing_ditangongyuan.jpg'],
     '北京鼓楼': ['/images/spots/beijing/beijing_gulou.jpg'],
@@ -736,9 +745,10 @@ def recommend_spots(
     preferences: str = Query("", description="偏好标签，逗号分隔"),
     user_id: int = Query(None, description="用户ID，用于人格匹配"),
     k: int = Query(50, ge=1, le=100, description="返回数量"),
+    keyword: str = Query(None, description="模糊搜索关键词"),
     db: Session = Depends(get_db)
 ):
-    """推荐景点（使用Top K部分排序算法，支持人格匹配加分）"""
+    """推荐景点（使用Top K部分排序算法，支持人格匹配加分和模糊搜索）"""
     query = db.query(ScenicSpot).filter(ScenicSpot.city == city)
     spots = query.all()
 
@@ -782,6 +792,12 @@ def recommend_spots(
             'tags': spot_tags
         })
 
+    if keyword:
+        spots_data = fuzzy_search_spots(spots_data, keyword)
+
+    if not spots_data:
+        return {"total": 0, "spots": []}
+
     # 推荐排序算法
     # score = 偏好权重 * 匹配到的偏好个数 + 收藏权重 * 收藏人数 + 评分权重 * 平均评分 + 人格匹配权重
     pref_list = [p.strip() for p in preferences.split(',')] if preferences else []
@@ -822,8 +838,11 @@ def recommend_spots(
         spot['matched_prefs'] = matched_prefs
         spot['is_personality_match'] = is_personality_match
 
-    # 按分数排序（降序）
-    spots_data.sort(key=lambda x: x['score'], reverse=True)
+    # 按分数排序（降序）；如果有关键词搜索，优先按匹配精度排序
+    if keyword:
+        spots_data.sort(key=lambda x: (x.get('_match_priority', 3), -x['score']))
+    else:
+        spots_data.sort(key=lambda x: x['score'], reverse=True)
 
     # 返回前k个结果
     result = spots_data[:k]

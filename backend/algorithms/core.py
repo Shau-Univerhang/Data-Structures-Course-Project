@@ -439,42 +439,49 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
-def fuzzy_search(query: str, candidates: List[str], threshold: float = 0.6) -> List[Tuple[str, float]]:
+def fuzzy_search(query: str, candidates: List[str], threshold: float = 0.6) -> List[Tuple[str, float, int]]:
     """
     模糊搜索
     返回匹配度高于阈值的结果
-    
+
     Args:
         query: 查询字符串
         candidates: 候选列表
         threshold: 相似度阈值
-    
+
     Returns:
-        [(匹配项, 相似度), ...]
+        [(匹配项, 相似度, 匹配优先级), ...]
+        优先级: 0=完全匹配, 1=前缀匹配, 2=子串匹配, 3=模糊匹配
     """
     results = []
     query_lower = query.lower().strip()
-    
+    query_len = len(query_lower)
+
     if not query_lower:
         return []
-    
+
     for candidate in candidates:
         candidate_lower = candidate.lower()
-        
-        # 完全匹配（子串）
-        if query_lower in candidate_lower:
+
+        if query_lower == candidate_lower:
             score = 1.0
+            priority = 0
+        elif candidate_lower.startswith(query_lower):
+            score = 1.0
+            priority = 1
+        elif query_lower in candidate_lower:
+            score = 1.0
+            priority = 2
         else:
-            # 计算编辑距离相似度
             distance = levenshtein_distance(query_lower, candidate_lower)
-            max_len = max(len(query_lower), len(candidate_lower))
+            max_len = max(query_len, len(candidate_lower))
             score = 1 - (distance / max_len) if max_len > 0 else 0
-        
+            priority = 3
+
         if score >= threshold:
-            results.append((candidate, score))
-    
-    # 按相似度降序排序
-    return sorted(results, key=lambda x: x[1], reverse=True)
+            results.append((candidate, score, priority))
+
+    return sorted(results, key=lambda x: (x[2], -x[1]))
 
 
 def fuzzy_search_spots(spots: List[dict], query: str, threshold: float = 0.5) -> List[dict]:
@@ -488,9 +495,10 @@ def fuzzy_search_spots(spots: List[dict], query: str, threshold: float = 0.5) ->
     # 构建结果
     name_to_spot = {s['name']: s for s in spots}
     result = []
-    for name, score in matches:
+    for name, score, priority in matches:
         spot = name_to_spot[name].copy()
         spot['_match_score'] = score
+        spot['_match_priority'] = priority
         result.append(spot)
     
     return result
@@ -511,12 +519,13 @@ def fuzzy_search_restaurants(restaurants: List[dict], query: str, threshold: flo
             name_to_restaurant[name] = restaurant
 
     result = []
-    for name, score in matches:
+    for name, score, priority in matches:
         restaurant = name_to_restaurant.get(name)
         if not restaurant:
             continue
         item = restaurant.copy()
         item['_match_score'] = score
+        item['_match_priority'] = priority
         result.append(item)
 
     return result

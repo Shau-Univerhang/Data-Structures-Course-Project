@@ -342,6 +342,23 @@ class TravelPersonalityResult(Base):
     updated_at = Column(String, default=datetime.now().isoformat)
 
 
+class TourGuide(Base):
+    """AI语音导游词缓存表"""
+    __tablename__ = "tour_guides"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id", ondelete="CASCADE"), nullable=False)
+    style = Column(String(20), nullable=False)  # rational / emotional / foodie
+    text = Column(Text, nullable=False)  # 导游词文本
+    audio_data = Column(BLOB)  # MP3音频二进制数据
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
+
+    __table_args__ = (
+        UniqueConstraint('spot_id', 'style', name='unique_tour_guide_spot_style'),
+    )
+
+
 # 数据库初始化
 engine = create_engine(f'sqlite:///{DB_PATH}', echo=False)
 Base.metadata.create_all(engine)

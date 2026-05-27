@@ -2,6 +2,7 @@
 AI接口 - 使用MiniMax API (M2.5模型)
 """
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -9,9 +10,10 @@ import requests
 import json
 import sys
 import re
+import base64
 sys.path.append("..")
 
-from models.database import get_db, ScenicSpot, Trip, TripDailySchedule
+from models.database import get_db, ScenicSpot, Trip, TripDailySchedule, Restaurant, TourGuide
 from routers.spots import parse_tags
 
 router = APIRouter()
@@ -19,8 +21,24 @@ router = APIRouter()
 import os
 
 # MiniMax API配置
-MINIMAX_API_KEY = "sk-cp-eENF_3JXbnNR0MFbfGZJqpW6Yxq-W6Qt_9YjNoI5EFCL63wekVwj0y3z1OJdugX17zIGqN51KDheUiJCp3MnrC_LJlAuOpgah92L-r4YEED2Y7h31-tTtPc"
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
 MINIMAX_API_BASE = "https://api.minimax.chat"
+
+# AI导游 LLM配置 (deepseek-v4-pro)
+TOUR_GUIDE_LLM_KEY = os.getenv("TOUR_GUIDE_LLM_KEY", "")
+TOUR_GUIDE_LLM_BASE = os.getenv("TOUR_GUIDE_LLM_BASE", "https://api.deepseek.com")
+TOUR_GUIDE_LLM_MODEL = os.getenv("TOUR_GUIDE_LLM_MODEL", "deepseek-v4-pro")
+
+# AI导游 TTS配置 (火山引擎语音合成)
+TTS_API_KEY = os.getenv("TTS_API_KEY", "")
+TTS_RESOURCE_ID = os.getenv("TTS_RESOURCE_ID", "seed-tts-2.0")
+TTS_ENDPOINT = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
+
+TTS_STYLE_SPEAKERS = {
+    "rational": "zh_female_xiaohe_uranus_bigtts",
+    "emotional": "zh_female_jiaochuannv_uranus_bigtts",
+    "foodie": "zh_male_zhubajie_uranus_bigtts",
+}
 
 
 # Pydantic模型
@@ -40,6 +58,11 @@ class GenerateGuideRequest(BaseModel):
 class XiaohongshuParseRequest(BaseModel):
     url: str
     content: Optional[str] = None
+
+
+class TourGuideRequest(BaseModel):
+    spot_id: int
+    style: str = "rational"  # rational, emotional, foodie
 
 
 def call_minimax(prompt: str, temperature: float = 0.7) -> str:
@@ -613,3 +636,213 @@ def recommend_destinations(
             {"city": "北京", "reason": "历史文化名城", "best_season": "春秋"}
         ]
     }
+
+
+# ==================== AI语音导游 ====================
+
+TOUR_GUIDE_PROMPTS = {
+    "rational": """你是一位专业的历史文化导游，风格理性、严谨、数据驱动。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+
+要求：
+- 语言精炼、信息密度高
+- 重点介绍历史背景、建筑特色、文化价值
+- 引用具体数据（年代、面积、规模等）
+- 语气专业但不生硬，像一位博学的导游
+- 结尾用一句话总结这个景点的核心价值""",
+
+    "emotional": """你是一位擅长讲故事的文艺导游，风格感性、诗意、富有想象力。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+
+要求：
+- 用优美的语言描绘景点的意境和氛围
+- 加入有趣的传说、轶事或名人故事（可适度创作）
+- 激发听众的想象力和情感共鸣
+- 语气温暖亲切，像一位在讲故事的朋友
+- 结尾用一句诗意的句子收尾""",
+
+    "foodie": """你是一位热爱美食的旅行导游，风格活泼、接地气，对美食如数家珍。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+附近美食：{nearby_foods}
+
+要求：
+- 简要介绍景点亮点后，重点推荐周边美食
+- 提及具体的老字号、特色小吃、推荐菜品
+- 分享一些只有本地人知道的美食小秘密
+- 语气活泼有趣，像一位热情的吃货朋友
+- 结尾用一句"逛完记得犒劳自己"收尾"""
+}
+
+
+def call_llm(prompt: str, temperature: float = 0.8) -> str:
+    url = f"{TOUR_GUIDE_LLM_BASE}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {TOUR_GUIDE_LLM_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": TOUR_GUIDE_LLM_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 800,
+        "temperature": temperature
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        result = resp.json()
+        if 'choices' in result and len(result['choices']) > 0:
+            return result['choices'][0]['message']['content']
+        return f"LLM错误: {result}"
+    except Exception as e:
+        return f"LLM调用失败: {str(e)}"
+
+
+def call_tts(text: str, speaker: str = None) -> bytes:
+    if speaker is None:
+        speaker = TTS_STYLE_SPEAKERS["rational"]
+    headers = {
+        "x-api-key": TTS_API_KEY,
+        "X-Api-Resource-Id": TTS_RESOURCE_ID,
+        "Content-Type": "application/json"
+    }
+    additions = json.dumps({
+        "disable_markdown_filter": True,
+        "enable_language_detector": True,
+        "disable_default_bit_rate": True,
+        "max_length_to_filter_parenthesis": 0
+    })
+    body = {
+        "req_params": {
+            "text": text.strip(),
+            "speaker": speaker,
+            "additions": additions,
+            "audio_params": {
+                "format": "mp3",
+                "sample_rate": 24000
+            }
+        }
+    }
+    try:
+        resp = requests.post(TTS_ENDPOINT, headers=headers, json=body, timeout=120)
+        if resp.status_code != 200:
+            return None
+        ct = resp.headers.get('Content-Type', '')
+        if 'audio' in ct:
+            return resp.content
+        all_audio = bytearray()
+        for line in resp.text.split('\n'):
+            line = line.strip()
+            if not line or not line.startswith('{'):
+                continue
+            idx = line.find('"data":"')
+            if idx < 0:
+                continue
+            start = idx + len('"data":"')
+            end = line.find('"', start)
+            if end <= start:
+                continue
+            b64 = line[start:end]
+            try:
+                all_audio.extend(base64.b64decode(b64))
+            except Exception:
+                continue
+        return bytes(all_audio) if len(all_audio) > 0 else None
+    except Exception:
+        return None
+
+
+@router.post("/tour-guide")
+def generate_tour_guide(request: TourGuideRequest, db: Session = Depends(get_db)):
+    spot = db.query(ScenicSpot).filter(ScenicSpot.id == request.spot_id).first()
+    if not spot:
+        return {"error": "景点不存在"}
+
+    nearby_foods_list = db.query(Restaurant).filter(
+        Restaurant.spot_id == request.spot_id
+    ).limit(5).all()
+    nearby_foods = ", ".join([r.name for r in nearby_foods_list]) if nearby_foods_list else "暂无数据"
+
+    prompt_template = TOUR_GUIDE_PROMPTS.get(request.style, TOUR_GUIDE_PROMPTS["rational"])
+    prompt = prompt_template.format(
+        spot_name=spot.name,
+        spot_city=spot.city or "未知",
+        description=spot.description or "暂无描述",
+        tags=", ".join(parse_tags(spot.tags)) if spot.tags else "暂无",
+        open_time=spot.open_time or "全天开放",
+        ticket_price=spot.ticket_price or "免费",
+        nearby_foods=nearby_foods
+    )
+
+    guide_text = call_llm(prompt, temperature=0.8)
+
+    speaker = TTS_STYLE_SPEAKERS.get(request.style, TTS_STYLE_SPEAKERS["rational"])
+
+    audio_base64 = None
+    audio_bytes = None
+    if guide_text and not guide_text.startswith("LLM"):
+        audio_bytes = call_tts(guide_text, speaker)
+        if audio_bytes:
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+
+    existing = db.query(TourGuide).filter(
+        TourGuide.spot_id == request.spot_id,
+        TourGuide.style == request.style
+    ).first()
+
+    from datetime import datetime
+    now = datetime.now().isoformat()
+
+    if existing:
+        existing.text = guide_text
+        if audio_bytes:
+            existing.audio_data = audio_bytes
+        existing.updated_at = now
+    else:
+        new_guide = TourGuide(
+            spot_id=request.spot_id,
+            style=request.style,
+            text=guide_text,
+            audio_data=audio_bytes,
+            created_at=now,
+            updated_at=now
+        )
+        db.add(new_guide)
+    db.commit()
+
+    style_names = {"rational": "理性派", "emotional": "感性派", "foodie": "吃货派"}
+
+    return {
+        "text": guide_text,
+        "audio_base64": audio_base64,
+        "style": request.style,
+        "style_name": style_names.get(request.style, "理性派"),
+        "spot_name": spot.name
+    }
+
+
+@router.get("/tour-guide/{spot_id}")
+def get_tour_guide(spot_id: int, db: Session = Depends(get_db)):
+    guides = db.query(TourGuide).filter(TourGuide.spot_id == spot_id).all()
+    result = {}
+    style_names = {"rational": "理性派", "emotional": "感性派", "foodie": "吃货派"}
+    for g in guides:
+        result[g.style] = {
+            "text": g.text,
+            "audio_base64": base64.b64encode(g.audio_data).decode('utf-8') if g.audio_data else None,
+            "style_name": style_names.get(g.style, g.style)
+        }
+    return result

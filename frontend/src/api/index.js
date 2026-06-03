@@ -60,6 +60,11 @@ export const API = {
       body: JSON.stringify({ spot_id: spotId, style })
     }),
     getTourGuide: (spotId) => fetchJSON(`${API_BASE_URL}/api/ai/tour-guide/${spotId}`),
+    vlogGenerate: (tripId, userId = 1) => fetchJSON(`${API_BASE_URL}/api/ai/vlog/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ trip_id: tripId, user_id: userId })
+    }),
+    vlogStatus: (taskId) => fetchJSON(`${API_BASE_URL}/api/ai/vlog/status/${taskId}`),
   },
   
   // 日记

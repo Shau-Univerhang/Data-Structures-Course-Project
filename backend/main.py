@@ -37,6 +37,10 @@ app.add_middleware(
 images_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "images")
 app.mount("/images", StaticFiles(directory=images_dir), name="images")
 
+videos_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "videos")
+os.makedirs(videos_dir, exist_ok=True)
+app.mount("/videos", StaticFiles(directory=videos_dir), name="videos")
+
 # 注册路由
 app.include_router(spots.router, prefix="/api/spots", tags=["景点"])
 app.include_router(trips.router, prefix="/api/trips", tags=["行程"])

@@ -433,7 +433,7 @@ const spotImageMap = {
   '前门大街': '/images/spots/beijing/beijing_qianmendajie.jpg',
   '环球影城': '/images/spots/beijing/beijing_huanqiuyingcheng.jpg',
   '军事博物馆': '/images/spots/beijing/beijing_junshibowuguan.jpg',
-  '国家博物馆': '/images/spots/beijing/beijing_guojiabowuguan.jpg',
+  '国家博物馆': '/images/spots/beijing/beijing_guojiabowuguan_01.jpg',
   '人民大会堂': '/images/spots/beijing/beijing_renmindahuitang.jpg',
   '地坛公园': '/images/spots/beijing/beijing_ditangongyuan.jpg',
   '北京鼓楼': '/images/spots/beijing/beijing_gulou.jpg',

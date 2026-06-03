@@ -6,9 +6,14 @@
         <span class="back-icon">←</span>
       </button>
       <h1 class="page-title">{{ tripTitle }}</h1>
-      <button class="action-btn" @click="saveTrip">
-        {{ isFromAI ? "保存到我的行程" : "保存" }}
-      </button>
+      <div class="header-actions">
+        <button class="action-btn vlog-btn" @click="openVlogPanel">
+          🎬一键生成VLOG
+        </button>
+        <button class="action-btn" @click="saveTrip">
+          {{ isFromAI ? "保存到我的行程" : "保存" }}
+        </button>
+      </div>
     </header>
 
     <main class="main-content">
@@ -309,6 +314,45 @@
         </div>
       </div>
     </div>
+
+    <!-- VLOG生成面板 -->
+    <div v-if="showVlogPanel" class="vlog-overlay" @click.self="showVlogPanel = false">
+      <div class="vlog-panel">
+        <div class="vlog-header">
+          <h3>🎬 生成旅行VLOG</h3>
+          <button class="vlog-close" @click="closeVlogPanel">✕</button>
+        </div>
+
+        <div v-if="vlogStatus === 'idle'" class="vlog-idle">
+          <p>将为行程《{{ tripTitle }}》生成卡通动画风格旅行VLOG</p>
+          <p class="vlog-hint">需要该行程已上传照片</p>
+          <button class="vlog-start-btn" @click="startVlog">
+            <span>🎬</span> 开始生成
+          </button>
+        </div>
+
+        <div v-else-if="vlogStatus === 'running'" class="vlog-running">
+          <div class="vlog-spinner"></div>
+          <p class="vlog-status-text">{{ vlogStatusText }}</p>
+          <p class="vlog-progress">{{ vlogProgress }}</p>
+        </div>
+
+        <div v-else-if="vlogStatus === 'completed'" class="vlog-completed">
+          <p class="vlog-done">✅ VLOG生成完成！</p>
+          <video v-if="vlogUrl" :src="vlogUrl" controls class="vlog-player"></video>
+          <p v-else class="vlog-error-text">视频URL获取失败，请稍后重试</p>
+          <div class="vlog-actions">
+            <a v-if="vlogUrl" :href="vlogUrl" download class="vlog-download-btn">📥 下载</a>
+            <button class="vlog-retry-btn" @click="startVlog">🔄 重新生成</button>
+          </div>
+        </div>
+
+        <div v-else-if="vlogStatus === 'failed'" class="vlog-failed">
+          <p>❌ {{ vlogError || '生成失败，请稍后重试' }}</p>
+          <button class="vlog-retry-btn" @click="startVlog">🔄 重试</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -555,8 +599,8 @@ onMounted(async () => {
                 id: schedule.spot_id,
                 name: schedule.spot_name || spotDetail?.name || "未知景点",
                 image:
-                  schedule.spot_image ||
                   spotDetail?.images?.[0] ||
+                  schedule.spot_image ||
                   "/images/default-spot.jpg",
                 rating: spotDetail?.rating || schedule.spot_rating || 0,
                 duration: "2 小时",
@@ -1633,6 +1677,107 @@ watch([foodKeyword, selectedCuisine, foodSortBy], () => {
   if (!activeFoodSpot.value) return;
   fetchNearbyFoods();
 });
+// ==================== VLOG 生成 ====================
+
+const showVlogPanel = ref(false)
+const vlogStatus = ref('idle')  // idle | running | completed | failed
+const vlogStatusText = ref('')
+const vlogProgress = ref('')
+const vlogUrl = ref('')
+const vlogError = ref('')
+let vlogTaskId = null
+let vlogPollTimer = null
+
+const openVlogPanel = async () => {
+  showVlogPanel.value = true
+  vlogStatus.value = 'idle'
+  vlogError.value = ''
+
+  try {
+    const tid = parseInt(route.params.id)
+    if (tid) {
+      const resp = await fetch(`/api/ai/vlog/check/${tid}?user_id=1`)
+      const data = await resp.json()
+      if (data.has_vlog && data.vlog_url) {
+        vlogStatus.value = 'completed'
+        vlogUrl.value = data.vlog_url
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+const closeVlogPanel = () => {
+  showVlogPanel.value = false
+  if (vlogPollTimer) {
+    clearInterval(vlogPollTimer)
+    vlogPollTimer = null
+  }
+}
+
+const startVlog = async () => {
+  vlogStatus.value = 'running'
+  vlogStatusText.value = '正在创建任务...'
+  vlogProgress.value = ''
+  vlogUrl.value = ''
+  vlogError.value = ''
+
+  const tid = parseInt(route.params.id)
+  if (!tid) {
+    vlogStatus.value = 'failed'
+    vlogError.value = '无法获取行程ID，请刷新页面重试'
+    return
+  }
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
+    const resp = await fetch('/api/ai/vlog/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip_id: tid, user_id: 1 }),
+      signal: controller.signal
+    })
+    clearTimeout(timeout)
+    const data = await resp.json()
+
+    if (data.error) {
+      vlogStatus.value = 'failed'
+      vlogError.value = data.error
+      return
+    }
+
+    vlogTaskId = data.task_id
+    vlogPollTimer = setInterval(pollVlogStatus, 3000)
+  } catch (e) {
+    vlogStatus.value = 'failed'
+    vlogError.value = '网络错误，请稍后重试'
+  }
+}
+
+const pollVlogStatus = async () => {
+  try {
+    const resp = await fetch(`/api/ai/vlog/status/${vlogTaskId}`)
+    const data = await resp.json()
+
+    vlogStatusText.value = data.progress_text || data.status
+    vlogProgress.value = data.progress
+
+    if (data.status === 'completed') {
+      vlogStatus.value = 'completed'
+      vlogUrl.value = data.vlog_url || ''
+      vlogProgress.value = ''
+      clearInterval(vlogPollTimer)
+      vlogPollTimer = null
+    } else if (data.status === 'failed') {
+      vlogStatus.value = 'failed'
+      vlogError.value = data.error || '生成失败'
+      clearInterval(vlogPollTimer)
+      vlogPollTimer = null
+    }
+  } catch (e) {
+    // keep polling
+  }
+}
 </script>
 
 <style scoped>
@@ -1689,6 +1834,17 @@ watch([foodKeyword, selectedCuisine, foodSortBy], () => {
   padding: 8px 20px;
   border-radius: 20px;
   cursor: pointer;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.vlog-btn {
+  background: linear-gradient(135deg, #ff6b9d, #c44dff);
+  color: #fff;
 }
 
 /* 主内容区 - 左右分栏 */
@@ -2490,5 +2646,190 @@ watch([foodKeyword, selectedCuisine, foodSortBy], () => {
   .right-panel {
     height: 50vh;
   }
+}
+
+/* ========== VLOG 面板 ========== */
+.vlog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.vlog-panel {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 28px;
+  width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.vlog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.vlog-header h3 {
+  color: #fff;
+  font-size: 20px;
+  margin: 0;
+}
+
+.vlog-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.vlog-idle {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.vlog-idle p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.vlog-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.vlog-start-btn {
+  margin-top: 16px;
+  padding: 14px 36px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #ff6b9d, #c44dff);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.vlog-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(255, 107, 157, 0.4);
+}
+
+.vlog-running {
+  text-align: center;
+  padding: 30px 0;
+}
+
+.vlog-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #ff6b9d;
+  border-radius: 50%;
+  animation: vlogSpin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes vlogSpin {
+  to { transform: rotate(360deg); }
+}
+
+.vlog-status-text {
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.vlog-progress {
+  color: #ff6b9d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.vlog-completed {
+  text-align: center;
+}
+
+.vlog-done {
+  color: #4ade80;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.vlog-player {
+  width: 100%;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #000;
+}
+
+.vlog-playlist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  justify-content: center;
+}
+
+.vlog-segment-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vlog-segment-btn.active {
+  background: linear-gradient(135deg, #ff6b9d, #c44dff);
+  border-color: transparent;
+  color: #fff;
+}
+
+.vlog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.vlog-download-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #00d4ff, #0090ff);
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vlog-retry-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.vlog-failed {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.vlog-failed p {
+  color: #ff6b6b;
+  margin-bottom: 16px;
 }
 </style>

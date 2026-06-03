@@ -146,6 +146,7 @@ class Trip(Base):
     accommodation_lng = Column(Float)
     accommodation_address = Column(String(255))
     status = Column(String(20), default='draft')  # draft/published/completed
+    vlog_url = Column(String(255))  # AI生成的VLOG视频URL
     created_at = Column(String, default=datetime.now().isoformat)
     updated_at = Column(String, default=datetime.now().isoformat)
     
@@ -357,6 +358,24 @@ class TourGuide(Base):
     __table_args__ = (
         UniqueConstraint('spot_id', 'style', name='unique_tour_guide_spot_style'),
     )
+
+
+class VlogTask(Base):
+    """VLOG视频生成任务表"""
+    __tablename__ = "vlog_tasks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(50), unique=True, nullable=False)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="scripting")
+    progress_text = Column(String(100))
+    shots_total = Column(Integer, default=0)
+    shots_completed = Column(Integer, default=0)
+    video_url = Column(String(500))
+    error = Column(String(500))
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
 
 
 # 数据库初始化

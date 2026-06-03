@@ -15,7 +15,7 @@ def add_beijing_spots():
     new_spots = [
         ("环球影城", "休闲娱乐", ["亲子", "娱乐", "必玩"], "/images/spots/beijing/beijing_huanqiuyingcheng.jpg"),
         ("军事博物馆", "博物展览", ["博物馆", "历史", "军事"], "/images/spots/beijing/beijing_junshibowuguan.jpg"),
-        ("国家博物馆", "博物展览", ["博物馆", "历史", "文化"], "/images/spots/beijing/beijing_guojiabowuguan.jpg"),
+        ("国家博物馆", "博物展览", ["博物馆", "历史", "文化"], "/images/spots/beijing/beijing_guojiabowuguan_01.jpg"),
         ("人民大会堂", "地标建筑", ["地标", "建筑", "庄严"], "/images/spots/beijing/beijing_renmindahuitang.jpg"),
         ("地坛公园", "风景名胜", ["公园", "休闲", "历史"], "/images/spots/beijing/beijing_ditangongyuan.jpg"),
         ("鼓楼", "历史古迹", ["地标", "历史", "建筑"], "/images/spots/beijing/beijing_gulou.jpg"),

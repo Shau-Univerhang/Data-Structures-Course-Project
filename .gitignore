@@ -48,8 +48,11 @@ __pycache__/
 node_modules/
 .vite/
 
-# 数据库文件（如果是本地测试库，建议忽略）
+# 数据库文件
 backend/data/travel.db
+
+# 生成的视频文件
+videos/
 
 # Vite 临时时间戳文件
 *.mjs

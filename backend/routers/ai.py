@@ -2,6 +2,7 @@
 AI接口 - 使用MiniMax API (M2.5模型)
 """
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -9,9 +10,15 @@ import requests
 import json
 import sys
 import re
+import uuid
+import base64
+import time
+import subprocess
+import threading
+from datetime import datetime
 sys.path.append("..")
 
-from models.database import get_db, ScenicSpot, Trip, TripDailySchedule
+from models.database import get_db, ScenicSpot, Trip, TripDailySchedule, Restaurant, TourGuide, TripPhoto, VlogTask
 from routers.spots import parse_tags
 
 router = APIRouter()
@@ -19,8 +26,29 @@ router = APIRouter()
 import os
 
 # MiniMax API配置
-MINIMAX_API_KEY = "sk-cp-eENF_3JXbnNR0MFbfGZJqpW6Yxq-W6Qt_9YjNoI5EFCL63wekVwj0y3z1OJdugX17zIGqN51KDheUiJCp3MnrC_LJlAuOpgah92L-r4YEED2Y7h31-tTtPc"
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
 MINIMAX_API_BASE = "https://api.minimax.chat"
+
+# AI导游 LLM配置 (deepseek-v4-pro)
+TOUR_GUIDE_LLM_KEY = os.getenv("TOUR_GUIDE_LLM_KEY", "")
+TOUR_GUIDE_LLM_BASE = os.getenv("TOUR_GUIDE_LLM_BASE", "https://api.deepseek.com")
+TOUR_GUIDE_LLM_MODEL = os.getenv("TOUR_GUIDE_LLM_MODEL", "deepseek-v4-pro")
+
+# AI导游 TTS配置 (火山引擎语音合成)
+TTS_API_KEY = os.getenv("TTS_API_KEY", "")
+TTS_RESOURCE_ID = os.getenv("TTS_RESOURCE_ID", "seed-tts-2.0")
+TTS_ENDPOINT = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
+
+TTS_STYLE_SPEAKERS = {
+    "rational": "zh_female_xiaohe_uranus_bigtts",
+    "emotional": "zh_female_jiaochuannv_uranus_bigtts",
+    "foodie": "zh_male_zhubajie_uranus_bigtts",
+}
+
+# VLOG视频生成配置 (Seedance)
+SEEDANCE_API_KEY = os.getenv("SEEDANCE_API_KEY", "")
+SEEDANCE_MODEL = os.getenv("SEEDANCE_MODEL", "doubao-seedance-1-0-pro-fast-251015")
+SEEDANCE_BASE = "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks"
 
 
 # Pydantic模型
@@ -40,6 +68,11 @@ class GenerateGuideRequest(BaseModel):
 class XiaohongshuParseRequest(BaseModel):
     url: str
     content: Optional[str] = None
+
+
+class TourGuideRequest(BaseModel):
+    spot_id: int
+    style: str = "rational"  # rational, emotional, foodie
 
 
 def call_minimax(prompt: str, temperature: float = 0.7) -> str:
@@ -101,6 +134,387 @@ def split_spots_with_slash(spots: list) -> list:
                 result.append(spot)
                 seen.add(spot)
     return result
+
+
+# ==================== 旅行VLOG视频生成 ====================
+
+class VlogGenerateRequest(BaseModel):
+    trip_id: int
+    user_id: int = 1
+    style: str = "cartoon"  # cartoon, cinematic, realistic
+
+class VlogStatusResponse(BaseModel):
+    status: str  # processing, completed, failed
+    vlog_url: Optional[str] = None
+    progress: str = ""
+    shots_total: int = 0
+    shots_completed: int = 0
+
+
+def call_seedance_i2v(image_path: str, prompt: str) -> Optional[str]:
+    if image_path.startswith("http://localhost") or image_path.startswith("/"):
+        local_path = image_path.replace("http://localhost:8000", "")
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        full_path = os.path.join(root, local_path.lstrip("/"))
+        if not os.path.exists(full_path):
+            return None
+        ext = os.path.splitext(full_path)[1].lower().lstrip('.')
+        mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+        with open(full_path, "rb") as f:
+            image_b64 = base64.b64encode(f.read()).decode('utf-8')
+        image_url = f"data:image/{mime};base64,{image_b64}"
+    else:
+        image_url = image_path
+
+    headers = {
+        "Authorization": f"Bearer {SEEDANCE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "model": SEEDANCE_MODEL,
+        "content": [
+            {"type": "text", "text": f"{prompt} --resolution 720p --duration 5 --camerafixed false"},
+            {"type": "image_url", "image_url": {"url": image_url}}
+        ]
+    }
+    try:
+        resp = requests.post(SEEDANCE_BASE, headers=headers, json=body, timeout=30)
+        if resp.status_code not in (200, 201):
+            return None
+        data = resp.json()
+        task_id = data.get("id") or data.get("task_id") or data.get("data", {}).get("id")
+        if not task_id:
+            return None
+
+        for _ in range(60):
+            time.sleep(5)
+            poll_resp = requests.get(f"{SEEDANCE_BASE}/{task_id}", headers=headers, timeout=15)
+            if poll_resp.status_code != 200:
+                continue
+            poll_data = poll_resp.json()
+            status = poll_data.get("status") or poll_data.get("data", {}).get("status", "")
+            if status in ("completed", "succeeded", "done"):
+                video_url = poll_data.get("video_url") or \
+                            poll_data.get("content", {}).get("video_url") or \
+                            poll_data.get("data", {}).get("video_url") or \
+                            poll_data.get("output") or \
+                            poll_data.get("data", {}).get("output")
+                return video_url
+            if status in ("failed", "error", "cancelled"):
+                return None
+        return None
+    except Exception:
+        return None
+
+
+def call_seedance_t2v(prompt: str) -> Optional[str]:
+    headers = {
+        "Authorization": f"Bearer {SEEDANCE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    body = {
+        "model": SEEDANCE_MODEL,
+        "content": [
+            {"type": "text", "text": f"{prompt} --resolution 720p --duration 5 --camerafixed false"}
+        ]
+    }
+    try:
+        resp = requests.post(SEEDANCE_BASE, headers=headers, json=body, timeout=30)
+        if resp.status_code not in (200, 201):
+            return None
+        data = resp.json()
+        task_id = data.get("id") or data.get("task_id") or data.get("data", {}).get("id")
+        if not task_id:
+            return None
+        for _ in range(60):
+            time.sleep(5)
+            poll_resp = requests.get(f"{SEEDANCE_BASE}/{task_id}", headers=headers, timeout=15)
+            if poll_resp.status_code != 200:
+                continue
+            poll_data = poll_resp.json()
+            status = poll_data.get("status") or poll_data.get("data", {}).get("status", "")
+            if status in ("completed", "succeeded", "done"):
+                video_url = poll_data.get("video_url") or \
+                            poll_data.get("content", {}).get("video_url") or \
+                            poll_data.get("data", {}).get("video_url") or \
+                            poll_data.get("output") or \
+                            poll_data.get("data", {}).get("output")
+                return video_url
+            if status in ("failed", "error", "cancelled"):
+                return None
+        return None
+    except Exception:
+        return None
+
+
+def generate_vlog_script(trip_info: dict) -> dict:
+    trip_title = trip_info.get('title', '')
+    destination = trip_info.get('destination', '')
+    schedule = trip_info.get('schedule_text', '')
+
+    prompt = f"""你是旅行VLOG导演。请为以下行程的每个景点写一段Seedance视频生成英文prompt。
+
+行程：{trip_title}
+目的地：{destination}
+
+行程安排：
+{schedule}
+
+任务：行程中有几个景点就生成几段，每段为该景点写一个英文prompt。
+格式："cartoon animation style, <景点名称>, <场景描述>, Ghibli inspired, warm lighting --dur 5"
+
+只返回JSON：
+{{
+    "title": "VLOG标题",
+    "spots": [
+        {{"scene": "景点名", "prompt": "cartoon animation style, ..."}}
+    ]
+}}"""
+    try:
+        result = call_llm(prompt, temperature=0.7)
+        json_match = re.search(r'\{[\s\S]*\}', result)
+        if json_match:
+            return json.loads(json_match.group())
+    except Exception:
+        pass
+
+    spots = []
+    for line in schedule.split("\n"):
+        if not line.strip():
+            continue
+        for spot in line.split("→"):
+            spot = spot.strip()
+            if spot:
+                spots.append({
+                    "scene": spot,
+                    "prompt": f"cartoon animation style, {spot}, {destination} travel, Ghibli inspired, warm lighting --dur 5"
+                })
+    return {"title": trip_title, "spots": spots}
+
+
+_vlog_tasks = {}
+
+
+def _download_video(video_url: str, trip_id: int) -> str:
+    videos_root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "videos")
+    os.makedirs(videos_root, exist_ok=True)
+    filename = f"vlog_{trip_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+    filepath = os.path.join(videos_root, filename)
+    try:
+        r = requests.get(video_url, timeout=120, stream=True)
+        if r.status_code == 200:
+            with open(filepath, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            return filepath
+    except Exception:
+        pass
+    return video_url
+
+
+def _concat_videos(filepaths: list, trip_id: int) -> str:
+    if len(filepaths) == 0:
+        return None
+    if len(filepaths) == 1:
+        return filepaths[0]
+    videos_root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "videos")
+    merged_name = f"vlog_{trip_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_merged.mp4"
+    merged_path = os.path.join(videos_root, merged_name)
+    list_path = os.path.join(videos_root, f"_concat_{trip_id}.txt")
+    try:
+        with open(list_path, 'w', encoding='utf-8') as f:
+            for fp in filepaths:
+                safe_path = fp.replace('\\', '/')
+                f.write(f"file '{safe_path}'\n")
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path, "-c", "copy", merged_path],
+            capture_output=True, timeout=120
+        )
+        os.remove(list_path)
+        if result.returncode == 0 and os.path.exists(merged_path):
+            for fp in filepaths:
+                if fp != merged_path:
+                    try:
+                        os.remove(fp)
+                    except Exception:
+                        pass
+            return merged_path
+    except Exception:
+        pass
+    if os.path.exists(list_path):
+        os.remove(list_path)
+    return filepaths[0]
+
+
+def _db_task_update(task_id: str, **kwargs):
+    try:
+        from models.database import SessionLocal
+        db2 = SessionLocal()
+        task = db2.query(VlogTask).filter(VlogTask.task_id == task_id).first()
+        if task:
+            for k, v in kwargs.items():
+                setattr(task, k, v)
+            task.updated_at = datetime.now().isoformat()
+            db2.commit()
+        db2.close()
+    except Exception:
+        pass
+
+
+def _make_photo_path(url: str) -> str:
+    local = url.replace("http://localhost:8000", "")
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(root, local.lstrip("/"))
+
+
+@router.post("/vlog/generate")
+def start_vlog_generation(request: VlogGenerateRequest, db: Session = Depends(get_db)):
+    trip = db.query(Trip).filter(Trip.id == request.trip_id, Trip.user_id == request.user_id).first()
+    if not trip:
+        return {"error": "行程不存在"}
+
+    schedules = db.query(TripDailySchedule).filter(TripDailySchedule.trip_id == request.trip_id)\
+        .order_by(TripDailySchedule.day_number, TripDailySchedule.order_index).all()
+    if not schedules:
+        return {"error": "该行程没有安排景点"}
+
+    day_spot_map = {}
+    for s in schedules:
+        spot_name = s.spot.name if s.spot else f"景点{s.spot_id}"
+        day_spot_map.setdefault(s.day_number, []).append(spot_name)
+    schedule_text = "\n".join([f"Day{day}: " + " → ".join(spots) for day, spots in sorted(day_spot_map.items())])
+
+    trip_info = {
+        "title": trip.title,
+        "destination": trip.destination or "",
+        "total_days": trip.total_days or len(day_spot_map),
+        "schedule_text": schedule_text
+    }
+
+    task_id = str(uuid.uuid4())
+    now = datetime.now().isoformat()
+
+    if trip.vlog_url and trip.vlog_url.startswith("/videos/"):
+        old_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            trip.vlog_url.lstrip("/")
+        )
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        trip.vlog_url = None
+        db.commit()
+
+    trip_photos = db.query(TripPhoto).filter(TripPhoto.trip_id == request.trip_id).all()
+    photos = []
+    for p in trip_photos:
+        local_path = _make_photo_path(p.photo_url)
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode('utf-8')
+            ext = os.path.splitext(local_path)[1].lower().lstrip('.')
+            mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+            photos.append({
+                "url": f"data:image/{mime};base64,{img_b64}",
+                "description": p.description or "旅行照片"
+            })
+
+    spot_count = sum(len(v) for v in day_spot_map.values())
+    total_shots = spot_count + len(photos)
+    vtask = VlogTask(
+        task_id=task_id, trip_id=request.trip_id, user_id=request.user_id,
+        status="scripting", progress_text="正在编写分镜脚本...", shots_total=total_shots,
+        created_at=now, updated_at=now
+    )
+    db.add(vtask)
+    db.commit()
+
+    def run_vlog():
+        try:
+            _db_task_update(task_id, progress_text="AI正在为景点编写脚本...", status="scripting")
+
+            script = generate_vlog_script(trip_info)
+            spots = script.get("spots", [])
+            segments = []
+            for s in spots:
+                segments.append({"type": "spot", "scene": s.get("scene", ""), "prompt": s.get("prompt", "")})
+            for i, p in enumerate(photos):
+                segments.append({"type": "photo", "scene": p["description"], "prompt": f"cartoon animation style, {p['description']}, travel memory, warm lighting --dur 5", "photo_url": p["url"]})
+
+            _db_task_update(task_id, status="generating", progress_text="开始生成视频片段...", shots_total=len(segments), shots_completed=0)
+
+            video_urls = []
+            for i, seg in enumerate(segments):
+                label = seg.get("scene", f"片段{i+1}")
+                _db_task_update(task_id, progress_text=f"正在生成第{i+1}/{len(segments)}个: {label}...", shots_completed=i)
+
+                if seg["type"] == "photo":
+                    vurl = call_seedance_i2v(seg["photo_url"], seg["prompt"])
+                else:
+                    vurl = call_seedance_t2v(seg["prompt"])
+
+                if vurl:
+                    video_urls.append(vurl)
+                _db_task_update(task_id, shots_completed=i + 1)
+
+            if video_urls:
+                local_paths = []
+                for vurl in video_urls:
+                    lp = _download_video(vurl, request.trip_id)
+                    if os.path.exists(lp):
+                        local_paths.append(lp)
+                merged = _concat_videos(local_paths, request.trip_id)
+                vlog_path = "/videos/" + os.path.basename(merged) if merged else ""
+                _db_task_update(task_id, status="completed", progress_text="VLOG生成完成!", video_url=vlog_path)
+                try:
+                    from models.database import SessionLocal
+                    db3 = SessionLocal()
+                    t = db3.query(Trip).filter(Trip.id == request.trip_id).first()
+                    if t:
+                        t.vlog_url = vlog_path
+                        db3.commit()
+                    db3.close()
+                except Exception:
+                    pass
+            else:
+                _db_task_update(task_id, status="failed", error="视频生成失败", progress_text="视频生成失败")
+        except Exception as e:
+            _db_task_update(task_id, status="failed", error=str(e), progress_text="生成出错")
+
+    threading.Thread(target=run_vlog, daemon=True).start()
+    return {"task_id": task_id, "status": "scripting", "shots_total": total_shots}
+
+
+@router.get("/vlog/status/{task_id}")
+def get_vlog_status(task_id: str, db: Session = Depends(get_db)):
+    task = db.query(VlogTask).filter(VlogTask.task_id == task_id).first()
+    if not task:
+        return {"status": "not_found"}
+    return {
+        "status": task.status,
+        "vlog_url": task.video_url,
+        "progress": f"{task.shots_completed}/{task.shots_total}",
+        "progress_text": task.progress_text or "",
+        "shots_total": task.shots_total,
+        "shots_completed": task.shots_completed,
+        "error": task.error
+    }
+
+
+@router.get("/vlog/check/{trip_id}")
+def check_vlog(trip_id: int, user_id: int = 1, db: Session = Depends(get_db)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user_id).first()
+    if not trip or not trip.vlog_url:
+        return {"has_vlog": False}
+    if trip.vlog_url.startswith("/videos/"):
+        local_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            trip.vlog_url.lstrip("/")
+        )
+        if not os.path.exists(local_path):
+            trip.vlog_url = None
+            db.commit()
+            return {"has_vlog": False}
+    return {"has_vlog": True, "vlog_url": trip.vlog_url}
 
 def extract_spots_from_reply(reply: str, destination: str) -> list:
     """从AI回复中提取景点列表"""
@@ -613,3 +1027,213 @@ def recommend_destinations(
             {"city": "北京", "reason": "历史文化名城", "best_season": "春秋"}
         ]
     }
+
+
+# ==================== AI语音导游 ====================
+
+TOUR_GUIDE_PROMPTS = {
+    "rational": """你是一位专业的历史文化导游，风格理性、严谨、数据驱动。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+
+要求：
+- 语言精炼、信息密度高
+- 重点介绍历史背景、建筑特色、文化价值
+- 引用具体数据（年代、面积、规模等）
+- 语气专业但不生硬，像一位博学的导游
+- 结尾用一句话总结这个景点的核心价值""",
+
+    "emotional": """你是一位擅长讲故事的文艺导游，风格感性、诗意、富有想象力。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+
+要求：
+- 用优美的语言描绘景点的意境和氛围
+- 加入有趣的传说、轶事或名人故事（可适度创作）
+- 激发听众的想象力和情感共鸣
+- 语气温暖亲切，像一位在讲故事的朋友
+- 结尾用一句诗意的句子收尾""",
+
+    "foodie": """你是一位热爱美食的旅行导游，风格活泼、接地气，对美食如数家珍。
+请为景点"{spot_name}"（位于{spot_city}）撰写一份约300字的语音导游词。
+
+景点简介：{description}
+景点标签：{tags}
+开放时间：{open_time}
+门票：{ticket_price}
+附近美食：{nearby_foods}
+
+要求：
+- 简要介绍景点亮点后，重点推荐周边美食
+- 提及具体的老字号、特色小吃、推荐菜品
+- 分享一些只有本地人知道的美食小秘密
+- 语气活泼有趣，像一位热情的吃货朋友
+- 结尾用一句"逛完记得犒劳自己"收尾"""
+}
+
+
+def call_llm(prompt: str, temperature: float = 0.8) -> str:
+    url = f"{TOUR_GUIDE_LLM_BASE}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {TOUR_GUIDE_LLM_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": TOUR_GUIDE_LLM_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 800,
+        "temperature": temperature
+    }
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        result = resp.json()
+        if 'choices' in result and len(result['choices']) > 0:
+            return result['choices'][0]['message']['content']
+        return f"LLM错误: {result}"
+    except Exception as e:
+        return f"LLM调用失败: {str(e)}"
+
+
+def call_tts(text: str, speaker: str = None) -> bytes:
+    if speaker is None:
+        speaker = TTS_STYLE_SPEAKERS["rational"]
+    headers = {
+        "x-api-key": TTS_API_KEY,
+        "X-Api-Resource-Id": TTS_RESOURCE_ID,
+        "Content-Type": "application/json"
+    }
+    additions = json.dumps({
+        "disable_markdown_filter": True,
+        "enable_language_detector": True,
+        "disable_default_bit_rate": True,
+        "max_length_to_filter_parenthesis": 0
+    })
+    body = {
+        "req_params": {
+            "text": text.strip(),
+            "speaker": speaker,
+            "additions": additions,
+            "audio_params": {
+                "format": "mp3",
+                "sample_rate": 24000
+            }
+        }
+    }
+    try:
+        resp = requests.post(TTS_ENDPOINT, headers=headers, json=body, timeout=120)
+        if resp.status_code != 200:
+            return None
+        ct = resp.headers.get('Content-Type', '')
+        if 'audio' in ct:
+            return resp.content
+        all_audio = bytearray()
+        for line in resp.text.split('\n'):
+            line = line.strip()
+            if not line or not line.startswith('{'):
+                continue
+            idx = line.find('"data":"')
+            if idx < 0:
+                continue
+            start = idx + len('"data":"')
+            end = line.find('"', start)
+            if end <= start:
+                continue
+            b64 = line[start:end]
+            try:
+                all_audio.extend(base64.b64decode(b64))
+            except Exception:
+                continue
+        return bytes(all_audio) if len(all_audio) > 0 else None
+    except Exception:
+        return None
+
+
+@router.post("/tour-guide")
+def generate_tour_guide(request: TourGuideRequest, db: Session = Depends(get_db)):
+    spot = db.query(ScenicSpot).filter(ScenicSpot.id == request.spot_id).first()
+    if not spot:
+        return {"error": "景点不存在"}
+
+    nearby_foods_list = db.query(Restaurant).filter(
+        Restaurant.spot_id == request.spot_id
+    ).limit(5).all()
+    nearby_foods = ", ".join([r.name for r in nearby_foods_list]) if nearby_foods_list else "暂无数据"
+
+    prompt_template = TOUR_GUIDE_PROMPTS.get(request.style, TOUR_GUIDE_PROMPTS["rational"])
+    prompt = prompt_template.format(
+        spot_name=spot.name,
+        spot_city=spot.city or "未知",
+        description=spot.description or "暂无描述",
+        tags=", ".join(parse_tags(spot.tags)) if spot.tags else "暂无",
+        open_time=spot.open_time or "全天开放",
+        ticket_price=spot.ticket_price or "免费",
+        nearby_foods=nearby_foods
+    )
+
+    guide_text = call_llm(prompt, temperature=0.8)
+
+    speaker = TTS_STYLE_SPEAKERS.get(request.style, TTS_STYLE_SPEAKERS["rational"])
+
+    audio_base64 = None
+    audio_bytes = None
+    if guide_text and not guide_text.startswith("LLM"):
+        audio_bytes = call_tts(guide_text, speaker)
+        if audio_bytes:
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+
+    existing = db.query(TourGuide).filter(
+        TourGuide.spot_id == request.spot_id,
+        TourGuide.style == request.style
+    ).first()
+
+    from datetime import datetime
+    now = datetime.now().isoformat()
+
+    if existing:
+        existing.text = guide_text
+        if audio_bytes:
+            existing.audio_data = audio_bytes
+        existing.updated_at = now
+    else:
+        new_guide = TourGuide(
+            spot_id=request.spot_id,
+            style=request.style,
+            text=guide_text,
+            audio_data=audio_bytes,
+            created_at=now,
+            updated_at=now
+        )
+        db.add(new_guide)
+    db.commit()
+
+    style_names = {"rational": "理性派", "emotional": "感性派", "foodie": "吃货派"}
+
+    return {
+        "text": guide_text,
+        "audio_base64": audio_base64,
+        "style": request.style,
+        "style_name": style_names.get(request.style, "理性派"),
+        "spot_name": spot.name
+    }
+
+
+@router.get("/tour-guide/{spot_id}")
+def get_tour_guide(spot_id: int, db: Session = Depends(get_db)):
+    guides = db.query(TourGuide).filter(TourGuide.spot_id == spot_id).all()
+    result = {}
+    style_names = {"rational": "理性派", "emotional": "感性派", "foodie": "吃货派"}
+    for g in guides:
+        result[g.style] = {
+            "text": g.text,
+            "audio_base64": base64.b64encode(g.audio_data).decode('utf-8') if g.audio_data else None,
+            "style_name": style_names.get(g.style, g.style)
+        }
+    return result

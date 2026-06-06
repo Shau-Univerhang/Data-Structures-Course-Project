@@ -56,6 +56,26 @@
             <p>探索{{ selectedCity }}的精彩景点，发现城市之美</p>
           </div>
 
+          <!-- 搜索框 -->
+          <div class="search-bar">
+            <div class="search-input-wrapper">
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索景点名称..."
+                class="search-input"
+                @keyup.enter="handleSearch"
+              />
+              <button class="search-btn" @click="handleSearch">
+                <span>🔍</span>
+                <span>搜索</span>
+              </button>
+              <button v-if="isSearching" class="clear-search-btn" @click="handleClearSearch">
+                ✕ 清除
+              </button>
+            </div>
+          </div>
+
           <!-- 加载状态 -->
           <div v-if="loadingSpots" class="loading-container">
             <div class="loading-spinner"></div>
@@ -90,8 +110,8 @@
 
           <!-- 空状态 -->
           <div v-if="!loadingSpots && filteredSpots.length === 0" class="empty-state">
-            <span class="empty-icon">🔍</span>
-            <p>暂无景点数据</p>
+            <span class="empty-icon">{{ isSearching ? '🔎' : '🔍' }}</span>
+            <p>{{ isSearching ? `未找到与"${searchKeyword}"相关的景点` : '暂无景点数据' }}</p>
           </div>
         </div>
 
@@ -226,6 +246,10 @@ const cuisines = ['全部', '川菜', '火锅', '烧烤', '小吃', '粤菜', '�
 
 // 加载状态
 const loadingSpots = ref(false)
+
+// 搜索状态
+const searchKeyword = ref('')
+const isSearching = ref(false)
 
 // 景点数据
 const spots = ref([])
@@ -2085,10 +2109,14 @@ const filteredFoods = computed(() => {
 })
 
 // 加载景点数据
-const loadSpots = async () => {
+const loadSpots = async (keyword = '') => {
   loadingSpots.value = true
   try {
-    const response = await fetch(`http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(selectedCity.value)}&limit=20`)
+    let url = `http://localhost:8000/api/spots/recommend?city=${encodeURIComponent(selectedCity.value)}&limit=50`
+    if (keyword) {
+      url += `&keyword=${encodeURIComponent(keyword)}`
+    }
+    const response = await fetch(url)
     const data = await response.json()
     
     if (data.spots) {
@@ -2098,11 +2126,28 @@ const loadSpots = async () => {
     }
   } catch (error) {
     console.error('加载景点失败:', error)
-    // 使用模拟数据
-    spots.value = getMockSpots()
+    if (!keyword) {
+      spots.value = getMockSpots()
+    }
   } finally {
     loadingSpots.value = false
   }
+}
+
+// 处理搜索
+const handleSearch = () => {
+  const keyword = searchKeyword.value.trim()
+  if (keyword) {
+    isSearching.value = true
+    loadSpots(keyword)
+  }
+}
+
+// 清除搜索
+const handleClearSearch = () => {
+  searchKeyword.value = ''
+  isSearching.value = false
+  loadSpots()
 }
 
 // 模拟景点数据
@@ -2160,6 +2205,8 @@ const formatNumber = (num) => {
 
 // 监听城市变化，重新加载景点
 watch(selectedCity, () => {
+  searchKeyword.value = ''
+  isSearching.value = false
   loadSpots()
 }, { immediate: true })
 </script>
@@ -2304,6 +2351,79 @@ watch(selectedCity, () => {
 .section-header p {
   font-size: 16px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* 搜索框 */
+.search-bar {
+  margin-bottom: 25px;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 400px;
+  padding: 12px 18px;
+  border-radius: 25px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.search-input:focus {
+  border-color: rgba(0, 212, 255, 0.8);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.15);
+}
+
+.search-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 24px;
+  border-radius: 25px;
+  border: none;
+  background: linear-gradient(135deg, #00d4ff, #0090ff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.search-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+}
+
+.clear-search-btn {
+  padding: 10px 18px;
+  border-radius: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.clear-search-btn:hover {
+  background: rgba(255, 100, 100, 0.15);
+  border-color: rgba(255, 100, 100, 0.4);
+  color: #ff6b6b;
 }
 
 /* 美食分类筛选 */

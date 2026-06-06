@@ -146,6 +146,7 @@ class Trip(Base):
     accommodation_lng = Column(Float)
     accommodation_address = Column(String(255))
     status = Column(String(20), default='draft')  # draft/published/completed
+    vlog_url = Column(String(255))  # AI生成的VLOG视频URL
     created_at = Column(String, default=datetime.now().isoformat)
     updated_at = Column(String, default=datetime.now().isoformat)
     
@@ -338,6 +339,41 @@ class TravelPersonalityResult(Base):
     personality_type = Column(String(4), nullable=False)  # 如: PESC, WRec
     dimension_scores = Column(JSON)  # 四维得分详情
     answers = Column(JSON)  # 原始答案 [1-5, 1-5, ...]
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
+
+
+class TourGuide(Base):
+    """AI语音导游词缓存表"""
+    __tablename__ = "tour_guides"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    spot_id = Column(Integer, ForeignKey("scenic_spots.id", ondelete="CASCADE"), nullable=False)
+    style = Column(String(20), nullable=False)  # rational / emotional / foodie
+    text = Column(Text, nullable=False)  # 导游词文本
+    audio_data = Column(BLOB)  # MP3音频二进制数据
+    created_at = Column(String, default=datetime.now().isoformat)
+    updated_at = Column(String, default=datetime.now().isoformat)
+
+    __table_args__ = (
+        UniqueConstraint('spot_id', 'style', name='unique_tour_guide_spot_style'),
+    )
+
+
+class VlogTask(Base):
+    """VLOG视频生成任务表"""
+    __tablename__ = "vlog_tasks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(String(50), unique=True, nullable=False)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, nullable=False)
+    status = Column(String(20), nullable=False, default="scripting")
+    progress_text = Column(String(100))
+    shots_total = Column(Integer, default=0)
+    shots_completed = Column(Integer, default=0)
+    video_url = Column(String(500))
+    error = Column(String(500))
     created_at = Column(String, default=datetime.now().isoformat)
     updated_at = Column(String, default=datetime.now().isoformat)
 

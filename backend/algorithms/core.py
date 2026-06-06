@@ -519,20 +519,13 @@ def fuzzy_search_restaurants(restaurants: List[dict], query: str, threshold: flo
             name_to_restaurant[name] = restaurant
 
     result = []
-<<<<<<< HEAD
-    for name, score in matches:
-=======
     for name, score, priority in matches:
->>>>>>> 59bd923c6e4bf53d57b0a83c1ec61ae22a302cc4
         restaurant = name_to_restaurant.get(name)
         if not restaurant:
             continue
         item = restaurant.copy()
         item['_match_score'] = score
-<<<<<<< HEAD
-=======
         item['_match_priority'] = priority
->>>>>>> 59bd923c6e4bf53d57b0a83c1ec61ae22a302cc4
         result.append(item)
 
     return result

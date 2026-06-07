@@ -12,6 +12,7 @@ from typing import Dict, List, Tuple, Optional
 from itertools import permutations
 import gzip
 import json
+import math
 
 
 # ==================== 1. 部分排序算法（Top 10）====================
@@ -556,3 +557,308 @@ def calculate_compression_ratio(original: dict, compressed: bytes) -> float:
     compressed_size = len(compressed)
     ratio = (1 - compressed_size / original_size) * 100
     return ratio
+
+
+# ==================== 6. 辅助工具函数 ====================
+
+def haversine_distance_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
+    """使用 Haversine 公式计算两点之间的距离（米）"""
+    R = 6371000  # 地球半径（米）
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    return R * c
+
+
+def fuzzy_search_restaurants(restaurants: List[dict], query: str, threshold: float = 0.4) -> List[dict]:
+    """模糊搜索餐厅（保留旧接口以兼容）"""
+    return food_multi_field_search(restaurants, query)
+
+
+def top_k_restaurants_by_sort(restaurants: List[dict], k: int = 10, sort_by: str = 'distance') -> List[dict]:
+    """餐厅 Top K 排序（保留旧接口以兼容，内部转发到堆排序实现）"""
+    return _heap_top_k_restaurants(restaurants, k, sort_by)
+
+
+# ==================== 7. 附近美食模块：堆排序 Top-K（不使用全量排序）====================
+
+class MaxHeap:
+    """
+    大顶堆 —— 手动实现，用于维护距离最小的 Top-K 元素
+
+    使用场景：当需要从小到大取前 K 个时，维护一个大小为 K 的大顶堆。
+    新元素若小于堆顶（当前 K 个中的最大值），则替换堆顶并下沉。
+    最终堆内元素即为全局最小的 K 个。
+
+    时间复杂度：单次插入 O(log K)，总体 O(N log K)
+    """
+
+    def __init__(self, max_size: int = 10):
+        self._heap: List[Tuple] = []
+        self._max_size = max_size
+
+    def __len__(self) -> int:
+        return len(self._heap)
+
+    def peek(self) -> Optional[Tuple]:
+        """返回堆顶（当前 K 个中的最大值），不弹出"""
+        return self._heap[0] if self._heap else None
+
+    def push(self, item: Tuple):
+        """
+        推入元素。item = (score, tiebreaker, data)
+
+        - 堆未满：直接插入并上浮
+        - 堆已满：仅当新元素 score < 堆顶 score 时替换堆顶并下沉
+        """
+        if len(self._heap) < self._max_size:
+            self._heap.append(item)
+            self._sift_up(len(self._heap) - 1)
+        elif item[0] < self._heap[0][0]:
+            self._heap[0] = item
+            self._sift_down(0)
+
+    def _sift_up(self, idx: int):
+        """上浮操作：子节点大于父节点时交换"""
+        while idx > 0:
+            parent = (idx - 1) // 2
+            if self._heap[idx][0] > self._heap[parent][0]:
+                self._heap[idx], self._heap[parent] = (
+                    self._heap[parent],
+                    self._heap[idx],
+                )
+                idx = parent
+            else:
+                break
+
+    def _sift_down(self, idx: int):
+        """下沉操作：父节点小于最大子节点时交换"""
+        n = len(self._heap)
+        while True:
+            largest = idx
+            left = 2 * idx + 1
+            right = 2 * idx + 2
+            if left < n and self._heap[left][0] > self._heap[largest][0]:
+                largest = left
+            if right < n and self._heap[right][0] > self._heap[largest][0]:
+                largest = right
+            if largest != idx:
+                self._heap[idx], self._heap[largest] = (
+                    self._heap[largest],
+                    self._heap[idx],
+                )
+                idx = largest
+            else:
+                break
+
+    def get_sorted_ascending(self) -> List[Tuple]:
+        """按 score 从小到大返回堆内所有元素"""
+        return sorted(self._heap, key=lambda x: x[0])
+
+    def get_data_ascending(self) -> List:
+        """按 score 从小到大返回堆内所有数据（去掉 score 和 tiebreaker）"""
+        return [item[2] for item in self.get_sorted_ascending()]
+
+
+def _top_k_largest(restaurants: List[dict], k: int, key_func) -> List[dict]:
+    """
+    使用小顶堆（Python heapq）维护前 K 个最大元素
+
+    适用场景：评分 / 热度 从大到小排序（降序）
+
+    工作原理：
+      - 维护一个大小为 K 的小顶堆，堆顶是 K 个元素中的最小值
+      - 遍历所有元素，当新元素 > 堆顶时替换（堆顶是最小值，被更大的淘汰）
+      - 最终堆中的 K 个元素即为全局最大的 K 个
+
+    时间复杂度：O(N log K)，空间复杂度：O(K)
+    """
+    if k <= 0 or not restaurants:
+        return []
+
+    min_heap: List[Tuple] = []
+
+    for rest in restaurants:
+        score = key_func(rest)
+        tiebreaker = rest.get('id', 0)
+
+        if len(min_heap) < k:
+            heapq.heappush(min_heap, (score, tiebreaker, rest))
+        elif score > min_heap[0][0]:
+            heapq.heapreplace(min_heap, (score, tiebreaker, rest))
+
+    # 只对 K 个结果排序（K=10，非全量排序）
+    result = [item[2] for item in min_heap]
+    result.sort(key=lambda x: key_func(x), reverse=True)
+    return result
+
+
+def _top_k_smallest(restaurants: List[dict], k: int, key_func) -> List[dict]:
+    """
+    使用大顶堆（自实现 MaxHeap）维护前 K 个最小元素
+
+    适用场景：距离从小到大排序（升序）
+
+    工作原理：
+      - 维护一个大小为 K 的大顶堆，堆顶是 K 个元素中的最大值
+      - 遍历所有元素，当新元素 < 堆顶时替换（堆顶是最大值，被更小的淘汰）
+      - 最终堆中的 K 个元素即为全局最小的 K 个
+
+    时间复杂度：O(N log K)，空间复杂度：O(K)
+    """
+    if k <= 0 or not restaurants:
+        return []
+
+    max_heap = MaxHeap(max_size=k)
+
+    for rest in restaurants:
+        score = key_func(rest)
+        tiebreaker = rest.get('id', 0)
+        max_heap.push((score, tiebreaker, rest))
+
+    return max_heap.get_data_ascending()
+
+
+def _heap_top_k_restaurants(restaurants: List[dict], k: int = 10, sort_by: str = 'distance') -> List[dict]:
+    """
+    堆排序 Top-K 餐厅（核心调度函数）
+
+    - sort_by='rating'：按评分降序 → 小顶堆
+    - sort_by='popularity'：按热度降序 → 小顶堆
+    - sort_by='distance'：按距离升序 → 大顶堆
+
+    时间复杂度：O(N log K)，其中 K=10
+    """
+    if not restaurants:
+        return []
+
+    if sort_by == 'rating':
+        def key_func(r):
+            return float(r.get('rating') or 0)
+        return _top_k_largest(restaurants, k, key_func)
+
+    elif sort_by == 'popularity':
+        def key_func(r):
+            return int(r.get('heat_score') or 0)
+        return _top_k_largest(restaurants, k, key_func)
+
+    else:  # distance（默认）
+        def key_func(r):
+            d = r.get('distance_m')
+            return float(d) if d is not None else float('inf')
+        return _top_k_smallest(restaurants, k, key_func)
+
+
+# ==================== 8. 多字段中文模糊搜索 ====================
+
+def food_multi_field_search(restaurants: List[dict], keyword: str) -> List[dict]:
+    """
+    多字段联合模糊搜索 —— 支持中文子串匹配
+
+    搜索字段（按优先级排序）：
+      1. name（店名）—— 权重最高
+      2. cuisine_type（菜系类型）
+      3. window_name（窗口/档口名）
+
+    匹配策略：
+      - 子串包含（keyword in field）：天然支持中文模糊搜索
+      - 完全匹配得分最高，部分匹配次之
+      - 返回附带 matched_fields 和 match_score 的餐厅列表
+
+    Args:
+        restaurants: 餐厅列表
+        keyword: 用户输入的搜索关键词
+
+    Returns:
+        匹配到的餐厅列表（附带 matched_fields, match_score）
+    """
+    if not keyword or not keyword.strip():
+        return list(restaurants)
+
+    kw = keyword.strip().lower()
+    results = []
+
+    for rest in restaurants:
+        matched_fields = []
+        match_score = 0.0
+
+        name = (rest.get('name') or '').lower()
+        cuisine = (rest.get('cuisine_type') or '').lower()
+        window = (rest.get('window_name') or '').lower()
+
+        # 店名匹配（优先级最高）
+        if kw in name:
+            matched_fields.append('name')
+            if kw == name:
+                match_score = max(match_score, 1.0)      # 完全匹配
+            else:
+                match_score = max(match_score, 0.85)     # 子串匹配
+
+        # 菜系匹配
+        if kw in cuisine:
+            matched_fields.append('cuisine_type')
+            match_score = max(match_score, 0.7)
+
+        # 窗口/档口名匹配
+        if window and kw in window:
+            matched_fields.append('window_name')
+            match_score = max(match_score, 0.65)
+
+        if matched_fields:
+            item = dict(rest)
+            item['matched_fields'] = matched_fields
+            item['match_score'] = match_score
+            results.append(item)
+
+    return results
+
+
+# ==================== 9. 美食过滤与排序完整管线 ====================
+
+def filter_and_rank_foods(
+    foods: List[dict],
+    keyword: str = None,
+    cuisine: str = None,
+    sort_by: str = 'distance',
+    k: int = 10,
+) -> Tuple[List[dict], int]:
+    """
+    美食过滤与排序的完整管线 —— 组合菜系过滤、模糊搜索、堆排序
+
+    管线步骤：
+      1. 菜系过滤（cuisine）：精确匹配 cuisine_type 字段
+      2. 多字段模糊搜索（keyword）：搜索 name / cuisine_type / window_name
+      3. 堆排序 Top-K（sort_by）：使用大/小顶堆取前 K 个，不做全量排序
+
+    时间复杂度：O(N + N log K) ≈ O(N)，其中 K=10
+
+    Args:
+        foods: 餐厅列表
+        keyword: 用户搜索关键词（可选）
+        cuisine: 菜系过滤值，为 None 或 '全部' 时不过滤（可选）
+        sort_by: 排序维度 — 'distance' / 'rating' / 'popularity'
+        k: 返回数量，默认 10
+
+    Returns:
+        (result_list, matched_count)：
+          - result_list: 经过滤、搜索、堆排序后的餐厅列表（最多 K 个）
+          - matched_count: 堆排序前的匹配总数（用于前端展示"共找到N家"）
+    """
+    # Step 1: 菜系过滤（精确匹配）
+    filtered = foods
+    if cuisine and cuisine.strip() and cuisine != '全部':
+        filtered = [f for f in filtered if (f.get('cuisine_type') or '') == cuisine]
+
+    # Step 2: 多字段模糊搜索
+    if keyword and keyword.strip():
+        filtered = food_multi_field_search(filtered, keyword)
+
+    # 记录堆排序前的匹配数量
+    matched_count = len(filtered)
+
+    # Step 3: 堆排序 Top-K（不使用全量排序）
+    result = _heap_top_k_restaurants(filtered, k=k, sort_by=sort_by)
+
+    return result, matched_count

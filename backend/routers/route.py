@@ -65,10 +65,44 @@ class MultiPointRouteRequest(BaseModel):
     transport_mode: str = "walk"
 
 
-def _duration_seconds(value: float) -> int:
-    if value <= 0:
-        return 0
-    return max(1, math.ceil(value))
+import re
+
+EXCLUDED_FACILITY_TYPES = {"parking", "sports"}
+NUMBERED_BUILDING_PATTERN = re.compile(r'^\d+号楼$')
+
+
+def _is_excluded_facility(facility):
+    """判断设施是否属于需要过滤的停车点或运动设施"""
+    return facility.type in EXCLUDED_FACILITY_TYPES
+
+
+def _is_excluded_building(building):
+    """判断建筑是否属于需要过滤的几号楼"""
+    return building.name and NUMBERED_BUILDING_PATTERN.match(building.name)
+
+
+def _filter_nodes_and_edges(nodes, edges, facilities):
+    """过滤掉停车点、运动设施和几号楼节点及相关边"""
+    # Build lookup for excluded facility IDs (ref_id 关联的 Facility.id)
+    excluded_facility_ids = {f.id for f in facilities if _is_excluded_facility(f)}
+
+    # 收集需要排除的 road node IDs
+    excluded_node_ids = set()
+    for node in nodes:
+        # 类型=facility 且关联的设施属于停车/运动
+        if node.node_type == "facility" and node.ref_id in excluded_facility_ids:
+            excluded_node_ids.add(node.id)
+        # 类型=building 且名称匹配"数字+号楼"
+        elif node.node_type == "building" and node.name and NUMBERED_BUILDING_PATTERN.match(node.name):
+            excluded_node_ids.add(node.id)
+
+    filtered_nodes = [n for n in nodes if n.id not in excluded_node_ids]
+    filtered_edges = [
+        e for e in edges
+        if e.from_node_id not in excluded_node_ids and e.to_node_id not in excluded_node_ids
+    ]
+
+    return filtered_nodes, filtered_edges
 
 
 
@@ -520,6 +554,11 @@ def get_internal_map(spot_id: int, db: Session = Depends(get_db)):
     buildings = db.query(Building).filter(Building.spot_id == spot_id).all()
     facilities = db.query(Facility).filter(Facility.spot_id == spot_id).all()
 
+    # 过滤掉停车点、运动设施和几号楼
+    nodes, edges = _filter_nodes_and_edges(nodes, edges, facilities)
+    facilities = [f for f in facilities if not _is_excluded_facility(f)]
+    buildings = [b for b in buildings if not _is_excluded_building(b)]
+
     default_node_id = _default_map_node_id(spot, nodes)
     available_modes = sorted({e.road_type for e in edges if e.road_type})
 
@@ -590,6 +629,11 @@ def get_nearby_facilities(
         RoadNode.spot_id == spot_id,
         RoadNode.node_type == "facility",
     ).all()
+
+    # 过滤掉停车点和运动设施
+    excluded_facility_ids = {f.id for f in facilities if _is_excluded_facility(f)}
+    facilities = [f for f in facilities if not _is_excluded_facility(f)]
+    facility_nodes = [fn for fn in facility_nodes if fn.ref_id not in excluded_facility_ids]
 
     if not nodes or not edges:
         return {"results": [], "error": "道路数据不存在"}

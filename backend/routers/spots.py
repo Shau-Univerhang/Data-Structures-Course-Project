@@ -18,6 +18,7 @@ from algorithms.core import (
     top_k_restaurants_by_sort,
     fuzzy_search_spots,
     fuzzy_search_restaurants,
+    filter_and_rank_foods,
     haversine_distance_m,
 )
 from algorithms.personality_algorithm import PERSONALITY_TYPES
@@ -959,16 +960,17 @@ def get_nearby_restaurants(
         seen_names.add(dedupe_key)
         candidates.append(mapped)
 
+    # 从全部候选数据中提取菜系选项（在过滤前，确保用户看到所有可选菜系）
     cuisine_options = sorted({item.get('cuisine_type') for item in candidates if item.get('cuisine_type')})
 
-    filtered = candidates
-    if cuisine and cuisine != '全部':
-        filtered = [item for item in filtered if item.get('cuisine_type') == cuisine]
-
-    if keyword:
-        filtered = fuzzy_search_restaurants(filtered, keyword)
-
-    result = top_k_restaurants_by_sort(filtered, k=top_k, sort_by=sort_by)
+    # 使用统一管线：菜系过滤 → 多字段模糊搜索 → 堆排序 Top-K（不使用全量排序）
+    result, matched_count = filter_and_rank_foods(
+        foods=candidates,
+        keyword=keyword,
+        cuisine=cuisine,
+        sort_by=sort_by,
+        k=top_k,
+    )
 
     return {
         "spot_id": spot.id,
@@ -978,7 +980,7 @@ def get_nearby_restaurants(
         "cuisine": cuisine,
         "top_k": top_k,
         "total_candidates": len(candidates),
-        "matched_count": len(filtered),
+        "matched_count": matched_count,
         "cuisine_options": cuisine_options,
         "restaurants": result,
     }

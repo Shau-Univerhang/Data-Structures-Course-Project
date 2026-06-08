@@ -22,6 +22,7 @@ from algorithms.core import (
     resolve_transport_mode,
     TRANSPORT_MODE_LABELS,
     fuzzy_search,
+    simulate_campus_congestion,
 )
 
 router = APIRouter()
@@ -135,7 +136,15 @@ def _serialize_edge(edge: RoadEdge):
     }
 
 
-def _build_graph_payload(nodes, edges):
+def _build_graph_payload(nodes, edges, congestion_map=None):
+    """
+    构建图数据。
+
+    Args:
+        nodes: RoadNode 列表
+        edges: RoadEdge 列表
+        congestion_map: 可选，{edge_id: congestion_factor} 用于最短时间策略时注入模拟拥挤度
+    """
     nodes_data = [
         {
             "id": n.id,
@@ -146,19 +155,40 @@ def _build_graph_payload(nodes, edges):
         }
         for n in nodes
     ]
-    edges_data = [
-        {
+    edges_data = []
+    for e in edges:
+        # 使用传入的拥挤度覆盖数据库默认值
+        cf = float(e.congestion_factor or 1.0)
+        if congestion_map is not None and e.id in congestion_map:
+            cf = congestion_map[e.id]
+        edges_data.append({
             "from_node_id": e.from_node_id,
             "to_node_id": e.to_node_id,
             "distance": e.distance,
-            "ideal_speed": e.ideal_speed,
-            "congestion_factor": e.congestion_factor,
+            "ideal_speed": float(e.ideal_speed or 1.4),
+            "congestion_factor": cf,
             "road_type": e.road_type,
             "is_bidirectional": e.is_bidirectional,
-        }
-        for e in edges
-    ]
+        })
     return build_graph(nodes_data, edges_data)
+
+
+def _resolve_congestion_map(strategy, edges, nodes, spot):
+    """
+    根据策略返回拥挤度映射：
+      - shortest_time：模拟差异化拥挤度（不同道路有不同拥挤度）
+      - shortest_distance：所有道路拥挤度 = 1.0（等效于纯距离）
+    """
+    if strategy == 'shortest_distance':
+        return {e.id: 1.0 for e in edges}
+    # shortest_time：注入模拟拥挤度
+    nodes_data = [{'id': n.id, 'name': n.name, 'node_type': n.node_type} for n in nodes]
+    return simulate_campus_congestion(
+        [{'id': e.id, 'distance': e.distance, 'road_type': e.road_type,
+          'from_node_id': e.from_node_id, 'to_node_id': e.to_node_id} for e in edges],
+        nodes_data,
+        spot.name if spot else '',
+    )
 
 
 def _build_ordered_waypoint_names(path_ids, waypoint_ids, node_map):
@@ -434,7 +464,7 @@ def plan_route(request: RoutePlanRequest, db: Session = Depends(get_db)):
         }
 
     resolved_mode = resolve_transport_mode(request.transport_mode, spot.type if spot else "scenic")
-    graph = _build_graph_payload(nodes, edges)
+    graph = _build_graph_payload(nodes, edges, _resolve_congestion_map(request.strategy, edges, nodes, spot))
     dist, prev = dijkstra(
         graph,
         request.start_node_id,
@@ -501,7 +531,7 @@ def plan_multi_point_route(request: MultiPointRouteRequest, db: Session = Depend
         }
 
     resolved_mode = resolve_transport_mode(request.transport_mode, spot.type if spot else "scenic")
-    graph = _build_graph_payload(nodes, edges)
+    graph = _build_graph_payload(nodes, edges, _resolve_congestion_map(request.strategy, edges, nodes, spot))
     full_path, ordered_point_ids, _, total_distance, total_duration, transport_modes = tsp_shortest_path(
         graph,
         request.start_node_id,
@@ -621,7 +651,7 @@ def plan_smart_route(request: SmartRouteRequest, db: Session = Depends(get_db)):
         }
 
     resolved_mode = resolve_transport_mode(request.transport_mode, spot.type if spot else "scenic")
-    graph = _build_graph_payload(nodes, edges)
+    graph = _build_graph_payload(nodes, edges, _resolve_congestion_map(request.strategy, edges, nodes, spot))
     node_map = {n.id: n for n in nodes}
 
     n_dests = len(request.destination_ids)
@@ -913,7 +943,7 @@ def get_nearby_facilities(
     ranking_strategy = _nearby_sort_strategy(strategy)
 
     resolved_mode = resolve_transport_mode(transport_mode, spot.type or "scenic")
-    graph = _build_graph_payload(nodes, edges)
+    graph = _build_graph_payload(nodes, edges, _resolve_congestion_map(ranking_strategy, edges, nodes, spot))
     node_map = {n.id: n for n in nodes}
     facility_map = {f.id: f for f in facilities}
     dist_map, prev = dijkstra(graph, origin_node_id, None, resolved_mode, ranking_strategy)
@@ -1008,7 +1038,7 @@ def calculate_distance(
     nodes = db.query(RoadNode).filter(RoadNode.spot_id == spot_id).all()
     edges = db.query(RoadEdge).filter(RoadEdge.spot_id == spot_id).all()
 
-    graph = _build_graph_payload(nodes, edges)
+    graph = _build_graph_payload(nodes, edges, _resolve_congestion_map(strategy, edges, nodes, spot))
     resolved_mode = resolve_transport_mode(transport_mode, spot.type if spot else "scenic")
     dist, _ = dijkstra(graph, from_node_id, to_node_id, resolved_mode, strategy)
 

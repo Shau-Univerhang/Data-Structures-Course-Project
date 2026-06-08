@@ -548,6 +548,90 @@ def _choose_tsp_solver(dist_matrix: Dict, n: int, return_to_start: bool) -> Tupl
     return order, _calculate_tsp_distance(order, dist_matrix)
 
 
+# ==================== 校园路网拥挤度模拟 ====================
+
+import hashlib
+
+def simulate_campus_congestion(
+    edges: List[dict],
+    nodes: List[dict],
+    spot_name: str = "",
+) -> Dict[int, float]:
+    """
+    为校园/景区内部路网模拟差异化拥挤度。
+
+    设计原则：
+      - 基于边 ID 做确定性哈希，同一条边每次计算结果相同
+      - 不同道路类型有不同的基础拥挤范围
+      - 靠近入口/食堂的区域拥挤度更高（瓶颈效应）
+
+    拥挤度含义：∈ (0, 1]，真实速度 = 拥挤度 × 理想速度
+      1.0 = 完全畅通
+      0.5 = 速度减半（较拥挤）
+      0.3 = 严重拥挤
+
+    道路类型拥挤范围：
+      - 主干步行道 : 0.70 ~ 1.00
+      - 骑行道     : 0.65 ~ 0.95
+      - 建筑间小径 : 0.45 ~ 0.85
+      - 入口附近   : 0.35 ~ 0.65
+
+    Returns:
+        {edge_id: congestion_factor}
+    """
+    # 先找出关键区域节点（入口、食堂等）
+    hotspot_node_ids = set()
+    for n in nodes:
+        name = (n.get('name') or '').lower()
+        ntype = (n.get('node_type') or n.get('type', '')).lower()
+        # 入口节点
+        if ntype == 'entrance':
+            hotspot_node_ids.add(n.get('id'))
+        # 食堂、餐厅
+        if any(kw in name for kw in ['食堂', '餐厅', 'canteen', '饭', '餐']):
+            hotspot_node_ids.add(n.get('id'))
+        # 校门
+        if any(kw in name for kw in ['门', 'gate', '入口', '出口']):
+            hotspot_node_ids.add(n.get('id'))
+
+    congestion_map = {}
+
+    for edge in edges:
+        eid = edge.get('id', 0)
+        road_type = edge.get('road_type', 'walk') or 'walk'
+        from_id = edge.get('from_node_id', 0)
+        to_id = edge.get('to_node_id', 0)
+
+        # 用 edge_id 的 MD5 生成确定性种子
+        seed = int(hashlib.md5(str(eid).encode()).hexdigest()[:8], 16)
+        # 归一化到 [0, 1)
+        base = (seed % 10000) / 10000.0
+
+        # 根据道路类型设置基础拥挤范围
+        if road_type == 'bike':
+            # 骑行道：相对畅通
+            lo, hi = 0.65, 0.95
+        else:
+            # 步行道：区分主干道和小路
+            # 边长 > 80m 认为是主干道（教学楼间距），短边是小路
+            dist = float(edge.get('distance', 50) or 50)
+            if dist > 80:
+                lo, hi = 0.70, 1.00  # 主干步行道
+            else:
+                lo, hi = 0.45, 0.85  # 建筑间小径
+
+        congestion = lo + base * (hi - lo)
+
+        # 靠近热点区域：额外降低 0.10 ~ 0.25
+        if from_id in hotspot_node_ids or to_id in hotspot_node_ids:
+            penalty = 0.10 + (seed % 1500) / 10000.0  # 0.10 ~ 0.25
+            congestion = max(0.25, congestion - penalty)
+
+        congestion_map[eid] = round(congestion, 4)
+
+    return congestion_map
+
+
 # ==================== 4. 模糊查找算法 ====================
 
 def levenshtein_distance(s1: str, s2: str) -> int:

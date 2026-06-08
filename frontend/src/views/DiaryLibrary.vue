@@ -19,6 +19,36 @@
       
       <!-- 筛选栏 -->
       <div class="filter-section">
+        <!-- 搜索 & 目的地 -->
+        <div class="filter-group search-group">
+          <!-- 全文搜索 -->
+          <div class="search-input-wrapper">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input 
+              type="text" 
+              class="search-input"
+              placeholder="全文搜索日记标题或内容..." 
+              v-model="searchQuery"
+              @keyup.enter="doSearch"
+            />
+            <button v-if="searchQuery" class="clear-btn" @click="clearSearch">×</button>
+          </div>
+          <!-- 目的地输入 -->
+          <div class="destination-input-wrapper">
+            <span class="dest-icon">📍</span>
+            <input 
+              type="text" 
+              class="destination-input"
+              placeholder="输入目的地，如：北京、上海" 
+              v-model="destinationQuery"
+              @keyup.enter="doDestinationSearch"
+            />
+          </div>
+        </div>
+        
         <!-- 城市筛选 -->
         <div class="filter-group">
           <span class="filter-label">📍 城市</span>
@@ -83,6 +113,16 @@
             </button>
           </div>
         </div>
+        
+        <!-- 搜索状态提示 -->
+        <div v-if="isSearching" class="search-status">
+          <span>🔍 搜索 "{{ searchQuery }}"，共 {{ total }} 条结果</span>
+          <button class="back-to-library-btn" @click="backToLibrary">返回日记库</button>
+        </div>
+        <div v-if="isDestinationSearching" class="search-status">
+          <span>📍 目的地 "{{ destinationQuery }}"，共 {{ total }} 条结果</span>
+          <button class="back-to-library-btn" @click="backToLibrary">返回日记库</button>
+        </div>
       </div>
       
       <!-- 日记网格 -->
@@ -110,7 +150,10 @@
           
           <!-- 内容 -->
           <div class="card-content">
-            <h3 class="card-title">{{ diary.title }}</h3>
+            <h3 class="card-title" v-html="isSearching && diary.snippet_title ? diary.snippet_title : diary.title"></h3>
+            
+            <!-- 搜索摘要 -->
+            <p v-if="isSearching && diary.snippet_content" class="search-snippet" v-html="diary.snippet_content"></p>
             
             <!-- 城市标签 -->
             <div class="city-tags" v-if="diary.cities && diary.cities.length > 0">
@@ -238,6 +281,12 @@ const sortBy = ref('hot')
 const showAllCities = ref(false)
 const showBackToTop = ref(false)
 
+// 搜索 & 目的地
+const searchQuery = ref('')
+const destinationQuery = ref('')
+const isSearching = ref(false)
+const isDestinationSearching = ref(false)
+
 // 日记类型
 const diaryTypes = [
   { value: 'travel', label: '行程', emoji: '🏃' },
@@ -246,11 +295,12 @@ const diaryTypes = [
   { value: 'notes', label: '随笔', emoji: '💭' }
 ]
 
-// 排序选项
+// 排序选项（新增兴趣推荐）
 const sortOptions = [
   { value: 'hot', label: '🔥 最热' },
   { value: 'new', label: '🕐 最新' },
-  { value: 'rating', label: '⭐ 评分' }
+  { value: 'rating', label: '⭐ 评分' },
+  { value: 'interest', label: '💡 兴趣推荐' }
 ]
 
 // 计算属性
@@ -297,11 +347,77 @@ const fetchCities = async () => {
 
 const fetchDiaries = async () => {
   loading.value = true
+  isSearching.value = false
+  isDestinationSearching.value = false
+  
   try {
+    // 如果有搜索词，使用 FTS 全文搜索
+    if (searchQuery.value) {
+      const params = new URLSearchParams({
+        q: searchQuery.value,
+        page: currentPage.value.toString(),
+        page_size: pageSize.value.toString(),
+        sort: sortBy.value === 'hot' ? 'hot' : sortBy.value === 'new' ? 'date' : 'relevance'
+      })
+      
+      const response = await fetch(`/api/diaries/search?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        diaries.value = (data.diaries || []).map(d => ({
+          id: d.id,
+          title: d.title,
+          cover: d.cover || d.cover_image,
+          author: d.author,
+          cities: d.cities || [],
+          rating: d.avg_rating || d.rating || 0,
+          view_count: d.view_count || 0,
+          comment_count: d.comment_count || 0,
+          created_at: d.created_at,
+          snippet_title: d.snippet_title,
+          snippet_content: d.snippet_content
+        }))
+        total.value = data.total || 0
+        isSearching.value = true
+      }
+      loading.value = false
+      return
+    }
+    
+    // 如果有目的地查询，使用目的地接口
+    if (destinationQuery.value) {
+      const params = new URLSearchParams({
+        destination: destinationQuery.value,
+        sort: sortBy.value === 'interest' ? 'hot' : sortBy.value,
+        page: currentPage.value.toString(),
+        page_size: pageSize.value.toString()
+      })
+      
+      const response = await fetch(`/api/diaries/by-destination?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        diaries.value = (data.diaries || []).map(d => ({
+          id: d.id,
+          title: d.title,
+          cover: d.cover || d.cover_image,
+          author: d.author,
+          cities: d.cities || [],
+          rating: d.avg_rating || d.rating || 0,
+          view_count: d.view_count || 0,
+          comment_count: d.comment_count || 0,
+          created_at: d.created_at
+        }))
+        total.value = data.total || 0
+        isDestinationSearching.value = true
+      }
+      loading.value = false
+      return
+    }
+    
+    // 默认：使用日记库接口
     const params = new URLSearchParams({
       page: currentPage.value.toString(),
       page_size: pageSize.value.toString(),
-      sort: sortBy.value
+      sort: sortBy.value === 'interest' ? 'hot' : sortBy.value
     })
     
     if (selectedCity.value) {
@@ -322,6 +438,42 @@ const fetchDiaries = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 全文搜索
+const doSearch = () => {
+  if (!searchQuery.value.trim()) {
+    return
+  }
+  currentPage.value = 1
+  destinationQuery.value = ''
+  fetchDiaries()
+}
+
+// 目的地搜索
+const doDestinationSearch = () => {
+  if (!destinationQuery.value.trim()) {
+    return
+  }
+  currentPage.value = 1
+  searchQuery.value = ''
+  fetchDiaries()
+}
+
+// 清除搜索
+const clearSearch = () => {
+  searchQuery.value = ''
+  backToLibrary()
+}
+
+// 返回日记库
+const backToLibrary = () => {
+  searchQuery.value = ''
+  destinationQuery.value = ''
+  isSearching.value = false
+  isDestinationSearching.value = false
+  currentPage.value = 1
+  fetchDiaries()
 }
 
 const selectCity = (cityId) => {
@@ -355,7 +507,7 @@ const resetFilters = () => {
   selectedType.value = null
   sortBy.value = 'hot'
   currentPage.value = 1
-  fetchDiaries()
+  backToLibrary()
 }
 
 const viewDiary = (id) => {
@@ -614,6 +766,163 @@ watch([selectedCity, selectedType, sortBy], () => {
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 32px;
+}
+
+/* 搜索组 */
+.search-group {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.search-input-wrapper {
+  flex: 2;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 44px 12px 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  border-color: rgba(0, 212, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background: rgba(255, 71, 87, 0.3);
+  color: #ff4757;
+}
+
+.destination-input-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dest-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.destination-input {
+  width: 100%;
+  padding: 12px 14px 12px 38px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.destination-input:focus {
+  border-color: rgba(0, 212, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+}
+
+.destination-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* 搜索状态 */
+.search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 10px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.back-to-library-btn {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.back-to-library-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* 搜索摘要 */
+.search-snippet {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+  margin: 8px 0 12px 0;
+}
+
+.search-snippet :deep(em) {
+  color: #00d4ff;
+  font-style: normal;
+  font-weight: 600;
+  background: rgba(0, 212, 255, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.card-title :deep(em) {
+  color: #00d4ff;
+  font-style: normal;
+  font-weight: 600;
+  background: rgba(0, 212, 255, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .filter-group {
@@ -1122,6 +1431,11 @@ watch([selectedCity, selectedType, sortBy], () => {
     font-size: 28px;
   }
   
+  .search-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
   .filter-group {
     flex-direction: column;
     gap: 12px;
@@ -1129,6 +1443,12 @@ watch([selectedCity, selectedType, sortBy], () => {
   
   .filter-label {
     padding-top: 0;
+  }
+  
+  .search-status {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
   }
   
   .diary-grid {

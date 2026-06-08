@@ -199,7 +199,10 @@ class TravelDiary(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     trip_id = Column(Integer, ForeignKey("trips.id"))
     title = Column(String(200), nullable=False)
-    content = Column(Text)  # 日记内容
+    normalized_title = Column(String(200))  # 标准化标题（用于精确查询）
+    title_hash = Column(String(64))  # 标题哈希（用于快速精确查询）
+    content = Column(Text)  # 日记内容（未压缩时）
+    content_plain = Column(Text)  # 纯文本内容（用于FTS检索，不含压缩数据）
     content_compressed = Column(BLOB)  # 压缩后的内容
     compression_algorithm = Column(String(20))  # 压缩算法
     diary_type = Column(String(20), default='travel')  # 日记类型: travel/food/photo/notes
@@ -227,6 +230,10 @@ class DiaryRating(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     rating = Column(Integer)  # 1-5星
     created_at = Column(String, default=datetime.now().isoformat)
+    
+    __table_args__ = (
+        UniqueConstraint('diary_id', 'user_id', name='unique_diary_user_rating'),
+    )
 
 
 class DiaryComment(Base):

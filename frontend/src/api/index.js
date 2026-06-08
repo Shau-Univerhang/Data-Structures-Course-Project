@@ -77,6 +77,26 @@ export const API = {
       method: 'POST',
       body: JSON.stringify({...data, user_id: 1})
     }),
+    uploadVideo: async (file, userId = 1) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await fetch(`${API_BASE_URL}/api/diaries/upload-video?user_id=${userId}`, {
+        method: 'POST',
+        body: formData
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return response.json()
+    },
+    analyzeVideo: async (videoUrl) => {
+      const formData = new FormData()
+      formData.append('video_url', videoUrl)
+      const response = await fetch(`${API_BASE_URL}/api/diary-generator/analyze-video`, {
+        method: 'POST',
+        body: formData
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      return response.json()
+    },
   },
   
   // 认证

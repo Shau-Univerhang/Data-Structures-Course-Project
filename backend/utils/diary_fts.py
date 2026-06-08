@@ -33,18 +33,33 @@ def init_fts5_table():
         if cursor.fetchone():
             return  # 已存在，跳过
 
-        # 使用 unicode61 + tokenchars 让中文字符不被拆分
-        conn.execute("""
-            CREATE VIRTUAL TABLE travel_diaries_fts USING fts5(
-                title,
-                content_plain,
-                city_text,
-                tag_text,
-                tokenize='unicode61 tokenchars "\u4e00-\u9fff"'
-            )
-        """)
-        conn.commit()
-        print("[FTS5] 虚拟表 travel_diaries_fts 创建成功")
+        # 使用最兼容的 unicode61 tokenizer。此前远程分支合并引入的
+        # tokenchars 写法在部分 SQLite/FTS5 版本上会直接 parse error。
+        try:
+            conn.execute("""
+                CREATE VIRTUAL TABLE travel_diaries_fts USING fts5(
+                    title,
+                    content_plain,
+                    city_text,
+                    tag_text,
+                    tokenize='unicode61'
+                )
+            """)
+            conn.commit()
+            print("[FTS5] 虚拟表 travel_diaries_fts 创建成功")
+        except sqlite3.OperationalError as e:
+            conn.rollback()
+            print(f"[FTS5] unicode61 tokenizer 初始化失败，降级到默认 tokenizer: {e}")
+            conn.execute("""
+                CREATE VIRTUAL TABLE travel_diaries_fts USING fts5(
+                    title,
+                    content_plain,
+                    city_text,
+                    tag_text
+                )
+            """)
+            conn.commit()
+            print("[FTS5] 虚拟表 travel_diaries_fts 已使用默认 tokenizer 创建")
     except Exception as e:
         print(f"[FTS5] 创建虚拟表失败: {e}")
         conn.rollback()
@@ -473,6 +488,3 @@ def search_by_exact_title(title: str) -> list:
     finally:
         db.close()
 
-
-# 初始化 FTS5 表（模块加载时执行）
-init_fts5_table()

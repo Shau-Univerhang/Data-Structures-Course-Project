@@ -17,12 +17,27 @@ load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent))
 
 from routers import spots, trips, route, diary, diary_generator, ai, xiaohongshu, auth, collection, photo, photo_spot, personality
+from migrations.add_fts_and_exact_title import migrate as migrate_diary_search_schema
 
 app = FastAPI(
     title="邮游世界 - 个性化旅游系统",
     description="基于大语言模型和自研算法的个性化旅游规划系统",
     version="1.0.0"
 )
+
+
+@app.on_event("startup")
+async def startup_migrations():
+    """
+    启动时自动补齐日记检索相关字段和 FTS 表。
+    远程分支合并后，经常出现模型字段已更新但本地 SQLite 未迁移的问题。
+    """
+    try:
+        migrate_diary_search_schema()
+    except Exception as e:
+        # 这里不能静默失败，否则服务虽然能启动，但相关接口会在运行时 500。
+        print(f"[Startup] 日记检索迁移失败: {e}")
+        raise
 
 # CORS配置
 app.add_middleware(

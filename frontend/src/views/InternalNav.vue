@@ -447,20 +447,6 @@
                     {{ item.description }}
                   </div>
                 </button>
-                <div class="nearby-actions-row">
-                  <button class="mini-btn" @click="previewNearbyResult(item)">
-                    预览路径
-                  </button>
-                  <button class="mini-btn" @click="addNearbyAsWaypoint(item)">
-                    加入途经点
-                  </button>
-                  <button
-                    class="mini-btn primary-action"
-                    @click="navigateToNearby(item)"
-                  >
-                    导航去这里
-                  </button>
-                </div>
               </div>
             </div>
             <div v-else class="hint-card">
@@ -608,6 +594,17 @@ const anchorNodes = computed(() =>
       ["building", "facility", "entrance"].includes(node.type) &&
       !isExcludedNode(node),
   ),
+);
+// 地图上不显示卫生间标记（仅在场所查询时高亮）
+const isToiletNode = (node) => {
+  if (node.type !== "facility") return false;
+  const ref = node.ref_id;
+  if (!ref) return false;
+  const facility = (mapData.value.facilities || []).find((f) => f.id === ref);
+  return facility?.type === "toilet";
+};
+const mapAnchorNodes = computed(() =>
+  anchorNodes.value.filter((n) => !isToiletNode(n)),
 );
 const nodeMap = computed(() =>
   Object.fromEntries(
@@ -1068,7 +1065,7 @@ async function fetchNearbyFacilities() {
 function previewNearbyResult(item) {
   activeNearbyNodeId.value = item.node_id;
   selectedMapNode.value = nodeMap.value[item.node_id] || null;
-  drawPath(item.path || [], "#10b981", item.name);
+  drawPath(item.path || [], "#10b981", item.name, nearbyOriginName.value);
 }
 
 async function initMap() {
@@ -1143,7 +1140,7 @@ function drawAnchors() {
   const AMap = window.AMap;
   clearAnchorMarkers();
 
-  for (const node of anchorNodes.value) {
+  for (const node of mapAnchorNodes.value) {
     const color =
       node.type === "entrance"
         ? "#f97316"
@@ -1183,7 +1180,7 @@ function drawAnchors() {
   }
 }
 
-function drawPath(path, color, endLabel) {
+function drawPath(path, color, endLabel, startLabelOverride) {
   if (!map || !path.length) return;
   const AMap = window.AMap;
   clearActivePath();
@@ -1200,7 +1197,8 @@ function drawPath(path, color, endLabel) {
   });
   activePolyline.setMap(map);
 
-  addFlag(path[0], `出发 · ${startNodeName.value}`, "#f97316");
+  const startLabel = startLabelOverride || startNodeName.value;
+  addFlag(path[0], `出发 · ${startLabel}`, "#f97316");
   addFlag(path[path.length - 1], endLabel || "到达", color);
   map.setFitView([activePolyline]);
 }

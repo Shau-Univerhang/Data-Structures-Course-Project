@@ -341,10 +341,8 @@ def tsp_shortest_path(
             if i != j and dist_matrix[i].get(j, float('inf')) == float('inf'):
                 return [], [], float('inf'), 0, 0, []
 
-    path = _greedy_tsp(dist_matrix, n, return_to_start)
-    path = _two_opt_optimize(path, dist_matrix, return_to_start)
-
-    total_cost = _calculate_tsp_distance(path, dist_matrix)
+    # 自适应 TSP 求解：n ≤ 12 用精确 DP，n > 12 用贪心+2-opt 启发式
+    path, total_cost = _choose_tsp_solver(dist_matrix, n, return_to_start)
     ordered_point_ids = [all_points[idx] for idx in path]
 
     full_path = []
@@ -415,6 +413,139 @@ def _calculate_tsp_distance(path: List[int], dist_matrix: Dict) -> float:
     for i in range(len(path) - 1):
         total += dist_matrix[path[i]][path[i+1]]
     return total
+
+
+def _tsp_exact_dp(dist_matrix: Dict, n: int, start_idx: int = 0, return_to_start: bool = True) -> Tuple[Optional[List[int]], float]:
+    """
+    TSP 精确解 —— Held-Karp 状态压缩 DP
+
+    时间复杂度：O(n²·2ⁿ)，空间复杂度：O(n·2ⁿ)
+    适用于 n ≤ 15 的场景（校园/景区目的地数量通常在此范围内）
+
+    算法原理：
+      - dp[mask][i] = (min_cost, prev_node)
+      - mask 的第 j 位为 1 表示节点 j 已被访问
+      - 从只有一个节点的状态开始，逐步扩展访问集合
+      - 最终从全集中恢复最优访问顺序
+
+    Args:
+        dist_matrix: 距离矩阵 dist_matrix[i][j] = i 到 j 的距离
+        n: 节点总数（包含起点）
+        start_idx: 起点在矩阵中的索引（通常为 0）
+        return_to_start: 是否要求回到起点
+
+    Returns:
+        (order, total_cost)：order 为访问顺序的索引列表，total_cost 为总代价
+        若无法求解则返回 (None, inf)
+    """
+    INF = float('inf')
+    total_states = 1 << n
+
+    # dp[mask][i] = (min_cost, prev_node)
+    dp: List[List[Tuple[float, int]]] = [[(INF, -1) for _ in range(n)] for _ in range(total_states)]
+
+    # 初始状态：只访问了起点
+    dp[1 << start_idx][start_idx] = (0.0, -1)
+
+    # 枚举所有状态
+    for mask in range(total_states):
+        # 起点必须在 mask 中（剪枝：跳过不可能的状态）
+        if not (mask & (1 << start_idx)):
+            continue
+
+        for i in range(n):
+            if not (mask & (1 << i)):
+                continue
+            cost_i, _ = dp[mask][i]
+            if cost_i == INF:
+                continue
+
+            # 尝试扩展到未访问的节点 j
+            for j in range(n):
+                if mask & (1 << j):
+                    continue
+                edge_cost = dist_matrix[i].get(j, INF)
+                if edge_cost == INF:
+                    continue
+                new_cost = cost_i + edge_cost
+                new_mask = mask | (1 << j)
+                if new_cost < dp[new_mask][j][0]:
+                    dp[new_mask][j] = (new_cost, i)
+
+    full_mask = (1 << n) - 1
+
+    if return_to_start:
+        # 找最优终点：访问完所有节点后能最低代价返回起点
+        best_cost = INF
+        best_end = -1
+        for i in range(n):
+            if i == start_idx:
+                continue
+            cost = dp[full_mask][i][0]
+            if cost == INF:
+                continue
+            return_cost = dist_matrix[i].get(start_idx, INF)
+            if return_cost == INF:
+                continue
+            total = cost + return_cost
+            if total < best_cost:
+                best_cost = total
+                best_end = i
+
+        if best_end == -1:
+            return None, INF
+
+        # 回溯重建路径
+        order = []
+        mask = full_mask
+        curr = best_end
+        while curr != -1:
+            order.append(curr)
+            _, prev = dp[mask][curr]
+            mask ^= (1 << curr)
+            curr = prev
+        order.reverse()  # 现在是 start → ... → best_end
+        order.append(start_idx)  # 回到起点
+        return order, best_cost
+    else:
+        # 不需要回到起点：找访问完所有节点的最低代价
+        best_cost = INF
+        best_end = -1
+        for i in range(n):
+            if dp[full_mask][i][0] < best_cost:
+                best_cost = dp[full_mask][i][0]
+                best_end = i
+
+        if best_end == -1:
+            return None, INF
+
+        # 回溯重建路径
+        order = []
+        mask = full_mask
+        curr = best_end
+        while curr != -1:
+            order.append(curr)
+            _, prev = dp[mask][curr]
+            mask ^= (1 << curr)
+            curr = prev
+        order.reverse()
+        return order, best_cost
+
+
+def _choose_tsp_solver(dist_matrix: Dict, n: int, return_to_start: bool) -> Tuple[List[int], float]:
+    """
+    根据问题规模选择 TSP 求解策略：
+      - n ≤ 12：状态压缩 DP 求精确最优解
+      - n > 12：贪心 + 2-opt 启发式近似解
+    """
+    if n <= 12:
+        order, cost = _tsp_exact_dp(dist_matrix, n, 0, return_to_start)
+        if order is not None:
+            return order, cost
+        # DP 失败（如不连通），降级到启发式
+    order = _greedy_tsp(dist_matrix, n, return_to_start)
+    order = _two_opt_optimize(order, dist_matrix, return_to_start)
+    return order, _calculate_tsp_distance(order, dist_matrix)
 
 
 # ==================== 4. 模糊查找算法 ====================

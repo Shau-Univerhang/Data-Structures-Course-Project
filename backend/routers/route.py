@@ -27,6 +27,11 @@ from algorithms.core import (
 router = APIRouter()
 
 
+def _duration_seconds(duration: float) -> int:
+    """将浮点持续时间（秒）转为整数秒"""
+    return max(0, int(round(duration)))
+
+
 class RoutePlanRequest(BaseModel):
     spot_id: int
     start_node_id: int
@@ -537,6 +542,270 @@ def plan_multi_point_route(request: MultiPointRouteRequest, db: Session = Depend
         "segment_transport_modes": transport_modes,
         "ordered_waypoint_ids": ordered_waypoint_ids,
         "ordered_waypoint_names": ordered_waypoint_names,
+        "return_to_start": request.return_to_start,
+        "error": None,
+    }
+
+
+@router.get("/navigable-spots")
+def get_navigable_spots(db: Session = Depends(get_db)):
+    """
+    返回存在道路网络数据（RoadNode + RoadEdge）的景区/校园列表。
+    前端 RoutePlan 页面用此接口获取可导航的场所。
+    """
+    from sqlalchemy import distinct
+
+    # 找出所有有道路节点的 spot_id
+    rows = db.query(distinct(RoadNode.spot_id)).all()
+    spot_ids = [row[0] for row in rows if row[0] is not None]
+
+    if not spot_ids:
+        return {"spots": []}
+
+    spots = db.query(ScenicSpot).filter(ScenicSpot.id.in_(spot_ids)).all()
+
+    return {
+        "spots": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "city": s.city,
+                "type": s.type,
+                "category": s.category,
+                "location_lat": s.location_lat,
+                "location_lng": s.location_lng,
+            }
+            for s in spots
+        ]
+    }
+
+
+class SmartRouteRequest(BaseModel):
+    """智能路由请求：自动识别单目标 Dijkstra 或多目标 TSP"""
+    spot_id: int
+    start_node_id: int
+    destination_ids: List[int]  # 1 个=直达，≥2 个=巡游
+    return_to_start: bool = True  # 巡游模式默认回到起点
+    strategy: str = "shortest_time"
+    transport_mode: str = "walk"
+
+
+@router.post("/plan-smart", response_model=RoutePlanResponse)
+def plan_smart_route(request: SmartRouteRequest, db: Session = Depends(get_db)):
+    """
+    智能路线规划 —— 自动场景识别
+
+    场景 A（单目标直达）：1 个 destination + return_to_start=False
+      → Dijkstra 算法，O((V+E)log V)
+
+    场景 B（单目标往返）：1 个 destination + return_to_start=True
+      → Dijkstra 往返拼接
+
+    场景 C（多点巡游）：≥2 个 destination_ids
+      → 自适应 TSP 求解：
+         n ≤ 12：Held-Karp 状态压缩 DP 精确解，O(n²·2ⁿ)
+         n > 12：贪心 + 2-opt 启发式近似，O(n²)
+    """
+    spot = db.query(ScenicSpot).filter(ScenicSpot.id == request.spot_id).first()
+    nodes = db.query(RoadNode).filter(RoadNode.spot_id == request.spot_id).all()
+    edges = db.query(RoadEdge).filter(RoadEdge.spot_id == request.spot_id).all()
+
+    if not nodes or not edges:
+        return {
+            "distance": 0, "duration": 0, "path": [],
+            "algorithm": "none", "time_complexity": "-",
+            "transport_mode": request.transport_mode,
+            "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+            "segment_transport_modes": [],
+            "error": "道路数据不存在",
+        }
+
+    resolved_mode = resolve_transport_mode(request.transport_mode, spot.type if spot else "scenic")
+    graph = _build_graph_payload(nodes, edges)
+    node_map = {n.id: n for n in nodes}
+
+    n_dests = len(request.destination_ids)
+    from algorithms.core import _tsp_exact_dp, _choose_tsp_solver
+
+    # ─── 场景 A：单目标直达（Dijkstra） ───
+    if n_dests == 1 and not request.return_to_start:
+        end_id = request.destination_ids[0]
+        dist, prev = dijkstra(graph, request.start_node_id, end_id, resolved_mode, request.strategy)
+        path_ids = get_shortest_path(prev, request.start_node_id, end_id)
+
+        if not path_ids:
+            return {
+                "distance": 0, "duration": 0, "path": [],
+                "algorithm": "dijkstra", "time_complexity": "O((V+E)logV)",
+                "transport_mode": request.transport_mode,
+                "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+                "segment_transport_modes": [],
+                "error": "无法到达目标",
+            }
+
+        segment_modes = extract_segment_transport_modes(graph, path_ids, resolved_mode)
+        distance = calculate_path_distance(graph, path_ids)
+        duration = _duration_seconds(calculate_path_duration(graph, path_ids, resolved_mode))
+
+        return {
+            "distance": distance, "duration": duration,
+            "path": _serialize_path(path_ids, node_map),
+            "algorithm": "dijkstra", "time_complexity": "O((V+E)logV)",
+            "transport_mode": request.transport_mode,
+            "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+            "segment_transport_modes": segment_modes,
+            "ordered_waypoint_ids": [end_id],
+            "ordered_waypoint_names": [node_map[end_id].name] if end_id in node_map else [],
+            "return_to_start": False,
+            "error": None,
+        }
+
+    # ─── 场景 B：单目标往返 ───
+    if n_dests == 1 and request.return_to_start:
+        end_id = request.destination_ids[0]
+        # A → B
+        dist1, prev1 = dijkstra(graph, request.start_node_id, end_id, resolved_mode, request.strategy)
+        path_ab = get_shortest_path(prev1, request.start_node_id, end_id)
+        # B → A
+        dist2, prev2 = dijkstra(graph, end_id, request.start_node_id, resolved_mode, request.strategy)
+        path_ba = get_shortest_path(prev2, end_id, request.start_node_id)
+
+        if not path_ab or not path_ba:
+            return {
+                "distance": 0, "duration": 0, "path": [],
+                "algorithm": "dijkstra", "time_complexity": "O((V+E)logV)",
+                "transport_mode": request.transport_mode,
+                "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+                "segment_transport_modes": [],
+                "error": "无法完成往返路径",
+            }
+
+        # 拼接路径（去重连接点）
+        full_path = list(path_ab)
+        if path_ba and full_path[-1] == path_ba[0]:
+            full_path.extend(path_ba[1:])
+        else:
+            full_path.extend(path_ba)
+
+        segment_modes_ab = extract_segment_transport_modes(graph, path_ab, resolved_mode)
+        segment_modes_ba = extract_segment_transport_modes(graph, path_ba, resolved_mode)
+        distance = calculate_path_distance(graph, full_path)
+        duration = _duration_seconds(
+            calculate_path_duration(graph, path_ab, resolved_mode) +
+            calculate_path_duration(graph, path_ba, resolved_mode)
+        )
+
+        return {
+            "distance": distance, "duration": duration,
+            "path": _serialize_path(full_path, node_map),
+            "algorithm": "dijkstra_roundtrip", "time_complexity": "O((V+E)logV)",
+            "transport_mode": request.transport_mode,
+            "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+            "segment_transport_modes": segment_modes_ab + segment_modes_ba,
+            "start_node_id": request.start_node_id,
+            "start_node_name": node_map[request.start_node_id].name if request.start_node_id in node_map else "",
+            "ordered_stop_ids": [request.start_node_id, end_id, request.start_node_id],
+            "ordered_stop_names": [
+                node_map[request.start_node_id].name if request.start_node_id in node_map else "",
+                node_map[end_id].name if end_id in node_map else "",
+                node_map[request.start_node_id].name if request.start_node_id in node_map else "",
+            ],
+            "ordered_waypoint_ids": [end_id],
+            "ordered_waypoint_names": [node_map[end_id].name] if end_id in node_map else [],
+            "final_node_id": request.start_node_id,
+            "final_node_name": node_map[request.start_node_id].name if request.start_node_id in node_map else "",
+            "return_to_start": True,
+            "error": None,
+        }
+
+    # ─── 场景 C：多点巡游（TSP） ───
+    all_points = [request.start_node_id] + request.destination_ids
+    all_point_ids = all_points
+    n = len(all_points)
+
+    # 构建距离矩阵和路径矩阵
+    dist_matrix = {}
+    path_matrix = {}
+    INF = float('inf')
+
+    for i, p1 in enumerate(all_points):
+        dist_matrix[i] = {}
+        path_matrix[i] = {}
+        for j, p2 in enumerate(all_points):
+            if i != j:
+                d, prev = dijkstra(graph, p1, p2, resolved_mode, request.strategy)
+                if d.get(p2, INF) < INF:
+                    dist_matrix[i][j] = d[p2]
+                    path_matrix[i][j] = get_shortest_path(prev, p1, p2)
+
+    # 检查连通性
+    for i in range(n):
+        for j in range(n):
+            if i != j and dist_matrix[i].get(j, INF) == INF:
+                return {
+                    "distance": 0, "duration": 0, "path": [],
+                    "algorithm": "tsp", "time_complexity": "O(n²·2ⁿ)",
+                    "transport_mode": request.transport_mode,
+                    "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+                    "segment_transport_modes": [],
+                    "error": f"节点 {all_points[i]} 到 {all_points[j]} 不连通",
+                }
+
+    # 自适应 TSP 求解
+    tsp_order, tsp_cost = _choose_tsp_solver(dist_matrix, n, request.return_to_start)
+    algo_name = "tsp_exact_dp" if n <= 12 else "tsp_greedy_2opt"
+    algo_complexity = "O(n²·2ⁿ)" if n <= 12 else "O(n²)"
+
+    # 拼接完整物理路径
+    ordered_point_ids = [all_points[idx] for idx in tsp_order]
+    full_path = []
+    for step in range(len(tsp_order) - 1):
+        from_idx = tsp_order[step]
+        to_idx = tsp_order[step + 1]
+        segment = path_matrix[from_idx][to_idx]
+        if full_path and full_path[-1] == segment[0]:
+            full_path.extend(segment[1:])
+        else:
+            full_path.extend(segment)
+
+    total_distance = calculate_path_distance(graph, full_path)
+    total_duration = _duration_seconds(calculate_path_duration(graph, full_path, resolved_mode))
+    transport_modes = extract_segment_transport_modes(graph, full_path, resolved_mode)
+
+    # 解析目的地访问顺序（排除起点重复）
+    waypoint_set = set(request.destination_ids)
+    ordered_wp_ids = []
+    ordered_wp_names = []
+    for nid in ordered_point_ids:
+        if nid in waypoint_set and (not ordered_wp_ids or ordered_wp_ids[-1] != nid):
+            ordered_wp_ids.append(nid)
+            ordered_wp_names.append(node_map[nid].name if nid in node_map else "")
+
+    start_name = node_map[request.start_node_id].name if request.start_node_id in node_map else ""
+    ordered_stop_ids = [request.start_node_id] + ordered_wp_ids
+    ordered_stop_names = [start_name] + ordered_wp_names
+    final_id = ordered_point_ids[-1] if ordered_point_ids else request.start_node_id
+    final_name = node_map[final_id].name if final_id in node_map else ""
+
+    if request.return_to_start:
+        ordered_stop_ids.append(request.start_node_id)
+        ordered_stop_names.append(start_name)
+
+    return {
+        "distance": total_distance, "duration": total_duration,
+        "path": _serialize_path(full_path, node_map),
+        "algorithm": algo_name, "time_complexity": algo_complexity,
+        "transport_mode": request.transport_mode,
+        "transport_label": _transport_label(request.transport_mode, spot.type if spot else None),
+        "segment_transport_modes": transport_modes,
+        "start_node_id": request.start_node_id,
+        "start_node_name": start_name,
+        "ordered_stop_ids": ordered_stop_ids,
+        "ordered_stop_names": ordered_stop_names,
+        "ordered_waypoint_ids": ordered_wp_ids,
+        "ordered_waypoint_names": ordered_wp_names,
+        "final_node_id": final_id,
+        "final_node_name": final_name,
         "return_to_start": request.return_to_start,
         "error": None,
     }

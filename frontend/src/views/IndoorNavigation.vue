@@ -94,16 +94,7 @@
           </div>
           <div class="path-row path-chain-row">
             <span class="path-label">路径</span>
-            <div class="path-chips">
-              <span
-                v-for="(label, idx) in computedRoutePath.pathLabels"
-                :key="`path-chip-${idx}`"
-                :class="['path-chip', { 'chip-active': idx <= currentPointerIndex, 'chip-start': idx === 0, 'chip-end': idx === computedRoutePath.pathLabels.length - 1 }]"
-                @click="onPathChipClick(idx)"
-              >
-                {{ label }}
-              </span>
-            </div>
+            <span class="path-chain">{{ computedRoutePath.pathLabels.join(' → ') }}</span>
           </div>
           <div v-if="computedRoutePath.floorTransitions.length" class="floor-transition-box">
             <span class="transition-label">楼层切换</span>
@@ -256,14 +247,13 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 :stroke-dasharray="segment.isVertical ? '6 6' : '8 4'"
-                :style="{ opacity: shouldShowSegment(idx) ? undefined : 0 }"
               />
             </template>
           </g>
 
           <g class="animated-pointer" filter="url(#glow)">
             <circle
-              v-if="showPointer && pointerNodeFloor === displayFloor"
+              v-if="showPointer"
               :cx="pointerX"
               :cy="pointerY"
               r="8"
@@ -283,7 +273,7 @@
               />
             </circle>
             <circle
-              v-if="showPointer && pointerNodeFloor === displayFloor"
+              v-if="showPointer"
               :cx="pointerX"
               :cy="pointerY"
               r="5"
@@ -292,7 +282,7 @@
           </g>
 
           <g class="start-end-markers">
-            <g v-if="startNode && startNode.floorId === displayFloor" class="start-marker">
+            <g v-if="startNode" class="start-marker">
               <circle
                 :cx="startNode.x"
                 :cy="startNode.y"
@@ -316,7 +306,7 @@
                 起点
               </text>
             </g>
-            <g v-if="endNode && endNode.floorId === displayFloor" class="end-marker">
+            <g v-if="endNode" class="end-marker">
               <circle
                 :cx="endNode.x"
                 :cy="endNode.y"
@@ -752,7 +742,7 @@ const computedRoutePath = computed(() => {
 
     const nodeMap = {}
     data.floors.forEach(floor => {
-      floor.nodes.forEach(node => { nodeMap[node.id] = { ...node, floorId: floor.id } })
+      floor.nodes.forEach(node => { nodeMap[node.id] = node })
     })
 
     return {
@@ -776,7 +766,7 @@ const computedRoutePath = computed(() => {
   const elevatorIds = floorsInRange.map(f => data.elevatorNodes[f])
   const nodeMap = {}
   data.floors.forEach(floor => {
-    floor.nodes.forEach(node => { nodeMap[node.id] = { ...node, floorId: floor.id } })
+    floor.nodes.forEach(node => { nodeMap[node.id] = node })
   })
 
   // Build full path: start -> ... -> start-floor elevator -> ... -> end-floor elevator -> ... -> end
@@ -859,12 +849,6 @@ const navStatusText = computed(() => {
   return `前往: ${nextNode.label}`
 })
 
-const pointerNodeFloor = computed(() => {
-  if (!showPointer.value || displayPath.value.length === 0) return null
-  const currentNode = displayPath.value[currentPointerIndex.value]
-  return currentNode?.floorId || null
-})
-
 const pointerRadiusValues = '8;12;8'
 const pointerOpacityValues = '1;0.5;1'
 
@@ -880,21 +864,6 @@ function isSegmentActive(idx) {
   return idx < currentPointerIndex.value
 }
 
-function shouldShowSegment(idx) {
-  const segment = pathSegments.value[idx]
-  if (!segment) return false
-  const fromFloor = segment.from?.floorId
-  const toFloor = segment.to?.floorId
-  return fromFloor === displayFloor.value || toFloor === displayFloor.value
-}
-
-function onPathChipClick(nodeIndex) {
-  const node = displayPath.value[nodeIndex]
-  if (node) {
-    displayFloor.value = node.floorId
-  }
-}
-
 function startNavigation() {
   if (!canNavigate.value || displayPath.value.length === 0) return
 
@@ -906,8 +875,10 @@ function startNavigation() {
   pointerX.value = startN.x
   pointerY.value = startN.y
 
-  // Default to start floor so user can see the departure
-  displayFloor.value = startN.floorId
+  if (computedNavType.value === 'cross-floor') {
+    const targetFloor = endNode.value.floorId
+    displayFloor.value = targetFloor
+  }
 
   animateStep(0)
 }
@@ -924,12 +895,8 @@ function animateStep(stepIndex) {
   const from = displayPath.value[stepIndex]
   const to = displayPath.value[stepIndex + 1]
 
-  // Switch to the destination floor BEFORE animating a cross-floor segment
   if (from.floorId !== to.floorId) {
     displayFloor.value = to.floorId
-  } else if (stepIndex === 0) {
-    // Ensure we're on the starting node's floor
-    displayFloor.value = from.floorId
   }
 
   const duration = 800
@@ -1213,49 +1180,6 @@ onBeforeUnmount(() => {
 
 .path-chain-row {
   align-items: flex-start;
-}
-
-.path-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-}
-
-.path-chip {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
-}
-
-.path-chip:hover {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.4);
-  color: #c7d2fe;
-}
-
-.path-chip.chip-active {
-  background: rgba(6, 182, 212, 0.15);
-  border-color: rgba(6, 182, 212, 0.4);
-  color: #67e8f9;
-}
-
-.path-chip.chip-start {
-  border-color: rgba(16, 185, 129, 0.5);
-  background: rgba(16, 185, 129, 0.1);
-  color: #6ee7b7;
-}
-
-.path-chip.chip-end {
-  border-color: rgba(239, 68, 68, 0.5);
-  background: rgba(239, 68, 68, 0.1);
-  color: #fca5a5;
 }
 
 .path-chain {

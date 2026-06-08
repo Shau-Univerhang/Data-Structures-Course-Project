@@ -94,20 +94,57 @@
         </section>
 
         <template v-if="activePanel === 'route'">
+          <!-- 巡游模式开关 -->
+          <section class="panel-card">
+            <div class="section-heading">规划模式</div>
+            <div class="mode-toggle-row">
+              <button
+                :class="['mode-toggle-btn', { active: !tourMode }]"
+                @click="tourMode = false"
+              >
+                <span class="mode-icon">📍</span>
+                <div class="mode-text">
+                  <strong>直达模式</strong>
+                  <small>起点 → 途经点 → 终点</small>
+                </div>
+              </button>
+              <button
+                :class="['mode-toggle-btn', { active: tourMode }]"
+                @click="tourMode = true"
+              >
+                <span class="mode-icon">🔄</span>
+                <div class="mode-text">
+                  <strong>巡游模式</strong>
+                  <small>起点 → 全部目的地 → 起点</small>
+                </div>
+              </button>
+            </div>
+            <div v-if="tourMode" class="tour-info-banner">
+              🗺️ 系统将自动规划最优闭环路线，遍历所有目的地后返回起点。
+              算法：Held-Karp 状态压缩 DP。
+            </div>
+          </section>
+
           <section class="panel-card">
             <div class="section-heading">路线设置</div>
             <div class="route-slot-card start">
               <div class="route-slot-label">起点</div>
               <div class="route-slot-name">{{ startNodeName }}</div>
               <div class="route-slot-hint">
-                在左侧搜索结果或地图点位中选择地点后，点击“设为起点”。
+                在左侧搜索结果或地图点位中选择地点后，点击"设为起点"。
               </div>
             </div>
-            <div class="route-slot-card end top-gap">
-              <div class="route-slot-label">终点</div>
+            <div class="route-slot-card end top-gap" :class="{ 'tour-dest': tourMode }">
+              <div class="route-slot-label">
+                {{ tourMode ? '目的地 / 终点' : '终点' }}
+                <span v-if="tourMode && allDestinationIds.length" class="dest-count">{{ allDestinationIds.length }}</span>
+              </div>
               <div class="route-slot-name">{{ endNodeName }}</div>
               <div class="route-slot-hint">
-                选择最终到达地点，路径会按起点 → 途经点 → 终点规划。
+                {{ tourMode
+                  ? '巡游模式中所有目的地平等对待，系统自动求最优访问顺序并返回起点。'
+                  : '选择最终到达地点，路径会按起点 → 途经点 → 终点规划。'
+                }}
               </div>
             </div>
           </section>
@@ -154,7 +191,10 @@
           </section>
 
           <section class="panel-card">
-            <div class="section-heading">途经点</div>
+            <div class="section-heading">
+              {{ tourMode ? '目的地列表' : '途经点' }}
+              <span v-if="tourMode && allDestinationIds.length" class="dest-count">{{ allDestinationIds.length }} 个目的地</span>
+            </div>
             <div v-if="waypointNodes.length" class="selected-list">
               <div
                 v-for="(target, index) in waypointNodes"
@@ -168,17 +208,30 @@
                 </button>
               </div>
             </div>
-            <div v-else class="hint-card">
-              可添加多个途经点，系统会自动规划经过它们后到达终点。
+            <div v-if="tourMode && endNodeId.value" class="selected-list top-gap">
+              <div class="selected-item end-as-dest">
+                <span class="selected-idx end-idx">{{ waypointNodes.length + 1 }}</span>
+                <span class="selected-name">{{ endNodeName }}</span>
+                <button class="remove-btn" @click="endNodeId.value = null">
+                  ×
+                </button>
+              </div>
+            </div>
+            <div v-if="!waypointNodes.length && !(tourMode && endNodeId.value)" class="hint-card">
+              {{ tourMode
+                ? '通过"加入途经点"或"设为终点"添加目的地，所有目的地将被最优排序后返回起点。'
+                : '可添加多个途经点，系统会自动规划经过它们后到达终点。'
+              }}
             </div>
 
             <div class="route-action-row">
               <button
                 class="plan-btn"
+                :class="{ 'tour-plan': tourMode }"
                 :disabled="!canPlanRoute"
                 @click="planRoute"
               >
-                {{ planning ? "规划中..." : "开始规划路线" }}
+                {{ planning ? "规划中..." : tourMode ? "🗺️ 开始巡游规划" : "开始规划路线" }}
               </button>
               <button
                 class="mini-btn secondary-action"
@@ -222,7 +275,12 @@
               >
             </div>
             <div class="summary-row">
-              <span>终点</span><strong>{{ endNodeName }}</strong>
+              <span>{{ tourMode ? '闭环返回' : '终点' }}</span
+              ><strong>{{ tourMode ? startNodeName : endNodeName }}</strong>
+            </div>
+
+            <div v-if="tourMode && routeResult.algorithm" class="summary-row">
+              <span>算法</span><strong>{{ routeResult.algorithm === 'tsp_exact_dp' ? 'TSP 精确DP' : routeResult.algorithm === 'tsp_greedy_2opt' ? 'TSP 启发式' : 'Dijkstra' }}</strong>
             </div>
 
             <div v-if="transportSegments.length" class="chips-wrap">
@@ -236,22 +294,35 @@
               >
             </div>
 
-            <div v-if="orderedNames.length" class="order-box">
-              <div class="order-title">推荐顺序</div>
+            <div v-if="orderedNames.length || (tourMode && routeResult?.ordered_stop_names?.length)" class="order-box">
+              <div class="order-title">{{ tourMode ? 'TSP 最优巡游顺序' : '推荐顺序' }}</div>
               <div class="order-chain">
-                <span class="order-node start">{{ startNodeName }}</span>
-                <template
-                  v-for="(name, index) in orderedNames"
-                  :key="`${name}-${index}`"
-                >
-                  <span class="order-arrow">→</span>
-                  <span
-                    :class="[
-                      'order-node',
-                      { end: index === orderedNames.length - 1 },
-                    ]"
+                <template v-if="tourMode && routeResult?.ordered_stop_names?.length">
+                  <template v-for="(name, index) in routeResult.ordered_stop_names" :key="`${name}-${index}`">
+                    <span v-if="index > 0" class="order-arrow">→</span>
+                    <span
+                      :class="[
+                        'order-node',
+                        { start: index === 0, 'return-start': index === routeResult.ordered_stop_names.length - 1 },
+                      ]"
+                    >{{ name }}</span>
+                  </template>
+                </template>
+                <template v-else>
+                  <span class="order-node start">{{ startNodeName }}</span>
+                  <template
+                    v-for="(name, index) in orderedNames"
+                    :key="`${name}-${index}`"
+                  >
+                    <span class="order-arrow">→</span>
+                    <span
+                      :class="[
+                        'order-node',
+                        { end: index === orderedNames.length - 1 },
+                      ]"
                     >{{ name }}</span
                   >
+                </template>
                 </template>
               </div>
             </div>
@@ -265,7 +336,7 @@
               <span>当前中心点</span><strong>{{ nearbyOriginName }}</strong>
             </div>
             <div class="hint-card small">
-              先选中某个地点，再点“查看附近”，或直接使用当前起点。
+              先选中某个地点，再点"查看附近"，或直接使用当前起点。
             </div>
             <div class="transport-tabs transport-tabs-icons">
               <button
@@ -498,6 +569,7 @@ const nodeSearchKeyword = ref("");
 const startNodeId = ref(null);
 const endNodeId = ref(null);
 const waypointIds = ref([]);
+const tourMode = ref(false);
 const routeResult = ref(null);
 const orderedNames = ref([]);
 const selectedMapNode = ref(null);
@@ -565,9 +637,24 @@ const displayModes = computed(() => {
   const modes = mapData.value.display_modes || [];
   return modes.length ? modes : [{ value: "walk", label: "步行" }];
 });
-const canPlanRoute = computed(() =>
-  Boolean(startNodeId.value && endNodeId.value),
-);
+const canPlanRoute = computed(() => {
+  if (!startNodeId.value) return false;
+  if (tourMode.value) {
+    // 巡游模式：需要起点 + 至少 1 个目的地（途经点或终点）
+    return waypointIds.value.length > 0 || Boolean(endNodeId.value);
+  }
+  // 直达模式：需要起点 + 终点
+  return Boolean(endNodeId.value);
+});
+
+const allDestinationIds = computed(() => {
+  if (!tourMode.value) return [];
+  const ids = [...waypointIds.value];
+  if (endNodeId.value && !ids.includes(endNodeId.value)) {
+    ids.push(endNodeId.value);
+  }
+  return ids;
+});
 const canSwapRoute = computed(() =>
   Boolean(startNodeId.value && endNodeId.value),
 );
@@ -861,26 +948,46 @@ async function planRoute() {
   orderedNames.value = [];
 
   try {
-    const hasWaypoints = waypointIds.value.length > 0;
-    const url = hasWaypoints
-      ? `${API_BASE}/api/route/plan-multi`
-      : `${API_BASE}/api/route/plan`;
-    const payload = hasWaypoints
-      ? {
-          spot_id: spotId.value,
-          start_node_id: startNodeId.value,
-          waypoint_ids: [...waypointIds.value, endNodeId.value],
-          return_to_start: false,
-          strategy: strategy.value,
-          transport_mode: transportMode.value,
-        }
-      : {
-          spot_id: spotId.value,
-          start_node_id: startNodeId.value,
-          end_node_id: endNodeId.value,
-          strategy: strategy.value,
-          transport_mode: transportMode.value,
-        };
+    let url, payload;
+
+    if (tourMode.value) {
+      // ─── 巡游模式：TSP 闭环规划 ───
+      url = `${API_BASE}/api/route/plan-smart`;
+      const destIds = [...waypointIds.value];
+      if (endNodeId.value && !destIds.includes(endNodeId.value)) {
+        destIds.push(endNodeId.value);
+      }
+      payload = {
+        spot_id: spotId.value,
+        start_node_id: startNodeId.value,
+        destination_ids: destIds,
+        return_to_start: true,
+        strategy: strategy.value,
+        transport_mode: transportMode.value,
+      };
+    } else {
+      // ─── 直达模式：起点 → 途经点 → 终点 ───
+      const hasWaypoints = waypointIds.value.length > 0;
+      url = hasWaypoints
+        ? `${API_BASE}/api/route/plan-multi`
+        : `${API_BASE}/api/route/plan`;
+      payload = hasWaypoints
+        ? {
+            spot_id: spotId.value,
+            start_node_id: startNodeId.value,
+            waypoint_ids: [...waypointIds.value, endNodeId.value],
+            return_to_start: false,
+            strategy: strategy.value,
+            transport_mode: transportMode.value,
+          }
+        : {
+            spot_id: spotId.value,
+            start_node_id: startNodeId.value,
+            end_node_id: endNodeId.value,
+            strategy: strategy.value,
+            transport_mode: transportMode.value,
+          };
+    }
 
     const res = await fetch(url, {
       method: "POST",
@@ -890,7 +997,13 @@ async function planRoute() {
     if (!res.ok) throw new Error(`接口返回 ${res.status}`);
     const result = await res.json();
     routeResult.value = result;
-    orderedNames.value = result.ordered_waypoint_names || [];
+
+    // 巡游模式使用 TSP 最优顺序；直达模式沿用原有字段
+    if (tourMode.value) {
+      orderedNames.value = result.ordered_waypoint_names || [];
+    } else {
+      orderedNames.value = result.ordered_waypoint_names || [];
+    }
 
     if (result.error) {
       routeError.value = result.error;
@@ -898,7 +1011,10 @@ async function planRoute() {
       return;
     }
 
-    drawPath(result.path || [], "#2563eb", endNodeName.value || "到达");
+    const endLabel = tourMode.value
+      ? `返回 · ${startNodeName.value}`
+      : endNodeName.value || "到达";
+    drawPath(result.path || [], "#2563eb", endLabel);
   } catch (error) {
     routeError.value = error.message || "路线规划失败";
   } finally {
@@ -1114,7 +1230,7 @@ function clearActivePath() {
   activeMarkers = [];
 }
 
-watch([startNodeId, endNodeId, waypointIds], () => {
+watch([startNodeId, endNodeId, waypointIds, tourMode], () => {
   routeResult.value = null;
   orderedNames.value = [];
   routeError.value = "";
@@ -1647,6 +1763,99 @@ onBeforeUnmount(() => {
 .order-node.end {
   background: #dbeafe;
   color: #1d4ed8;
+}
+
+.order-node.return-start {
+  background: #d1fae5;
+  color: #065f46;
+  font-weight: 700;
+}
+
+/* ─── 巡游模式 ─── */
+.mode-toggle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 2px solid rgba(203, 213, 225, 1);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.mode-toggle-btn:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.mode-toggle-btn.active {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.mode-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-text strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.mode-text small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.tour-info-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fef3c7, #fef9c3);
+  border: 1px solid #fcd34d;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.6;
+}
+
+.dest-count {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.route-slot-card.tour-dest {
+  border-color: rgba(34, 197, 94, 0.25);
+  background: rgba(240, 253, 244, 0.95);
+}
+
+.end-as-dest .end-idx {
+  background: #16a34a;
+}
+
+.plan-btn.tour-plan {
+  background: linear-gradient(135deg, #ea580c, #dc2626);
+  font-size: 14px;
 }
 
 .order-arrow {

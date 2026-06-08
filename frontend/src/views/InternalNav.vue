@@ -1180,7 +1180,7 @@ function drawAnchors() {
   }
 }
 
-function drawPath(path, color, endLabel, startLabelOverride) {
+function drawPath(path, color, endLabel, startLabelOverride, showEndFlag = true) {
   if (!map || !path.length) return;
   const AMap = window.AMap;
   clearActivePath();
@@ -1199,7 +1199,9 @@ function drawPath(path, color, endLabel, startLabelOverride) {
 
   const startLabel = startLabelOverride || startNodeName.value;
   addFlag(path[0], `出发 · ${startLabel}`, "#f97316");
-  addFlag(path[path.length - 1], endLabel || "到达", color);
+  if (showEndFlag) {
+    addFlag(path[path.length - 1], endLabel || "到达", color);
+  }
   map.setFitView([activePolyline]);
 }
 

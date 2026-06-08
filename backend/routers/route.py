@@ -955,7 +955,9 @@ def get_nearby_facilities(
         if not facility:
             continue
         if normalized_category and facility.type != normalized_category:
-            continue
+            # 有关键词时：跨类别搜索（忽略类别芯片）
+            if not keyword:
+                continue
 
         candidate_text = " ".join([
             facility.name or "",

@@ -13,7 +13,7 @@
             </h3>
             <p class="section-desc">随意记录你的旅行点滴，AI会帮你整理成精美的日记</p>
           </div>
-          
+
           <div class="input-wrapper">
             <textarea
               v-model="rawInput"
@@ -23,12 +23,12 @@
 例如：
 今天早上9点到了京都站，天气很好。先去酒店放了行李，然后去了清水寺，人很多但是景色超美。中午在二年坂吃了拉面，下午去了岚山看竹林。晚上回酒店休息。
 
-或者上传图片，让AI帮你识别地点和场景！"
+或者上传图片/视频，让AI帮你识别地点和场景！"
               @input="handleInput"
             ></textarea>
-            
+
             <!-- 图片上传 -->
-            <div class="upload-area" v-if="!uploadedImages.length">
+            <div class="upload-area" v-if="!uploadedImages.length && !uploadedVideos.length">
               <input
                 type="file"
                 ref="fileInput"
@@ -46,10 +46,10 @@
                 <span>添加图片</span>
               </button>
             </div>
-            
+
             <!-- 已上传图片预览 -->
-            <div class="image-preview-list" v-else>
-              <div v-for="(img, index) in uploadedImages" :key="index" class="preview-item">
+            <div class="image-preview-list" v-if="uploadedImages.length">
+              <div v-for="(img, index) in uploadedImages" :key="'img-' + index" class="preview-item">
                 <img :src="img" alt="预览" />
                 <button class="remove-btn" @click="removeImage(index)">×</button>
               </div>
@@ -60,8 +60,49 @@
                 </svg>
               </button>
             </div>
+
+            <!-- 视频上传区域 -->
+            <div class="video-upload-section" v-if="!uploadedVideos.length">
+              <input
+                type="file"
+                ref="videoFileInput"
+                accept="video/*"
+                @change="handleVideoUpload"
+                class="file-input"
+              />
+              <button class="video-upload-btn" @click="$refs.videoFileInput.click()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="23 7 16 12 23 17 23 7"/>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+                <span>上传视频</span>
+              </button>
+            </div>
+
+            <!-- 已上传视频预览 -->
+            <div class="video-preview-list" v-if="uploadedVideos.length">
+              <div v-for="(video, index) in uploadedVideos" :key="'video-' + index" class="video-preview-item">
+                <video :src="video.preview || video.url" class="video-thumb" muted></video>
+                <div class="video-info">
+                  <span class="video-name">{{ video.name || '视频' }}</span>
+                  <span class="video-size">{{ formatFileSize(video.size) }}</span>
+                </div>
+                <button class="remove-video-btn" @click="removeVideo(index)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              <button class="add-video-more-btn" @click="$refs.videoFileInput.click()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          
+
           <!-- AI 整理按钮 -->
           <button
             class="ai-organize-btn"
@@ -73,7 +114,7 @@
               <svg class="sparkle-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2L14.09 8.26L20 9.27L15.55 13.14L16.82 19.02L12 15.77L7.18 19.02L8.45 13.14L4 9.27L9.91 8.26L12 2Z"/>
               </svg>
-              <span>AI 智能整理</span>
+              <span>AI 润色文案</span>
             </span>
             <span v-else class="btn-content">
               <span class="loading-dots">
@@ -84,14 +125,31 @@
               <span>AI 正在整理...</span>
             </span>
           </button>
-          
+
+          <!-- 生成时间轴按钮 -->
+          <button
+            class="timeline-generate-btn"
+            :disabled="!rawInput.trim() || isOrganizing"
+            @click="generateTimeline"
+          >
+            <span class="btn-content">
+              <svg class="timeline-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="2" x2="12" y2="22"/>
+                <circle cx="12" cy="6" r="2" fill="currentColor"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                <circle cx="12" cy="18" r="2" fill="currentColor"/>
+              </svg>
+              <span>生成时间轴</span>
+            </span>
+          </button>
+
           <!-- 行程导入区域 -->
           <div class="trip-import-section" v-if="!hasTripImport">
             <div class="divider">
               <span>或</span>
             </div>
-            
-            <button 
+
+            <button
               class="trip-import-btn"
               @click="showTripSelector = true"
             >
@@ -104,7 +162,7 @@
               </svg>
             </button>
           </div>
-          
+
           <!-- 已导入行程提示 -->
           <div class="imported-trip-banner" v-else>
             <div class="trip-info">
@@ -116,7 +174,7 @@
             </button>
           </div>
         </div>
-        
+
         <!-- 手动编辑区（展开后显示） -->
         <div class="manual-edit-section" v-if="showManualEdit">
           <div class="section-header">
@@ -145,7 +203,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 右侧：预览区 -->
       <div class="preview-section">
         <div class="preview-header">
@@ -175,7 +233,7 @@
             <button class="action-btn cancel-btn" @click="emit('cancel')">取消</button>
           </div>
         </div>
-        
+
         <div class="preview-content">
           <!-- 空状态 -->
           <div v-if="!structuredData.length && !isOrganizing" class="empty-state">
@@ -191,7 +249,7 @@
             <h4 class="empty-title">开始你的旅行记录</h4>
             <p class="empty-desc">
               在左侧输入你的旅行笔记<br>
-              点击"AI 智能整理"按钮，见证魔法发生 ✨
+              点击"AI 润色文案"优化内容，或"生成时间轴"自动提取行程 ✨
             </p>
             <div class="empty-tips">
               <div class="tip-item">
@@ -203,12 +261,12 @@
                 <span>上传图片自动识别</span>
               </div>
               <div class="tip-item">
-                <span class="tip-icon">⚡</span>
-                <span>一键生成时间轴</span>
+                <span class="tip-icon">🎬</span>
+                <span>支持上传旅行视频</span>
               </div>
             </div>
           </div>
-          
+
           <!-- 加载状态 -->
           <div v-else-if="isOrganizing" class="loading-state">
             <div class="loading-animation">
@@ -219,7 +277,7 @@
             <p class="loading-text">AI 正在分析你的旅行笔记...</p>
             <p class="loading-subtext">识别时间、地点、活动</p>
           </div>
-          
+
           <!-- 预览卡片 -->
           <div v-else class="preview-card">
             <!-- Hero 区域 -->
@@ -233,7 +291,7 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- 信息标签 -->
             <div class="info-pills">
               <!-- 日记类型选择 -->
@@ -258,10 +316,10 @@
                 <span>{{ diaryCompanion }}</span>
               </div>
             </div>
-            
+
             <!-- 生成游记文本按钮 -->
             <div v-if="structuredData.length > 0 && !rawInput" class="generate-content-section">
-              <button 
+              <button
                 class="generate-content-btn"
                 @click="generateDiaryContentFromTimeline"
                 :disabled="isGeneratingContent"
@@ -272,7 +330,7 @@
               </button>
               <p class="generate-hint">一键生成完整的游记内容，省时省力</p>
             </div>
-            
+
             <!-- 时间轴 -->
             <div class="timeline-section">
               <h4 class="timeline-title">行程安排</h4>
@@ -320,7 +378,21 @@
                 </div>
               </div>
             </div>
-            
+
+            <!-- 视频区域 -->
+            <div class="video-section" v-if="uploadedVideos.length > 0">
+              <h4 class="video-section-title">🎬 旅行视频</h4>
+              <div class="video-grid">
+                <div
+                  v-for="(video, index) in uploadedVideos"
+                  :key="index"
+                  class="video-display-item"
+                >
+                  <video :src="video.preview || video.url" controls class="video-display"></video>
+                </div>
+              </div>
+            </div>
+
             <!-- 图片画廊 -->
             <div class="gallery-section" v-if="uploadedImages.length > 1">
               <h4 class="gallery-title">旅行相册</h4>
@@ -338,9 +410,9 @@
         </div>
       </div>
     </div>
-    
+
   </div>
-  
+
   <!-- 行程选择弹窗 -->
   <TripSelectorModal
     v-model:visible="showTripSelector"
@@ -352,6 +424,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import API from '../api/index.js'
 import SmartTitleGenerator from '../utils/SmartTitleGenerator.js'
 import { TripToDiaryConverter } from '../utils/tripToDiaryConverter.js'
 import { DiaryContentGenerator } from '../utils/diaryContentGenerator.js'
@@ -385,13 +458,14 @@ const isMobile = ref(window.innerWidth < 768)
 const rawInput = ref(props.initialContent || '')
 const isOrganizing = ref(false)
 const uploadedImages = ref([])
+const uploadedVideos = ref([])
 const showManualEdit = ref(false)
 
 // 日记元数据
 const diaryTitle = ref(props.initialTitle || '')
 const diaryBudget = ref('')
 const diaryCompanion = ref('')
-const diaryType = ref(props.initialType || 'travel')  // 默认行程类型
+const diaryType = ref(props.initialType || 'travel')
 
 // 行程导入相关状态
 const showTripSelector = ref(false)
@@ -460,7 +534,65 @@ const removeImage = (index) => {
   uploadedImages.value.splice(index, 1)
 }
 
-// AI 整理功能
+// ========== 视频上传 ==========
+
+const handleVideoUpload = async (event) => {
+  const files = event.target.files
+  if (!files.length) return
+
+  const file = files[0]
+  // 限制100MB
+  if (file.size > 100 * 1024 * 1024) {
+    ElMessage.error('视频文件不能超过100MB')
+    return
+  }
+
+  // 先显示本地预览
+  const previewUrl = URL.createObjectURL(file)
+  uploadedVideos.value.push({
+    name: file.name,
+    size: file.size,
+    preview: previewUrl,
+    url: '' // 上传后填充
+  })
+
+  // 上传到服务器
+  try {
+    const result = await API.diary.uploadVideo(file, 1)
+    if (result.success) {
+      // 替换为服务器URL
+      const idx = uploadedVideos.value.length - 1
+      uploadedVideos.value[idx].url = result.video_url
+      ElMessage.success('视频上传成功')
+    } else {
+      ElMessage.error(result.error || '视频上传失败')
+      uploadedVideos.value.pop()
+    }
+  } catch (error) {
+    console.error('视频上传失败:', error)
+    ElMessage.error('视频上传失败，请重试')
+    uploadedVideos.value.pop()
+  }
+}
+
+// 移除视频
+const removeVideo = (index) => {
+  if (uploadedVideos.value[index]?.preview) {
+    URL.revokeObjectURL(uploadedVideos.value[index].preview)
+  }
+  uploadedVideos.value.splice(index, 1)
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+// AI 整理功能 - 只润色文案，不生成时间轴
 const organizeWithAI = async () => {
   if (!rawInput.value.trim()) {
     ElMessage.warning('请先输入一些旅行笔记')
@@ -470,41 +602,68 @@ const organizeWithAI = async () => {
   isOrganizing.value = true
 
   try {
-    // 模拟 AI 处理延迟
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    // 解析输入文本
-    const parsed = parseTravelNotes(rawInput.value)
-    
-    // 使用智能标题生成器生成时间段小标题
-    const timelineWithTitles = parsed.timeline.map((day, index) => {
-      const activities = day.activities || []
-      // 使用新的智能标题生成器
-      const smartTitle = SmartTitleGenerator.generateSectionTitle(activities, index)
-      return {
-        ...day,
-        theme: smartTitle,
-        title: smartTitle
-      }
+    const response = await fetch(`/api/diary-generator/enhance-content`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        content: rawInput.value,
+        style: 'healing'
+      })
     })
-    
-    structuredData.value = timelineWithTitles
-    
-    // 使用智能标题生成器生成主标题
-    if (!diaryTitle.value) {
-      const mainTitle = SmartTitleGenerator.generateMainTitle(rawInput.value, timelineWithTitles)
-      diaryTitle.value = mainTitle
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
     }
-    
-    // 自动提取预算
+
+    const result = await response.json()
+
+    if (result.success) {
+      // 只使用 AI 润色后的文案
+      if (result.enhanced_content) {
+        rawInput.value = result.enhanced_content
+      }
+
+      // 只使用 AI 生成的标题
+      if (result.title) {
+        diaryTitle.value = result.title
+      }
+
+      ElMessage.success('AI 文案润色完成！')
+    } else {
+      ElMessage.error(result.error || 'AI 润色失败，请重试')
+    }
+  } catch (error) {
+    console.error('AI 润色失败:', error)
+    ElMessage.error('AI 润色失败：' + error.message)
+  } finally {
+    isOrganizing.value = false
+  }
+}
+
+// 生成时间轴 - 仅使用前端规则代码，不依赖 AI
+const generateTimeline = () => {
+  if (!rawInput.value.trim()) {
+    ElMessage.warning('请先输入一些旅行笔记')
+    return
+  }
+
+  isOrganizing.value = true
+
+  try {
+    const { timeline } = parseTravelNotes(rawInput.value)
+    structuredData.value = timeline
+
+    // 如果 AI 没提取过预算，也顺便提取一下
     if (!diaryBudget.value) {
       diaryBudget.value = extractBudget(rawInput.value)
     }
 
-    ElMessage.success('AI 整理完成！')
+    ElMessage.success('时间轴生成完成！')
   } catch (error) {
-    console.error('整理失败:', error)
-    ElMessage.error('整理失败，请重试')
+    console.error('时间轴生成失败:', error)
+    ElMessage.error('时间轴生成失败')
   } finally {
     isOrganizing.value = false
   }
@@ -652,15 +811,15 @@ const denoiseText = (text) => {
     '然后', '接着', '之后', '后来', '最后', '首先', '其实',
     '说实话', '说真的', '怎么说呢', '总之', '反正', '就是'
   ]
-  
+
   let cleaned = text
   fillerWords.forEach(word => {
     cleaned = cleaned.replace(new RegExp(word, 'g'), '')
   })
-  
+
   // 移除多余的空格和标点
   cleaned = cleaned.replace(/\s+/g, ' ').trim()
-  
+
   return cleaned
 }
 
@@ -668,7 +827,7 @@ const denoiseText = (text) => {
 const normalizeTime = (text, contextTime = null) => {
   // 如果有上下文时间，作为默认值
   let defaultTime = contextTime || '09:00'
-  
+
   // 时间段关键词映射（更精确）
   const timeKeywords = {
     '凌晨': { time: '05:00', priority: 1 },
@@ -684,7 +843,7 @@ const normalizeTime = (text, contextTime = null) => {
     '深夜': { time: '22:00', priority: 1 },
     '半夜': { time: '00:00', priority: 1 }
   }
-  
+
   // 1. 先匹配具体时间（最高优先级）
   // 匹配 "11点多"、"11点左右"、"大概11点多"
   const fuzzyTimeMatch = text.match(/(?:大概|大约|差不多)?(\d{1,2})点(?:多|左右|前后|大概)?/)
@@ -696,19 +855,19 @@ const normalizeTime = (text, contextTime = null) => {
     } else if (text.includes('中午') && hour < 12) {
       hour = 12
     }
-    return { 
-      time: `${hour.toString().padStart(2, '0')}:00`, 
+    return {
+      time: `${hour.toString().padStart(2, '0')}:00`,
       matchedPhrase: fuzzyTimeMatch[0],
       isFuzzy: true
     }
   }
-  
+
   // 2. 匹配精确时间 "11:30"、"11点30分"
   const exactTimeMatch = text.match(/(\d{1,2})[点:：](\d{1,2})(?:分)?/)
   if (exactTimeMatch) {
     let hour = parseInt(exactTimeMatch[1])
     const minute = parseInt(exactTimeMatch[2])
-    
+
     // 处理12小时制转换
     if (text.includes('下午') || text.includes('晚上') || text.includes('傍晚')) {
       if (hour < 12) hour += 12
@@ -717,25 +876,25 @@ const normalizeTime = (text, contextTime = null) => {
     } else if (text.includes('凌晨') || text.includes('早上') || text.includes('上午')) {
       // 保持原样
     }
-    
-    return { 
-      time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`, 
+
+    return {
+      time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
       matchedPhrase: exactTimeMatch[0],
       isExact: true
     }
   }
-  
+
   // 3. 匹配时间段关键词
   for (const [keyword, info] of Object.entries(timeKeywords)) {
     if (text.includes(keyword)) {
-      return { 
-        time: info.time, 
+      return {
+        time: info.time,
         matchedPhrase: keyword,
         isKeyword: true
       }
     }
   }
-  
+
   // 4. 特殊时间表达
   const specialTimes = [
     { pattern: /刚下(?:高铁|飞机|火车|地铁)/, time: '09:00', desc: '抵达' },
@@ -744,13 +903,13 @@ const normalizeTime = (text, contextTime = null) => {
     { pattern: /(?:起床|睡醒|睁眼)/, time: '07:30', desc: '起床' },
     { pattern: /(?:睡觉|入睡|休息)/, time: '23:00', desc: '休息' }
   ]
-  
+
   for (const { pattern, time, desc } of specialTimes) {
     if (pattern.test(text)) {
       return { time, matchedPhrase: desc, isSpecial: true }
     }
   }
-  
+
   // 5. 如果没有提取到时间，返回上下文时间或null
   return { time: null, matchedPhrase: '' }
 }
@@ -764,14 +923,14 @@ const extractLocation = (text) => {
     /([\u4e00-\u9fa5]{2,8})(?:火锅|餐厅|饭店|酒店|民宿|客栈|机场|车站|地铁站|公交站|景区|景点|博物馆|美术馆|公园|广场|商场|超市)/,
     /([\u4e00-\u9fa5]{2,6})(?:家|个)?(?:店|馆|厅|吧|屋|坊)/
   ]
-  
+
   for (const pattern of locationPatterns) {
     const match = text.match(pattern)
     if (match) {
       return match[1] || match[0]
     }
   }
-  
+
   return ''
 }
 
@@ -779,7 +938,7 @@ const extractLocation = (text) => {
 const extractTitle = (text, location) => {
   // 清理文本
   const cleanText = text.replace(/[，,。！!？?]/g, ' ').trim()
-  
+
   // 1. 尝试提取 "动词 + 地点" 的结构
   const actionLocationPatterns = [
     // "挤进黄兴广场"、"打卡IFS"
@@ -791,7 +950,7 @@ const extractTitle = (text, location) => {
     // "买茶颜悦色"
     { pattern: /(?:买|购买|点|喝)(?:了)?(?:\s*)([\u4e00-\u9fa5]{2,8}(?:奶茶|咖啡|茶|饮料))/ }
   ]
-  
+
   for (const { pattern } of actionLocationPatterns) {
     const match = cleanText.match(pattern)
     if (match) {
@@ -801,7 +960,7 @@ const extractTitle = (text, location) => {
       return `${action}${match[1]}`
     }
   }
-  
+
   // 2. 提取核心动作 + 对象
   const coreActionPatterns = [
     // "拍大IP"、"拍合影"
@@ -813,7 +972,7 @@ const extractTitle = (text, location) => {
     // "逛吃逛吃"
     { pattern: /(?:逛|逛吃)(?:了)?(?:\s*)([\u4e00-\u9fa5]{0,4})/, prefix: '逛吃' }
   ]
-  
+
   for (const { pattern, prefix } of coreActionPatterns) {
     const match = cleanText.match(pattern)
     if (match) {
@@ -821,7 +980,7 @@ const extractTitle = (text, location) => {
       return obj ? `${prefix}${obj}` : prefix
     }
   }
-  
+
   // 3. 如果有地点，生成 "在 + 地点 + 活动"
   if (location && location.length >= 2) {
     // 提取在地点做什么
@@ -832,17 +991,17 @@ const extractTitle = (text, location) => {
     }
     return `打卡${location}`
   }
-  
+
   // 4. 提取句子主干（主谓宾结构）
   const mainContent = cleanText
     .replace(/^(?:我|我们|然后|接着|后来|最后|终于)/, '')
-    .replace(/(?:感觉|觉得|真的|超级|特别|非常|太|很)\s*/, '')
+    .replace(/(?:感觉|觉得|真的|超级|特别|非常|很)\s*/, '')
     .trim()
-  
+
   if (mainContent.length >= 4 && mainContent.length <= 15) {
     return mainContent
   }
-  
+
   // 5. 最后 fallback：取前10个字符
   return mainContent.slice(0, 10) + (mainContent.length > 10 ? '...' : '')
 }
@@ -856,7 +1015,7 @@ const extractInsight = (text) => {
     /(?:推荐|值得|不错|很棒|超赞|绝美|震撼)([\u4e00-\u9fa5]{0,15})/,
     /([\u4e00-\u9fa5]{3,20})(?:拍照|出片|打卡|必去|必吃)/
   ]
-  
+
   for (const pattern of insightPatterns) {
     const match = text.match(pattern)
     if (match) {
@@ -868,7 +1027,7 @@ const extractInsight = (text) => {
       return insight
     }
   }
-  
+
   // 默认返回简化描述
   return text.slice(0, 18) + (text.length > 18 ? '...' : '')
 }
@@ -877,7 +1036,7 @@ const extractInsight = (text) => {
 const parseTravelNotes = (text) => {
   // 1. 去噪
   const cleanedText = denoiseText(text)
-  
+
   // 2. 按句子分割（更智能的分割）
   const sentences = cleanedText
     .split(/[。！!\n]+/)
@@ -885,23 +1044,23 @@ const parseTravelNotes = (text) => {
     .filter(s => s.length > 3)
     // 过滤掉纯情感表达
     .filter(s => !/^[啊哦嗯哈].*$/.test(s))
-  
+
   const timeline = []
   let currentDay = {
     day: 1,
     theme: '精彩一天',
     activities: []
   }
-  
+
   // 时间上下文，用于推断未明确时间
   let lastTime = null
   let timeSequence = [
-    '08:00', '09:30', '11:00', '12:30', 
-    '14:00', '15:30', '17:00', '18:30', 
+    '08:00', '09:30', '11:00', '12:30',
+    '14:00', '15:30', '17:00', '18:30',
     '20:00', '21:30'
   ]
   let timeIndex = 0
-  
+
   sentences.forEach((sentence, index) => {
     // 检测是否是新一天的开始
     if (/第[一二三四五六七八九十\d]+天/.test(sentence) || /明天|后天/.test(sentence)) {
@@ -918,11 +1077,11 @@ const parseTravelNotes = (text) => {
       }
       return
     }
-    
+
     // 提取时间（传入上下文时间）
     const timeResult = normalizeTime(sentence, lastTime)
     let time = timeResult.time
-    
+
     // 如果没有提取到时间，使用序列时间
     if (!time) {
       if (lastTime) {
@@ -936,19 +1095,19 @@ const parseTravelNotes = (text) => {
         timeIndex++
       }
     }
-    
+
     // 更新时间上下文
     lastTime = time
-    
+
     // 提取地点
     const location = extractLocation(sentence)
-    
+
     // 提取标题
     const title = extractTitle(sentence, location)
-    
+
     // 提取Insight
     const insight = extractInsight(sentence)
-    
+
     // 只有当有实质内容时才添加
     if (title || location || timeResult.matchedPhrase) {
       currentDay.activities.push({
@@ -959,12 +1118,12 @@ const parseTravelNotes = (text) => {
       })
     }
   })
-  
+
   // 添加最后一天
   if (currentDay.activities.length > 0) {
     timeline.push(currentDay)
   }
-  
+
   // 如果没有解析出任何内容，创建一个默认的
   if (timeline.length === 0 || timeline[0].activities.length === 0) {
     timeline.push({
@@ -978,18 +1137,16 @@ const parseTravelNotes = (text) => {
       }]
     })
   }
-  
+
   // 按时间排序每一天的活动
   timeline.forEach(day => {
     day.activities.sort((a, b) => {
       return a.time.localeCompare(b.time)
     })
   })
-  
+
   return { timeline }
 }
-
-// 注意：日记主标题现在使用 SmartTitleGenerator.generateMainTitle() 生成
 
 // 提取预算
 const extractBudget = (text) => {
@@ -1023,6 +1180,7 @@ const publishDiary = () => {
     budget: diaryBudget.value,
     companion: diaryCompanion.value,
     images: uploadedImages.value,
+    videos: uploadedVideos.value.map(v => v.url).filter(Boolean),
     timeline: structuredData.value,
     createdAt: new Date().toISOString()
   }
@@ -1250,6 +1408,154 @@ const publishDiary = () => {
   background: rgba(99, 102, 241, 0.05);
 }
 
+/* 视频上传区域 - 与图片上传对称 */
+.video-upload-section {
+  border: 2px dashed #D1D5DB;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.video-upload-section:hover {
+  border-color: #6366F1;
+  background: rgba(99, 102, 241, 0.02);
+}
+
+.video-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  color: #6B7280;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.video-upload-btn:hover {
+  color: #6366F1;
+}
+
+.video-upload-btn svg {
+  stroke: currentColor;
+}
+
+/* 视频预览列表 */
+.video-preview-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #E5E7EB;
+}
+
+.video-thumb {
+  width: 60px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #1F2937;
+}
+
+.video-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.video-name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-size {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+}
+
+.remove-video-btn {
+  width: 24px;
+  height: 24px;
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: #EF4444;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-video-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* AI 视频分析按钮 */
+.ai-video-analyze-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-video-analyze-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.ai-video-analyze-btn:hover::before {
+  left: 100%;
+}
+
+.ai-video-analyze-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+}
+
+.ai-video-analyze-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-video-analyze-btn.loading {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
 /* AI 整理按钮 */
 .ai-organize-btn {
   width: 100%;
@@ -1294,6 +1600,37 @@ const publishDiary = () => {
 
 .ai-organize-btn.loading {
   background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%);
+}
+
+/* 时间轴生成按钮 */
+.timeline-generate-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.timeline-generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+}
+
+.timeline-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.timeline-icon-svg {
+  flex-shrink: 0;
 }
 
 .btn-content {
@@ -1848,6 +2185,37 @@ const publishDiary = () => {
   flex-shrink: 0;
 }
 
+/* 视频区域 */
+.video-section {
+  margin-bottom: 32px;
+}
+
+.video-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0 0 16px 0;
+}
+
+.video-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-display-item {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1F2937;
+}
+
+.video-display {
+  width: 100%;
+  max-height: 400px;
+  display: block;
+  border-radius: 12px;
+}
+
 /* 图片画廊 */
 .gallery-section {
   margin-top: 32px;
@@ -1889,45 +2257,45 @@ const publishDiary = () => {
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
-  
+
   .edit-section {
     overflow-y: visible;
     padding-right: 0;
   }
-  
+
   .preview-section {
     height: auto;
     min-height: 400px;
   }
-  
+
   .magic-input-section {
     padding: 20px;
   }
-  
+
   .magic-textarea {
     min-height: 200px;
   }
-  
+
   .preview-content {
     padding: 16px;
   }
-  
+
   .hero-content {
     padding: 20px;
   }
-  
+
   .hero-title {
     font-size: 1.375rem;
   }
-  
+
   .timeline-card {
     padding: 12px;
   }
-  
+
   .preview-actions {
     gap: 4px;
   }
-  
+
   .action-btn {
     padding: 6px 12px;
     font-size: 0.8125rem;

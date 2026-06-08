@@ -16,7 +16,7 @@ load_dotenv()
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent))
 
-from routers import spots, trips, route, diary, ai, xiaohongshu, auth, collection, photo, photo_spot, personality
+from routers import spots, trips, route, diary, diary_generator, ai, xiaohongshu, auth, collection, photo, photo_spot, personality
 
 app = FastAPI(
     title="邮游世界 - 个性化旅游系统",
@@ -75,10 +75,12 @@ def get_diary_library(
     page_size: int = Query(20, ge=1, le=50, description="每页数量"),
     city_id: Optional[int] = Query(None, description="城市ID筛选"),
     diary_type: Optional[str] = Query(None, description="日记类型筛选"),
-    sort: str = Query("hot", description="排序方式: hot/new/rating"),
+    sort: str = Query("hot", description="排序方式: hot/new/rating/interest"),
     db: Session = Depends(get_db)
 ):
-    """获取日记库列表"""
+    """获取日记库列表 - 使用独立推荐算法模块排序"""
+    from algorithms.diary_recommend import DiaryRecommendEngine, DiaryCandidate
+    
     query = db.query(TravelDiary).filter(
         TravelDiary.is_public == True,
         TravelDiary.status == 'published'
@@ -93,21 +95,56 @@ def get_diary_library(
     if diary_type:
         query = query.filter(TravelDiary.diary_type == diary_type)
     
-    if sort == "new":
-        query = query.order_by(TravelDiary.created_at.desc())
-    elif sort == "rating":
-        query = query.order_by(TravelDiary.avg_rating.desc())
-    else:
-        query = query.order_by(
-            (TravelDiary.view_count * 0.7 + TravelDiary.avg_rating * TravelDiary.rating_count * 10).desc()
+    # 获取所有候选日记（用于算法排序）
+    all_diaries = query.all()
+    
+    # 转换为算法模块的候选对象
+    candidates = []
+    for d in all_diaries:
+        city_tags = db.query(DiaryCity).join(
+            DiaryCityTag, DiaryCity.id == DiaryCityTag.city_id
+        ).filter(DiaryCityTag.diary_id == d.id).all()
+        
+        candidate = DiaryCandidate(
+            id=d.id,
+            title=d.title,
+            view_count=d.view_count or 0,
+            avg_rating=d.avg_rating or 0.0,
+            rating_count=d.rating_count or 0,
+            created_at=d.created_at,
+            diary_type=d.diary_type or "",
+            cities=[c.name for c in city_tags]
         )
+        candidates.append(candidate)
     
-    total = query.count()
+    # 根据排序方式调用不同算法
+    if sort == "interest":
+        # 使用推荐算法引擎（TopK + 加权融合）
+        engine = DiaryRecommendEngine(alpha=0.4, beta=0.3, gamma=0.3)
+        sorted_candidates = engine.recommend(candidates, k=page_size * 3, use_topk=True)
+    elif sort == "new":
+        sorted_candidates = sorted(candidates, key=lambda x: x.created_at, reverse=True)
+    elif sort == "rating":
+        sorted_candidates = sorted(candidates, key=lambda x: x.avg_rating, reverse=True)
+    else:
+        # 热度排序：调用算法模块的排序
+        sorted_candidates = sorted(candidates, 
+            key=lambda x: x.view_count * 0.7 + x.avg_rating * x.rating_count * 10, 
+            reverse=True)
+    
+    # 分页
     offset = (page - 1) * page_size
-    diaries = query.offset(offset).limit(page_size).all()
+    paged_candidates = sorted_candidates[offset:offset + page_size]
     
+    # 获取详细信息
     result = []
-    for diary in diaries:
+    diary_map = {d.id: d for d in all_diaries}
+    
+    for candidate in paged_candidates:
+        diary = diary_map.get(candidate.id)
+        if not diary:
+            continue
+        
         user = db.query(User).filter(User.id == diary.user_id).first()
         city_tags = db.query(DiaryCity).join(
             DiaryCityTag, DiaryCity.id == DiaryCityTag.city_id
@@ -128,13 +165,15 @@ def get_diary_library(
             "rating": round(diary.avg_rating, 1) if diary.avg_rating else 0,
             "view_count": diary.view_count,
             "comment_count": comment_count,
-            "created_at": diary.created_at
+            "created_at": diary.created_at,
+            "recommend_score": round(candidate.final_score, 4) if sort == "interest" else None
         })
     
-    return {"total": total, "page": page, "page_size": page_size, "diaries": result}
+    return {"total": len(sorted_candidates), "page": page, "page_size": page_size, "diaries": result}
 
 # 再注册 diary router（在日记库路由之后）
 app.include_router(diary.router, prefix="/api/diaries", tags=["日记"])
+app.include_router(diary_generator.router, prefix="/api/diary-generator", tags=["日记生成"])
 
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(xiaohongshu.router, prefix="/api/xiaohongshu", tags=["小红书"])

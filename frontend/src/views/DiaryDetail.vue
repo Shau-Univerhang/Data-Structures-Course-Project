@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-detail-page">
     <!-- 大背景层：用户图片 + 亮度降低 -->
     <div class="page-background">
@@ -135,20 +135,106 @@
           </div>
           
           <!-- 图片画廊 -->
-          <div class="gallery-section" v-if="diary.images && diary.images.length > 1">
-            <h3 class="section-title">旅行相册</h3>
-            <div class="gallery-grid">
-              <div 
-                v-for="(img, index) in diary.images.slice(1)" 
-                :key="index"
-                class="gallery-item"
-                :class="{ 'large': index === 0 }"
-              >
-                <img :src="img" :alt="`${diary.title} - ${index + 2}`" />
+        <div class="gallery-section" v-if="diary.images && diary.images.length > 1">
+          <h3 class="section-title">旅行相册</h3>
+          <div class="gallery-grid">
+            <div 
+              v-for="(img, index) in diary.images.slice(1)" 
+              :key="index"
+              class="gallery-item"
+              :class="{ 'large': index === 0 }"
+            >
+              <img :src="img" :alt="`${diary.title} - ${index + 2}`" />
+            </div>
+          </div>
+        </div>
+        
+        <!-- 旅行视频 -->
+        <div class="travel-video-section" v-if="parsedVideos && parsedVideos.length > 0">
+          <h3 class="section-title">旅行视频</h3>
+          <div class="video-grid">
+            <div 
+              v-for="(video, index) in parsedVideos" 
+              :key="index"
+              class="video-item"
+            >
+              <div class="video-aspect-ratio">
+                <video 
+                  :src="video" 
+                  controls 
+                  preload="metadata"
+                  class="video-player"
+                  :poster="getVideoPoster(index)"
+                >
+                  您的浏览器不支持视频播放
+                </video>
               </div>
             </div>
           </div>
-        </article>
+        </div>
+        
+        <!-- AIGC 动画区域 -->
+        <div class="aigc-animation-section">
+          <div class="aigc-header">
+            <h3 class="section-title">
+              <svg class="aigc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              AI 旅游动画
+            </h3>
+            <p class="aigc-desc">基于您的旅行照片，AI 自动生成电影级动画视频</p>
+          </div>
+          
+          <!-- 已生成动画：显示播放器 -->
+          <div v-if="animationUrl" class="aigc-video-wrapper">
+            <video 
+              :src="animationUrl" 
+              controls 
+              autoplay 
+              loop 
+              preload="auto"
+              class="aigc-video-player"
+              poster="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80"
+            >
+              您的浏览器不支持视频播放
+            </video>
+            <div class="aigc-badge">AI 生成</div>
+          </div>
+          
+          <!-- 未生成：显示生成按钮 -->
+          <div v-else class="aigc-generate-area">
+            <div class="aigc-preview-grid" v-if="diary.images && diary.images.length > 0">
+              <div class="aigc-preview-item">
+                <img :src="diary.images[0]" alt="封面图" />
+              </div>
+              <div class="aigc-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </div>
+              <div class="aigc-preview-placeholder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span>AI 动画</span>
+              </div>
+            </div>
+            
+            <button 
+              class="aigc-generate-btn" 
+              @click="generateAnimation"
+              :disabled="isGenerating"
+            >
+              <svg v-if="!isGenerating" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              <span v-if="isGenerating" class="loading-spinner"></span>
+              {{ isGenerating ? 'AI 正在生成中...' : '一键生成 AI 动画' }}
+            </button>
+            <p v-if="generatingProgress" class="generating-tip">{{ generatingProgress }}</p>
+          </div>
+        </div>
+      </article>
         
         <!-- 评论和评分组件 -->
         <div class="interaction-section">
@@ -323,6 +409,40 @@ const parsedItinerary = computed(() => {
   return []
 })
 
+// 解析视频数据 - 从diary.videos字段获取
+const parsedVideos = computed(() => {
+  if (!diary.value.videos) return []
+  
+  // 如果是字符串，尝试解析JSON
+  let videos = []
+  if (typeof diary.value.videos === 'string') {
+    try {
+      videos = JSON.parse(diary.value.videos)
+    } catch {
+      return []
+    }
+  } else if (Array.isArray(diary.value.videos)) {
+    videos = diary.value.videos
+  } else {
+    return []
+  }
+  
+  // 将相对路径转换为完整URL
+  return videos.map(video => {
+    if (typeof video === 'string' && video.startsWith('/')) {
+      return `${window.location.origin}${video}`
+    }
+    return video
+  })
+})
+
+// 获取视频封面图（使用日记图片作为封面）
+const getVideoPoster = (index) => {
+  if (!diary.value.images || diary.value.images.length === 0) return ''
+  // 使用封面图或轮播图片作为视频封面
+  return diary.value.images[index % diary.value.images.length] || ''
+}
+
 // Mock 数据
 const mockDiaries = {
   1: {
@@ -491,9 +611,16 @@ const loadDiary = async () => {
     const response = await fetch(`/api/diaries/${diaryId.value}`)
     if (response.ok) {
       const data = await response.json()
+      console.log('[DiaryDetail] API返回数据:', data)
+      console.log('[DiaryDetail] images字段:', data.images, '长度:', data.images?.length)
       // 检查返回的数据是否有效（有id和title）
       if (data && data.id && data.title) {
         diary.value = { ...diary.value, ...data }
+        // 数据加载完成后立即初始化背景和区块检测
+        setTimeout(() => {
+          initBackground()
+          updateContentSections()
+        }, 100)
         return
       }
     }
@@ -554,6 +681,11 @@ const getSpotImage = (dayLabel, spotIndex) => {
 const previewImage = ref('')
 const showPreview = ref(false)
 
+// AIGC 动画相关
+const animationUrl = ref('')
+const isGenerating = ref(false)
+const generatingProgress = ref('')
+
 const openImagePreview = (src) => {
   previewImage.value = src
   showPreview.value = true
@@ -564,15 +696,68 @@ const closeImagePreview = () => {
   previewImage.value = ''
 }
 
+// 生成 AI 动画
+const generateAnimation = async () => {
+  isGenerating.value = true
+  generatingProgress.value = '正在初始化 AI 模型...'
+  
+  try {
+    const userId = localStorage.getItem('userId') || 1
+    
+    generatingProgress.value = '正在上传图片到 AI 模型...'
+    const response = await fetch(`/api/diaries/${diaryId.value}/generate-animation?user_id=${userId}`, {
+      method: 'POST'
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success) {
+        animationUrl.value = data.animation_url
+        generatingProgress.value = '动画生成成功！'
+        setTimeout(() => { generatingProgress.value = '' }, 3000)
+      } else {
+        generatingProgress.value = `生成失败: ${data.message}`
+      }
+    } else {
+      generatingProgress.value = '生成失败，请稍后重试'
+    }
+  } catch (error) {
+    console.error('AI 动画生成失败:', error)
+    generatingProgress.value = '网络异常，请稍后重试'
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+// 查询动画状态
+const checkAnimationStatus = async () => {
+  try {
+    const userId = localStorage.getItem('userId') || 1
+    const response = await fetch(`/api/diaries/${diaryId.value}/animation-status?user_id=${userId}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.has_animation) {
+        animationUrl.value = data.animation_url
+      }
+    }
+  } catch (error) {
+    console.error('查询动画状态失败:', error)
+  }
+}
+
 // 滚动背景相关
 // 当前背景图片
 const currentBgImage = ref('')
 const currentBgIndex = ref(0)
 
+// 默认背景图（当没有上传图片时使用）
+const DEFAULT_BG_IMAGE = '/default-diary-bg.jpg'
+
 // 获取所有可用作背景的图片
 const backgroundImages = computed(() => {
   if (!diary.value.images || diary.value.images.length === 0) {
-    return []
+    // 没有上传图片时，返回默认背景图
+    return [DEFAULT_BG_IMAGE]
   }
   // 使用所有图片作为背景候选（包括封面）
   return diary.value.images
@@ -647,12 +832,10 @@ const initBackground = () => {
 
 onMounted(() => {
   loadDiary()
-  // 延迟初始化，确保DOM渲染完成
-  setTimeout(() => {
-    initBackground()
-    updateContentSections()
-    window.addEventListener('scroll', handleScroll)
-  }, 800)
+  // 滚动监听
+  window.addEventListener('scroll', handleScroll)
+  // 检查是否已有 AI 动画
+  setTimeout(() => checkAnimationStatus(), 2000)
 })
 
 onUnmounted(() => {
@@ -806,6 +989,53 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
+/* 旅行视频区域 */
+.travel-video-section {
+  margin-top: 2rem;
+}
+
+.video-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.video-item {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.video-aspect-ratio {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  background: #000;
+}
+
+.video-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+}
+
+.video-player::-webkit-media-controls-panel {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.video-player::cue {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 14px;
+}
+
+/* Hero区域 */
 .hero-section {
   position: relative;
 }
@@ -1136,8 +1366,249 @@ onUnmounted(() => {
   transform: scale(1.05);
 }
 
+/* 视频区域样式 */
+.video-section {
+  padding: 0 40px 40px;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.video-item {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+
+.video-item:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px);
+}
+
+.video-player {
+  width: 100%;
+  display: block;
+  max-height: 500px;
+  object-fit: contain;
+  background: #000;
+}
+
+.video-player::-webkit-media-controls-panel {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+}
+
+.video-player::cue {
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 14px;
+}
+
 .interaction-section {
   margin-top: 40px;
+}
+
+/* AIGC 动画区域 */
+.aigc-animation-section {
+  padding: 32px 40px 40px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.aigc-header {
+  margin-bottom: 24px;
+}
+
+.aigc-header .section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.aigc-icon {
+  width: 24px;
+  height: 24px;
+  color: #667eea;
+}
+
+.aigc-desc {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+}
+
+/* 已生成动画播放器 */
+.aigc-video-wrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+}
+
+.aigc-video-player {
+  width: 100%;
+  display: block;
+  max-height: 450px;
+  object-fit: contain;
+  background: #000;
+}
+
+.aigc-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  background: rgba(102, 126, 234, 0.85);
+  backdrop-filter: blur(10px);
+  color: white;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 未生成：预览网格 */
+.aigc-generate-area {
+  text-align: center;
+}
+
+.aigc-preview-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 24px;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 16px;
+}
+
+.aigc-preview-item {
+  width: 140px;
+  height: 100px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.aigc-preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aigc-arrow {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667eea;
+}
+
+.aigc-arrow svg {
+  width: 100%;
+  height: 100%;
+}
+
+.aigc-preview-placeholder {
+  width: 140px;
+  height: 100px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  gap: 8px;
+}
+
+.aigc-preview-placeholder svg {
+  width: 32px;
+  height: 32px;
+  opacity: 0.8;
+}
+
+.aigc-preview-placeholder span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 生成按钮 */
+.aigc-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.aigc-generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+}
+
+.aigc-generate-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.aigc-generate-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.generating-tip {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #667eea;
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .aigc-animation-section {
+    padding: 24px;
+  }
+  
+  .aigc-preview-grid {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .aigc-arrow {
+    transform: rotate(90deg);
+  }
+  
+  .aigc-generate-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1185,6 +1656,14 @@ onUnmounted(() => {
   .timeline-item-image {
     width: 100%;
     height: 160px;
+  }
+  
+  .video-section {
+    padding: 0 24px 24px;
+  }
+  
+  .video-player {
+    max-height: 300px;
   }
 }
 </style>

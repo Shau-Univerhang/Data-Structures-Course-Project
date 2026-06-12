@@ -32,11 +32,11 @@ export const API = {
   
   // 行程相关
   trips: {
-    create: (data) => fetchJSON(`${API_BASE_URL}/api/trips`, {
+    create: (data) => fetchJSON(`${API_BASE_URL}/api/trips/`, {
       method: 'POST',
       body: JSON.stringify({...data, user_id: 1})
     }),
-    list: (userId = 1) => fetchJSON(`${API_BASE_URL}/api/trips?user_id=${userId}`),
+    list: (userId = 1) => fetchJSON(`${API_BASE_URL}/api/trips/?user_id=${userId}`),
     get: (id) => fetchJSON(`${API_BASE_URL}/api/trips/${id}`),
   },
   

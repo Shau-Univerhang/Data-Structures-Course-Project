@@ -119,7 +119,7 @@ const loadTrips = async () => {
   
   try {
     // 从数据库获取行程
-    const response = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`)
+    const response = await fetch(`http://localhost:8000/api/trips/?user_id=${userId}`)
     if (!response.ok) {
       throw new Error('获取行程失败')
     }

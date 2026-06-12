@@ -1565,7 +1565,7 @@ const saveTrip = async () => {
       travel_preferences: preferences.value,
     };
 
-    const response = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`, {
+    const response = await fetch(`http://localhost:8000/api/trips/?user_id=${userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dbTripData)

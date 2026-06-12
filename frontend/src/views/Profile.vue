@@ -140,7 +140,7 @@ const fetchStats = async () => {
   
   try {
     // 获取行程数
-    const tripsRes = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`)
+    const tripsRes = await fetch(`http://localhost:8000/api/trips/?user_id=${userId}`)
     if (tripsRes.ok) {
       const tripsData = await tripsRes.json()
       stats.value.trips = Array.isArray(tripsData) ? tripsData.length : 0

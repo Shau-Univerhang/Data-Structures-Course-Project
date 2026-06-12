@@ -62,7 +62,7 @@ const loadTrips = async () => {
   loading.value = true
   try {
     const userId = localStorage.getItem('userId') || '1'
-    const response = await fetch(`http://localhost:8000/api/trips?user_id=${userId}`)
+    const response = await fetch(`http://localhost:8000/api/trips/?user_id=${userId}`)
     
     if (response.ok) {
       const data = await response.json()

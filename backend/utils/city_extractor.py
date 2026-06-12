@@ -758,12 +758,12 @@ class CityExtractor:
         if isinstance(itinerary, list):
             for day in itinerary:
                 if isinstance(day, dict):
-                    # 从地点描述中提取
-                    spots = day.get("spots", [])
-                    for spot in spots:
-                        if isinstance(spot, dict):
-                            location = spot.get("location", "")
-                            description = spot.get("description", "")
+                    # 支持两种格式: spots (tripDiaryBridge) 和 activities (TripToDiaryConverter)
+                    items = day.get("spots") or day.get("activities", [])
+                    for item in items:
+                        if isinstance(item, dict):
+                            location = item.get("location", "")
+                            description = item.get("description", item.get("title", ""))
                             
                             # 合并文本进行匹配
                             combined_text = f"{location} {description}"

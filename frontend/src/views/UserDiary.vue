@@ -439,6 +439,7 @@ const handlePublish = async (diary) => {
       content: diary.content,
       diary_type: diary.diary_type,
       is_public: true,  // 默认公开发布，以便进入日记库
+      destination: diary.destination || '',
       images: diary.images || [],
       budget: diary.budget,
       companion: diary.companion,
@@ -452,6 +453,9 @@ const handlePublish = async (diary) => {
       await diaryStore.createDiary(diaryData)
       ElMessage.success('日记发布成功！')
     }
+    
+    // 刷新足迹数据（新城市可能已添加）
+    diaryStore.fetchFootprints()
     
     // 清除草稿
     localStorage.removeItem('diary_draft')

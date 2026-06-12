@@ -175,20 +175,16 @@
           </div>
         </div>
 
-        <!-- 手动编辑区（展开后显示） -->
-        <div class="manual-edit-section" v-if="showManualEdit">
-          <div class="section-header">
-            <h3 class="section-title">手动编辑</h3>
-            <button class="toggle-btn" @click="showManualEdit = false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="18 15 12 9 6 15"/>
-              </svg>
-            </button>
-          </div>
+        <!-- 基础信息编辑区 -->
+        <div class="manual-edit-section">
           <div class="manual-inputs">
             <div class="input-group">
               <label>标题</label>
               <input v-model="diaryTitle" type="text" placeholder="给你的日记起个标题" />
+            </div>
+            <div class="input-group">
+              <label>目的地 <span class="required">*</span></label>
+              <input v-model="diaryDestination" type="text" placeholder="例如：北京、上海、杭州" />
             </div>
             <div class="input-row">
               <div class="input-group">
@@ -215,9 +211,6 @@
             实时预览
           </h3>
           <div class="preview-actions">
-            <button class="action-btn" @click="showManualEdit = !showManualEdit">
-              {{ showManualEdit ? '收起' : '编辑' }}
-            </button>
             <button
               class="action-btn publish-btn"
               :disabled="!canPublish"
@@ -459,10 +452,10 @@ const rawInput = ref(props.initialContent || '')
 const isOrganizing = ref(false)
 const uploadedImages = ref([])
 const uploadedVideos = ref([])
-const showManualEdit = ref(false)
 
 // 日记元数据
 const diaryTitle = ref(props.initialTitle || '')
+const diaryDestination = ref('')
 const diaryBudget = ref('')
 const diaryCompanion = ref('')
 const diaryType = ref(props.initialType || 'travel')
@@ -507,7 +500,9 @@ onMounted(() => {
 
 // 计算属性
 const canPublish = computed(() => {
-  return structuredData.value.length > 0 || rawInput.value.trim().length > 10
+  const hasContent = structuredData.value.length > 0 || rawInput.value.trim().length > 10
+  const hasDestination = diaryDestination.value.trim().length > 0
+  return hasContent && hasDestination
 })
 
 // 处理输入
@@ -681,6 +676,7 @@ const loadTripData = (tripData) => {
 
   // 预填充数据
   diaryTitle.value = tripData.title
+  diaryDestination.value = tripData.destination || ''
   diaryType.value = tripData.diary_type
 
   // 将时间轴数据设置到预览
@@ -747,6 +743,7 @@ const clearTripImport = () => {
   importedTripTitle.value = ''
   importedTripData.value = null
   structuredData.value = []
+  diaryDestination.value = ''
 }
 
 /**
@@ -1177,11 +1174,12 @@ const publishDiary = () => {
     title: diaryTitle.value || '我的旅行日记',
     content: rawInput.value,
     diary_type: diaryType.value,
+    destination: diaryDestination.value,
     budget: diaryBudget.value,
     companion: diaryCompanion.value,
     images: uploadedImages.value,
     videos: uploadedVideos.value.map(v => v.url).filter(Boolean),
-    timeline: structuredData.value,
+    itinerary: structuredData.value,
     createdAt: new Date().toISOString()
   }
 
@@ -1192,7 +1190,8 @@ const publishDiary = () => {
 
 <style scoped>
 .smart-editor {
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   background: linear-gradient(135deg, #F8F9FC 0%, #FFFFFF 50%, #F0F4F8 100%);
   position: relative;
   overflow: hidden;
@@ -1205,6 +1204,7 @@ const publishDiary = () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   flex: 1;
+  min-height: 0;
   max-width: 1400px;
   margin: 0 auto;
   padding: 24px;
@@ -1224,6 +1224,7 @@ const publishDiary = () => {
   gap: 20px;
   overflow-y: auto;
   padding-right: 8px;
+  min-height: 0;
 }
 
 .edit-section::-webkit-scrollbar {
@@ -1720,6 +1721,11 @@ const publishDiary = () => {
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
+}
+
+.input-group label .required {
+  color: #EF4444;
+  margin-left: 2px;
 }
 
 .input-group input {

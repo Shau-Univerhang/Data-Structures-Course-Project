@@ -142,6 +142,7 @@ export const useDiaryStore = defineStore('diary', () => {
           videos: diaryData.videos || [],
           budget: diaryData.budget,
           companion: diaryData.companion,
+          destination: diaryData.destination || null,
           itinerary: diaryData.itinerary || [],
           compress: diaryData.compress ?? true
         })

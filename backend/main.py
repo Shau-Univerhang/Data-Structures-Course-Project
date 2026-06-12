@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from routers import spots, trips, route, diary, diary_generator, ai, xiaohongshu, auth, collection, photo, photo_spot, personality
 from migrations.add_fts_and_exact_title import migrate as migrate_diary_search_schema
+from migrations.add_destination_to_diary import migrate as migrate_destination_to_diary
 
 app = FastAPI(
     title="邮游世界 - 个性化旅游系统",
@@ -34,6 +35,7 @@ async def startup_migrations():
     """
     try:
         migrate_diary_search_schema()
+        migrate_destination_to_diary()
     except Exception as e:
         # 这里不能静默失败，否则服务虽然能启动，但相关接口会在运行时 500。
         print(f"[Startup] 日记检索迁移失败: {e}")

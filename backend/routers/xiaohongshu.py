@@ -10,6 +10,7 @@ import json
 import sys
 import re
 import urllib.parse
+import os
 sys.path.append("..")
 
 from models.database import get_db, Trip, TripDailySchedule, ScenicSpot
@@ -17,9 +18,10 @@ from models.database import get_db, Trip, TripDailySchedule, ScenicSpot
 router = APIRouter()
 
 
-# MiniMax API配置 - 使用正确的配置
-MINIMAX_API_KEY = "sk-cp-eENF_3JXbnNR0MFbfGZJqpW6Yxq-W6Qt_9YjNoI5EFCL63wekVwj0y3z1OJdugX17zIGqN51KDheUiJCp3MnrC_LJlAuOpgah92L-r4YEED2Y7h31-tTtPc"
-MINIMAX_API_BASE = "https://api.minimaxi.com/anthropic"
+# LLM配置 (deepseek-v4-pro)
+TOUR_GUIDE_LLM_KEY = os.getenv("TOUR_GUIDE_LLM_KEY", "")
+TOUR_GUIDE_LLM_BASE = os.getenv("TOUR_GUIDE_LLM_BASE", "https://api.deepseek.com")
+TOUR_GUIDE_LLM_MODEL = os.getenv("TOUR_GUIDE_LLM_MODEL", "deepseek-v4-pro")
 
 
 class XiaohongshuParseRequest(BaseModel):
@@ -31,43 +33,27 @@ class ExtractItineraryRequest(BaseModel):
     content: str
 
 
-def call_minimax(prompt: str, temperature: float = 0.7) -> str:
-    """调用MiniMax M2.5 API"""
-    url = f"{MINIMAX_API_BASE}/v1/messages"
-    
+def call_llm(prompt: str, temperature: float = 0.8) -> str:
+    """调用DeepSeek API"""
+    url = f"{TOUR_GUIDE_LLM_BASE}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+        "Authorization": f"Bearer {TOUR_GUIDE_LLM_KEY}",
         "Content-Type": "application/json"
     }
-    
     data = {
-        "model": "MiniMax-M2.5",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": 2048,
+        "model": TOUR_GUIDE_LLM_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 800,
         "temperature": temperature
     }
-    
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=60)
-        result = response.json()
-        
-        # 检查错误
-        if 'base_resp' in result:
-            status_code = result['base_resp'].get('status_code', 0)
-            if status_code != 0:
-                return f"API错误: {result['base_resp'].get('status_msg', '未知错误')}"
-        
-        # 提取回复内容
-        if 'content' in result and len(result['content']) > 0:
-            for item in result['content']:
-                if item.get('type') == 'text':
-                    return item.get('text', '')
-        
-        return str(result)
+        resp = requests.post(url, headers=headers, json=data, timeout=60)
+        result = resp.json()
+        if 'choices' in result and len(result['choices']) > 0:
+            return result['choices'][0]['message']['content']
+        return f"LLM错误: {result}"
     except Exception as e:
-        return f"请求失败: {str(e)}"
+        return f"LLM调用失败: {str(e)}"
 
 
 def extract_note_id_from_url(url: str) -> Optional[str]:
@@ -181,7 +167,7 @@ def analyze_content_with_ai(title: str, content: str, url: str) -> dict:
 
 如果内容不足以提取完整信息，请根据已有信息合理推断，返回最佳猜测结果。"""
     
-    result = call_minimax(prompt, temperature=0.3)
+    result = call_llm(prompt, temperature=0.3)
     
     itinerary = None
     if result:
@@ -353,8 +339,8 @@ def extract_itinerary_with_ai(content: str) -> dict:
 - 目的地根据内容中的城市名判断
 - **重要：如果景点名称中包含"/"、"\"或"、"（如"鸟巢/水立方"），请将其拆分为多个独立景点（如["鸟巢", "水立方"]）**"""
 
-    # 调用MiniMax API - 使用travel-chat相同的配置
-    result = call_minimax(extract_prompt, temperature=0.3)
+    # 调用AI API提取行程
+    result = call_llm(extract_prompt, temperature=0.3)
     
     if not result:
         return {"has_route": False, "error": "AI返回为空"}
@@ -551,8 +537,8 @@ def generate_from_xiaohongshu(
     "tips": ["贴士1", "贴士2"]
 }}"""
     
-    # 调用MiniMax生成详细行程
-    guide_result = call_minimax(prompt)
+    # 调用AI生成详细行程
+    guide_result = call_llm(prompt)
     
     guide_data = None
     if guide_result:

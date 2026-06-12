@@ -81,6 +81,7 @@ class CreateDiaryRequest(BaseModel):
     diary_type: Optional[str] = "travel"
     is_public: Optional[bool] = False
     itinerary: Optional[List[dict]] = None  # 时间轴数据
+    destination: Optional[str] = None  # 目的地城市（优先于文本提取）
     budget: Optional[str] = None  # 预算
     companion: Optional[str] = None  # 同行伙伴
 
@@ -133,7 +134,7 @@ class CommentResponse(BaseModel):
 
 # 路由实现
 
-def _sync_diary_city_tags(db: Session, diary: TravelDiary, content: str, itinerary=None):
+def _sync_diary_city_tags(db: Session, diary: TravelDiary, content: str, itinerary=None, destination=None):
     """同步日记的城市标签"""
     try:
         # 先删除旧关联并递减计数
@@ -145,14 +146,22 @@ def _sync_diary_city_tags(db: Session, diary: TravelDiary, content: str, itinera
             db.delete(tag)
         db.flush()
 
-        # 提取新标签（优先使用传入的 itinerary，其次使用 diary.itinerary）
-        itin = itinerary if itinerary is not None else diary.itinerary
+        cities = []
         extractor = get_extractor()
-        cities = extractor.extract_cities(
-            title=diary.title,
-            content=content,
-            itinerary=itin
-        )
+
+        # 优先使用明确指定的目的地
+        if destination and destination.strip():
+            # 解析为标准城市名（处理别名）
+            city_name = extractor.resolve_alias(destination.strip())
+            cities = [{"city": city_name, "confidence": 1.0}]
+        else:
+            # 回退到文本提取
+            itin = itinerary if itinerary is not None else diary.itinerary
+            cities = extractor.extract_cities(
+                title=diary.title,
+                content=content,
+                itinerary=itin
+            )
         
         for city_data in cities:
             city_name = city_data['city']
@@ -189,12 +198,17 @@ def create_diary(
     title_hash = compute_title_hash(request.title)
     content_plain = extract_plain_text(request.content)
     
-    # 2. 提取城市标签
-    cities = get_extractor().extract_cities(
-        title=request.title,
-        content=request.content,
-        itinerary=request.itinerary
-    )
+    # 2. 提取城市标签（优先使用明确指定的 destination）
+    if request.destination and request.destination.strip():
+        extractor = get_extractor()
+        city_name = extractor.resolve_alias(request.destination.strip())
+        cities = [{"city": city_name, "confidence": 1.0}]
+    else:
+        cities = get_extractor().extract_cities(
+            title=request.title,
+            content=request.content,
+            itinerary=request.itinerary
+        )
     city_text = extract_city_text([c['city'] for c in cities])
     tag_text = extract_tag_text(request.diary_type, request.companion, request.budget)
     
@@ -227,6 +241,7 @@ def create_diary(
         images=request.images,
         videos=request.videos,
         itinerary=request.itinerary if not request.compress else None,
+        destination=request.destination,
         budget=request.budget,
         companion=request.companion
     )
@@ -234,8 +249,8 @@ def create_diary(
     db.commit()
     db.refresh(diary)
     
-    # 5. 同步城市标签（传入 itinerary，避免压缩后 diary.itinerary 为 None）
-    _sync_diary_city_tags(db, diary, request.content, request.itinerary)
+    # 5. 同步城市标签（传入 itinerary 和 destination，避免压缩后 diary.itinerary 为 None）
+    _sync_diary_city_tags(db, diary, request.content, request.itinerary, request.destination)
     
     # 6. 写入 FTS5 索引
     insert_diary_to_fts(diary.id, request.title, content_plain, city_text, tag_text)
@@ -787,17 +802,23 @@ def update_diary(
     diary.videos = request.videos
     diary.budget = request.budget
     diary.companion = request.companion
+    diary.destination = request.destination
     
     # 处理内容压缩（合并 content + itinerary）
     # 关键：先提取检索特征，再压缩
     content_plain = extract_plain_text(request.content)
     diary.content_plain = content_plain
     
-    cities = get_extractor().extract_cities(
-        title=request.title,
-        content=request.content,
-        itinerary=request.itinerary
-    )
+    if request.destination and request.destination.strip():
+        extractor = get_extractor()
+        city_name = extractor.resolve_alias(request.destination.strip())
+        cities = [{"city": city_name, "confidence": 1.0}]
+    else:
+        cities = get_extractor().extract_cities(
+            title=request.title,
+            content=request.content,
+            itinerary=request.itinerary
+        )
     city_text = extract_city_text([c['city'] for c in cities])
     tag_text = extract_tag_text(request.diary_type, request.companion, request.budget)
     
@@ -821,8 +842,8 @@ def update_diary(
     db.commit()
     db.refresh(diary)
     
-    # 同步城市标签（传入 itinerary）
-    _sync_diary_city_tags(db, diary, request.content, request.itinerary)
+    # 同步城市标签（传入 itinerary 和 destination）
+    _sync_diary_city_tags(db, diary, request.content, request.itinerary, request.destination)
     
     # 更新 FTS5 索引
     update_diary_fts(diary.id, request.title, content_plain, city_text, tag_text)

@@ -210,6 +210,7 @@ class TravelDiary(Base):
     images = Column(JSON)  # 图片列表
     videos = Column(JSON)  # 视频列表
     itinerary = Column(JSON)  # 时间轴行程数据 [{day, title, spots: [{time, description, location}]}]
+    destination = Column(String(100))  # 目的地城市（明确指定，优先级高于文本提取）
     budget = Column(String(50))  # 预算
     companion = Column(String(50))  # 同行伙伴
     view_count = Column(Integer, default=0)  # 浏览量
@@ -388,6 +389,27 @@ class VlogTask(Base):
 # 数据库初始化
 engine = create_engine(f'sqlite:///{DB_PATH}', echo=False)
 Base.metadata.create_all(engine)
+
+
+def _run_migrations():
+    """自动执行数据库迁移"""
+    import sqlite3
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # 迁移: 为 trips 表添加 vlog_url 字段
+    cursor.execute("PRAGMA table_info(trips)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if columns and 'vlog_url' not in columns:
+        cursor.execute("ALTER TABLE trips ADD COLUMN vlog_url VARCHAR(255)")
+        print("[MIGRATION] 已添加 trips.vlog_url 字段")
+
+    conn.commit()
+    conn.close()
+
+
+_run_migrations()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

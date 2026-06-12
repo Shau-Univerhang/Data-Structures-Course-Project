@@ -66,10 +66,12 @@ def fetch_amap_nearby_restaurants(lng: float, lat: float, radius: int = 3000) ->
         response = requests.get(AMAP_PLACE_AROUND_URL, params=params, timeout=8)
         response.raise_for_status()
         data = response.json()
-    except requests.RequestException:
+    except requests.RequestException as e:
+        print(f"[AMAP] 高德API请求失败: {e}")
         return []
 
     if data.get("status") != "1":
+        print(f"[AMAP] 高德API返回错误: status={data.get('status')}, info={data.get('info')}, infocode={data.get('infocode')}")
         return []
 
     return data.get("pois") or []

@@ -1,5 +1,5 @@
 """
-AI接口 - 使用MiniMax API (M2.5模型)
+AI接口 - 使用DeepSeek API (deepseek-v4-pro)
 """
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -25,11 +25,7 @@ router = APIRouter()
 
 import os
 
-# MiniMax API配置
-MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "")
-MINIMAX_API_BASE = "https://api.minimax.chat"
-
-# AI导游 LLM配置 (deepseek-v4-pro)
+# LLM配置 (deepseek-v4-pro)
 TOUR_GUIDE_LLM_KEY = os.getenv("TOUR_GUIDE_LLM_KEY", "")
 TOUR_GUIDE_LLM_BASE = os.getenv("TOUR_GUIDE_LLM_BASE", "https://api.deepseek.com")
 TOUR_GUIDE_LLM_MODEL = os.getenv("TOUR_GUIDE_LLM_MODEL", "deepseek-v4-pro")
@@ -73,47 +69,6 @@ class XiaohongshuParseRequest(BaseModel):
 class TourGuideRequest(BaseModel):
     spot_id: int
     style: str = "rational"  # rational, emotional, foodie
-
-
-def call_minimax(prompt: str, temperature: float = 0.7) -> str:
-    """调用MiniMax M2.5 API"""
-    url = f"{MINIMAX_API_BASE}/v1/text/chatcompletion_v2"
-    
-    headers = {
-        "Authorization": f"Bearer {MINIMAX_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    data = {
-        "model": "MiniMax-M2.5",
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1024,
-        "temperature": temperature
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=data, timeout=60)
-        result = response.json()
-        
-        # 检查错误
-        if 'base_resp' in result:
-            status_code = result['base_resp'].get('status_code', 0)
-            if status_code != 0:
-                return f"API错误: {result['base_resp'].get('status_msg', '未知错误')}"
-        
-        # 提取回复内容
-        if result.get('choices') and len(result['choices']) > 0:
-            content = result['choices'][0]['message'].get('content', '')
-            if content:
-                # 尝试修复编码
-                try:
-                    return content.encode('latin1').decode('utf-8')
-                except:
-                    return content
-        
-        return str(result)
-    except Exception as e:
-        return f"请求失败: {str(e)}"
 
 
 def split_spots_with_slash(spots: list) -> list:
@@ -678,7 +633,7 @@ def travel_chat_with_ai(request: TravelChatRequest, db: Session = Depends(get_db
                 break
     
     if is_planning_request and destination:
-        # 调用MiniMax API生成行程规划
+        # 调用AI API生成行程规划
         
         # 构建提示词
         prompt = f"""你是旅行助手邮邮，请为用户规划{destination}{days}日游行程。
@@ -714,11 +669,11 @@ def travel_chat_with_ai(request: TravelChatRequest, db: Session = Depends(get_db
 
 这个行程你觉得怎么样？可以直接点击下方卡片保存，或者告诉我你想调整哪些地方！"""
         
-        # 调用MiniMax API
-        ai_reply = call_minimax(prompt, temperature=0.8)
+        # 调用AI API
+        ai_reply = call_llm(prompt, temperature=0.8)
         
         # 检查是否API调用失败
-        if ai_reply.startswith("API错误") or ai_reply.startswith("请求失败"):
+        if ai_reply.startswith("LLM错误") or ai_reply.startswith("LLM调用失败"):
             # 使用预设数据作为备用
             default_itineraries = {
                 "北京": {
@@ -805,7 +760,7 @@ def travel_chat_with_ai(request: TravelChatRequest, db: Session = Depends(get_db
 9. 根据行程内容中的时间安排，将景点分配到对应的天数
 10. 如果行程内容没有明确的天数分配，请平均分配到{days}天"""
             
-            extract_reply = call_minimax(extract_prompt, temperature=0.3)
+            extract_reply = call_llm(extract_prompt, temperature=0.3)
             print(f"AI extraction reply: {extract_reply}")
             
             # 解析AI提取的结果
@@ -857,7 +812,7 @@ def travel_chat_with_ai(request: TravelChatRequest, db: Session = Depends(get_db
             "itinerary": itinerary
         }
     else:
-        # 普通对话 - 调用MiniMax API
+        # 普通对话 - 调用AI API
         
         # 构建提示词
         history_context_str = ""
@@ -873,11 +828,11 @@ def travel_chat_with_ai(request: TravelChatRequest, db: Session = Depends(get_db
 
 请用Markdown格式回复，可以适当使用emoji让回复更生动。"""
         
-        # 调用MiniMax API
-        ai_reply = call_minimax(prompt, temperature=0.8)
+        # 调用AI API
+        ai_reply = call_llm(prompt, temperature=0.8)
         
         # 检查是否API调用失败
-        if ai_reply.startswith("API错误") or ai_reply.startswith("请求失败"):
+        if ai_reply.startswith("LLM错误") or ai_reply.startswith("LLM调用失败"):
             # 使用备用回复
             message_lower = message.lower()
             if any(word in message_lower for word in ['你好', '嗨', 'hi', 'hello']):
@@ -903,7 +858,7 @@ def generate_travel_guide(
     request: GenerateGuideRequest,
     db: Session = Depends(get_db)
 ):
-    """生成旅游攻略（AI生成）- 调用MiniMax API"""
+    """生成旅游攻略（AI生成）"""
     
     # 获取选中景点的详细信息
     spots_info = []
@@ -968,7 +923,7 @@ def generate_travel_guide(
 }}
 """
     
-    result = call_minimax(prompt)
+    result = call_llm(prompt)
     
     # 尝试解析JSON
     try:
@@ -1012,7 +967,7 @@ def recommend_destinations(
 }}
 """
     
-    result = call_minimax(prompt)
+    result = call_llm(prompt)
     
     try:
         json_match = re.search(r'\{[\s\S]*\}', result)

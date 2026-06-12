@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<template>
   <div class="diary-page">
     <Navbar />
     
@@ -667,17 +667,19 @@ const handlePublish = async (diary) => {
       title: diary.title,
       content: diary.content,
       diary_type: newDiary.value.diary_type || 'notes',
+      destination: diary.destination || '',
       images: diary.images || [],
       videos: diary.videos || [],
       budget: diary.budget,
       companion: diary.companion,
-      itinerary: diary.timeline || [],
+      itinerary: diary.itinerary || [],
       is_public: true
     })
     ElMessage.success('日记发布成功！')
     closeModal()
-    // 发布成功后刷新日记列表
+    // 发布成功后刷新日记列表和足迹
     await diaryStore.fetchDiaries()
+    diaryStore.fetchFootprints()
   } catch (error) {
     console.error('保存失败:', error)
     ElMessage.error('保存失败：' + (error.message || '未知错误'))
@@ -1497,6 +1499,8 @@ const goToDiaryLibrary = () => {
   max-width: 900px;
   max-height: 90vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-content.editor-modal {

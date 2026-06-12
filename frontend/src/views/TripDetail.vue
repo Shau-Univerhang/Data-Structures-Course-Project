@@ -101,43 +101,57 @@
             </div>
           </div>
 
-          <!-- 附近美食 -->
+          <!-- 附近美食（V3 — 7大菜系 + 霓虹标签 + 暗黑卡片） -->
           <div class="food-panel">
             <div class="food-panel-header">
-              <div>
-                <h3>附近美食</h3>
-                <p v-if="activeFoodSpot" class="food-panel-subtitle">
-                  {{ activeFoodSpot.name }} 附近商家
-                </p>
-                <p v-else class="food-panel-subtitle">点击景点后查看附近美食</p>
+              <div class="food-header-left">
+                <span class="food-header-icon">🍜</span>
+                <div>
+                  <h3>附近美食</h3>
+                  <p v-if="activeFoodSpot" class="food-panel-subtitle">
+                    {{ activeFoodSpot.name }} · Top {{ nearbyFoods.length }} 推荐
+                  </p>
+                  <p v-else class="food-panel-subtitle">点击景点后查看附近美食</p>
+                </div>
+              </div>
+              <div v-if="nearbyFoods.length > 0 && activeFoodSpot" class="food-header-badge">
+                {{ nearbyFoods.length }}
               </div>
             </div>
 
+            <!-- 搜索 + 排序 -->
             <div class="food-panel-controls">
-              <input
-                v-model="foodKeyword"
-                type="text"
-                placeholder="搜索美食名称、菜系或饭店名称"
-                class="search-input"
-                :disabled="!activeFoodSpot"
-              />
+              <div class="food-search-wrap">
+                <span class="food-search-icon">🔍</span>
+                <input
+                  v-model="foodKeyword"
+                  type="text"
+                  placeholder="KMP 模糊搜索名称、菜系、标签..."
+                  class="food-search-input"
+                  :disabled="!activeFoodSpot"
+                  @input="onFoodKeywordInput"
+                />
+                <button v-if="foodKeyword" class="food-search-clear" @click="foodKeyword = ''">×</button>
+              </div>
               <div class="food-sort-group">
                 <button
-                  v-for="option in [
-                    { label: '距离', value: 'distance' },
-                    { label: '评分', value: 'rating' },
-                    { label: '热度', value: 'popularity' },
+                  v-for="opt in [
+                    { label: '📍 距离最近', value: 'distance' },
+                    { label: '⭐ 评分最高', value: 'rating' },
+                    { label: '🔥 热度最高', value: 'popularity' },
                   ]"
-                  :key="option.value"
+                  :key="opt.value"
                   class="food-sort-btn"
-                  :class="{ active: foodSortBy === option.value }"
+                  :class="{ active: foodSortBy === opt.value }"
                   :disabled="!activeFoodSpot"
-                  @click="foodSortBy = option.value"
+                  @click="foodSortBy = opt.value"
                 >
-                  {{ option.label }}
+                  {{ opt.label }}
                 </button>
               </div>
-              <div class="food-cuisine-list">
+
+              <!-- ★ 7大菜系霓虹过滤标签 ★ -->
+              <div class="food-cuisine-filter">
                 <button
                   class="food-cuisine-chip"
                   :class="{ active: selectedCuisine === '全部' }"
@@ -159,34 +173,66 @@
               </div>
             </div>
 
+            <!-- 管道统计 -->
+            <div v-if="foodPipelineStats && nearbyFoods.length > 0" class="food-pipeline-stats">
+              <span class="pipeline-dot"></span>
+              全部 {{ foodPipelineStats.total }} → 过滤 {{ foodPipelineStats.filtered }} → 搜索 {{ foodPipelineStats.searched }} → <em>堆选 Top-{{ foodPipelineStats.final }}</em>
+            </div>
+
             <div class="food-list-scrollable">
-              <div v-if="foodLoading" class="food-panel-empty">附近美食加载中...</div>
-              <div v-else-if="foodError" class="food-panel-empty">{{ foodError }}</div>
+              <div v-if="foodLoading" class="food-panel-empty">
+                <div class="food-loading-spinner"></div>
+                <p>正在搜寻周边美食...</p>
+              </div>
+              <div v-else-if="foodError" class="food-panel-empty">
+                <span class="food-error-icon">⚠️</span>
+                <p>{{ foodError }}</p>
+              </div>
               <div v-else-if="!activeFoodSpot" class="food-panel-empty">
-                选中左侧景点后，这里会显示附近美食。
+                <span class="food-empty-icon">🗺️</span>
+                <p>选中左侧景点后，这里会显示附近美食</p>
+                <span class="food-empty-hint">通过堆排序算法推荐 Top 10 人气餐厅</span>
               </div>
               <div v-else-if="nearbyFoods.length === 0" class="food-panel-empty">
-                暂无匹配的美食商家。
+                <span class="food-empty-icon">🍽️</span>
+                <p>暂无匹配的美食商家</p>
+                <span class="food-empty-hint">尝试切换菜系标签、排序方式或更换关键词</span>
               </div>
               <div v-else class="food-list">
                 <button
-                  v-for="food in nearbyFoods"
+                  v-for="(food, idx) in nearbyFoods"
                   :key="food.id"
                   class="food-item"
-                  :class="{ active: activeFoodId === food.id }"
+                  :class="{ active: activeFoodId === food.id, 'top-three': idx < 3 }"
                   @click="focusFood(food)"
                 >
-                  <div class="food-item-main">
-                    <strong>{{ food.name }}</strong>
-                    <span class="food-item-cuisine">{{ food.cuisine_type || '未知菜系' }}</span>
+                  <!-- 排名徽章 -->
+                  <div class="food-rank" :class="'rank-' + (idx + 1)">
+                    <span v-if="idx === 0">🥇</span>
+                    <span v-else-if="idx === 1">🥈</span>
+                    <span v-else-if="idx === 2">🥉</span>
+                    <span v-else>{{ idx + 1 }}</span>
                   </div>
-                  <div class="food-item-meta">
-                    <span>⭐ {{ Number(food.rating || 0).toFixed(1) }}</span>
-                    <span>🔥 {{ food.heat_score || 0 }}</span>
-                    <span>📍 {{ Math.round(food.distance_m || 0) }}米</span>
-                  </div>
-                  <div v-if="food.matched_fields?.length" class="food-item-match">
-                    匹配字段：{{ food.matched_fields.join(' / ') }}
+                  <!-- 主体 -->
+                  <div class="food-item-body">
+                    <div class="food-item-top">
+                      <strong class="food-item-name">{{ food.name }}</strong>
+                      <span v-if="food.price_range" class="food-price-tag">{{ food.price_range }}</span>
+                    </div>
+                    <div class="food-item-meta">
+                      <span class="food-meta-star">⭐ {{ Number(food.rating || 0).toFixed(1) }}</span>
+                      <span class="food-meta-heat">🔥 {{ food.heat_score || food.popularity || 0 }}</span>
+                      <span class="food-meta-dist">📍 {{ formatFoodDistance(food.distance_m ?? food.distance) }}</span>
+                    </div>
+                    <div class="food-item-tags">
+                      <span class="food-tag-cuisine">{{ food.cuisine_type || food.type || '未知' }}</span>
+                      <span
+                        v-for="tag in (food.tags || []).slice(0, 2)"
+                        :key="tag"
+                        class="food-tag-feature"
+                      >{{ tag }}</span>
+                    </div>
+                    <div v-if="food.address" class="food-item-addr">🏠 {{ food.address }}</div>
                   </div>
                 </button>
               </div>
@@ -365,6 +411,9 @@ import AMapLoader from "@amap/amap-jsapi-loader";
 import { buildGraphFromSpots, haversineDistance, TransportType } from "@/pathfinder/graph.js";
 import { dijkstra, reconstructPath } from "@/pathfinder/dijkstra.js";
 import { API } from "../api";
+import { getFoodsBySpot, getFoodsBySpotName } from "../data/xianFoodMock.js";
+import { runFoodPipeline } from "../utils/foodDataPipeline.js";
+import { createDarkFoodInfoWindow } from "../utils/foodMapMarkers.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -1112,6 +1161,7 @@ const clearNearbyFoods = ({ clearFilters = false } = {}) => {
   activeFoodSpot.value = null;
   nearbyFoods.value = [];
   foodCuisineOptions.value = [];
+  foodPipelineStats.value = null;
   foodError.value = "";
   foodLoading.value = false;
   activeFoodId.value = null;
@@ -1125,85 +1175,193 @@ const clearNearbyFoods = ({ clearFilters = false } = {}) => {
 };
 
 const renderFoodMarkers = () => {
-  if (!map.value || !window.AMap) return;
+  if (!map.value || !window.AMap) return
 
-  clearFoodMarkers();
-  nearbyFoods.value.forEach((food) => {
-    const position = getValidLngLat(food);
-    if (!position) return;
+  clearFoodMarkers()
+  nearbyFoods.value.forEach((food, index) => {
+    const position = getValidLngLat(food)
+    if (!position) return
+
+    // 排名前三使用金/银/铜色，其余使用青色
+    const markerColors = ['#FFD700', '#C0C0C0', '#CD7F32']
+    const bgColor = index < 3 ? markerColors[index] : '#00d4ff'
 
     const marker = new window.AMap.Marker({
       position,
-      content: '<div class="food-marker">🍜</div>',
+      content: `<div style="
+        width:28px;height:28px;border-radius:50%;
+        background:linear-gradient(135deg,${bgColor},${bgColor}dd);
+        border:2px solid rgba(255,255,255,0.4);
+        box-shadow:0 2px 10px rgba(0,0,0,0.3);
+        display:flex;align-items:center;justify-content:center;
+        color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+      ">${index < 3 ? '🍜' : index + 1}</div>`,
       offset: new window.AMap.Pixel(-14, -14),
-      zIndex: 120,
-    });
+      zIndex: index < 3 ? 130 : 120,
+    })
 
+    // ★ 使用深色赛博朋克风格 InfoWindow ★
+    const darkContent = createDarkFoodInfoWindow(food)
     const infoWindow = new window.AMap.InfoWindow({
-      content: `<div style="padding:10px"><h4>${food.name}</h4><p>${food.cuisine_type || "未知菜系"}</p><p>⭐ ${Number(food.rating || 0).toFixed(1)} · 🔥 ${food.heat_score || 0}</p><p>📍 ${Math.round(food.distance_m || 0)} 米</p></div>`,
-      offset: new window.AMap.Pixel(0, -18),
-    });
+      content: darkContent,
+      offset: new window.AMap.Pixel(0, -22),
+      closeWhenClickMap: true,
+    })
 
-    marker.on("click", () => {
-      activeFoodId.value = food.id;
-      infoWindow.open(map.value, marker.getPosition());
-    });
+    marker.on('click', () => {
+      activeFoodId.value = food.id
+      // 关闭其他已打开的 InfoWindow
+      foodMarkers.forEach((m) => m.__infoWindow?.close())
+      infoWindow.open(map.value, marker.getPosition())
+    })
 
-    marker.__restaurantId = food.id;
-    marker.__infoWindow = infoWindow;
-    marker.setMap(map.value);
-    foodMarkers.push(marker);
-  });
-};
+    marker.__restaurantId = food.id
+    marker.__infoWindow = infoWindow
+    marker.setMap(map.value)
+    foodMarkers.push(marker)
+  })
+}
+
+/**
+ * 将景点名称映射到美食圈（V3 — 直接按名称匹配）
+ * 三大美食圈：
+ *   lintong    — 华清宫、兵马俑、骊山、秦陵
+ *   city_center — 回民街、钟楼、鼓楼、古城墙、永宁门
+ *   dayanta    — 大雁塔、大唐不夜城、大唐芙蓉园
+ */
+const resolveSpotDatasetKey = (spot) => {
+  if (!spot) return null
+  // 直接用景点全名匹配生成器数据
+  const name = spot.name || ''
+  if (name.includes('华清') || name.includes('兵马俑') || name.includes('骊山') || name.includes('秦陵')) return 'lintong'
+  if (name.includes('回民') || name.includes('钟楼') || name.includes('鼓楼') || name.includes('古城墙') || name.includes('永宁')) return 'city_center'
+  if (name.includes('大雁塔') || name.includes('大唐不夜城') || name.includes('大唐芙蓉园')) return 'dayanta'
+  // 兜底：西安其他景点 → city_center
+  const cityName = (city.value || '').toLowerCase()
+  if (cityName.includes('西安') || cityName.includes('xian')) return 'city_center'
+  return null
+}
+
+/** 将生成器数据格式归一化为 TripDetail 期望的字段名 */
+const normalizeFoodFields = (foods) => {
+  return foods.map((f) => ({
+    ...f,
+    cuisine_type: f.type || f.cuisine_type,
+    distance_m: f.distance ?? f.distance_m,
+    heat_score: f.popularity ?? f.heat_score,
+    location_lng: f.lnglat?.[0] ?? f.location_lng,
+    location_lat: f.lnglat?.[1] ?? f.location_lat,
+    // 保留原始字段用于富展示
+    tags: f.tags || [],
+    address: f.address || '',
+    price_range: f.price_range || '',
+  }))
+}
+
+/** 格式化距离（用于模板） */
+const formatFoodDistance = (m) => {
+  if (!m && m !== 0) return '未知'
+  if (m < 1000) return Math.round(m) + 'm'
+  return (m / 1000).toFixed(1) + 'km'
+}
+
+/** 管道统计（用于 UI 展示算法步骤） */
+const foodPipelineStats = ref(null)
+
+/** 防抖搜索 */
+let _foodKeywordTimer = null
+const onFoodKeywordInput = () => {
+  clearTimeout(_foodKeywordTimer)
+  _foodKeywordTimer = setTimeout(() => {
+    if (activeFoodSpot.value) fetchNearbyFoods()
+  }, 300)
+}
 
 const fetchNearbyFoods = async (spot = activeFoodSpot.value) => {
-  if (!spot?.id) return;
+  if (!spot?.id) return
 
-  const requestSpotId = spot.id;
-  activeFoodSpot.value = spot;
-  foodLoading.value = true;
-  foodError.value = "";
+  const requestSpotId = spot.id
+  activeFoodSpot.value = spot
+  foodLoading.value = true
+  foodError.value = ''
+
+  // 检查是否可以使用本地 Mock 数据集
+  const datasetKey = resolveSpotDatasetKey(spot)
+  let usedMockFallback = false
 
   try {
+    // 优先尝试后端 API
     const data = await API.spots.getNearbyRestaurants({
       spot_id: spot.id,
       sort_by: foodSortBy.value,
-      cuisine: selectedCuisine.value === "全部" ? "" : selectedCuisine.value,
+      cuisine: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
       keyword: foodKeyword.value.trim(),
       top_k: 10,
-    });
+    })
 
-    if (activeFoodSpot.value?.id !== requestSpotId) {
-      return;
+    // 防止竞态：用户已切换到其他景点
+    if (activeFoodSpot.value?.id !== requestSpotId) return
+
+    if (data.restaurants?.length > 0) {
+      nearbyFoods.value = data.restaurants || []
+      foodCuisineOptions.value = data.cuisine_options || []
+    } else if (datasetKey) {
+      // ★ API 无数据，降级到本地 Mock 数据集 ★
+      usedMockFallback = true
+      // V3: 使用 getFoodsBySpotName 直接获取该景点全量数据（100+ 条）
+      const mockFoods = getFoodsBySpotName(spot.name)
+      const { results, stats } = runFoodPipeline({
+        foods: mockFoods,
+        typeFilter: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
+        keyword: foodKeyword.value.trim(),
+        sortBy: foodSortBy.value,
+        topK: 10,
+      })
+      nearbyFoods.value = normalizeFoodFields(results)
+      foodCuisineOptions.value = [...new Set(mockFoods.map((f) => f.type || f.cuisine_type))]
+      foodPipelineStats.value = stats
+    } else {
+      nearbyFoods.value = []
+      foodCuisineOptions.value = []
+      foodPipelineStats.value = null
     }
-
-    nearbyFoods.value = data.restaurants || [];
-    foodCuisineOptions.value = data.cuisine_options || [];
-
-    if (
-      selectedCuisine.value !== "全部" &&
-      !foodCuisineOptions.value.includes(selectedCuisine.value)
-    ) {
-      selectedCuisine.value = "全部";
-      return;
-    }
-
-    activeFoodId.value = nearbyFoods.value[0]?.id || null;
-    renderFoodMarkers();
   } catch (error) {
-    if (activeFoodSpot.value?.id !== requestSpotId) {
-      return;
-    }
+    if (activeFoodSpot.value?.id !== requestSpotId) return
+    console.error('获取附近美食失败:', error)
 
-    console.error("获取附近美食失败:", error);
-    nearbyFoods.value = [];
-    foodCuisineOptions.value = [];
-    activeFoodId.value = null;
-    clearFoodMarkers();
-    foodError.value = "附近美食加载失败，请重试";
+    // ★ API 异常，降级到本地 Mock 数据集 ★
+    if (datasetKey) {
+      usedMockFallback = true
+      try {
+        const mockFoods = getFoodsBySpotName(spot.name)
+        const { results, stats } = runFoodPipeline({
+          foods: mockFoods,
+          typeFilter: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
+          keyword: foodKeyword.value.trim(),
+          sortBy: foodSortBy.value,
+          topK: 10,
+        })
+        nearbyFoods.value = normalizeFoodFields(results)
+        foodCuisineOptions.value = [...new Set(mockFoods.map((f) => f.type || f.cuisine_type))]
+        foodPipelineStats.value = stats
+      } catch (mockErr) {
+        console.error('Mock 数据加载也失败:', mockErr)
+        nearbyFoods.value = []
+        foodCuisineOptions.value = []
+        foodPipelineStats.value = null
+        foodError.value = '附近美食加载失败，请重试'
+      }
+    } else {
+      nearbyFoods.value = []
+      foodCuisineOptions.value = []
+      foodPipelineStats.value = null
+      foodError.value = '附近美食加载失败，请重试'
+    }
   } finally {
     if (activeFoodSpot.value?.id === requestSpotId) {
-      foodLoading.value = false;
+      foodLoading.value = false
+      activeFoodId.value = nearbyFoods.value[0]?.id || null
+      nextTick(() => renderFoodMarkers())
     }
   }
 };
@@ -2134,152 +2292,457 @@ const pollVlogStatus = async () => {
   flex-shrink: 0;
 }
 
-/* 美食面板 */
+/* ═══════════════════════════════════════════════════════════
+   美食面板（V3 — 暗黑霓虹风格）
+   ═══════════════════════════════════════════════════════════ */
 .food-panel {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: rgba(10, 10, 26, 0.72);
-  padding: 15px 15px 10px;
+  background: rgba(10, 10, 26, 0.78);
+  backdrop-filter: blur(20px);
+  padding: 14px 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  border-top: 1px solid rgba(0, 212, 255, 0.08);
 }
 
-/* 美食列表可滚动区域 */
+/* 头部 */
+.food-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.food-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.food-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 159, 67, 0.18), rgba(255, 107, 107, 0.12));
+  border: 1px solid rgba(255, 159, 67, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.food-panel-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary, #fff);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.food-panel-subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary, rgba(255,255,255,0.45));
+}
+
+.food-header-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff9f43, #ff6b6b);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 搜索栏 */
+.food-panel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.food-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+
+.food-search-wrap:focus-within {
+  border-color: rgba(0, 212, 255, 0.35);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.food-search-icon {
+  font-size: 13px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.food-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.food-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.food-search-input:disabled {
+  opacity: 0.4;
+}
+
+.food-search-clear {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 排序按钮 */
+.food-sort-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.food-sort-btn {
+  padding: 5px 11px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, rgba(255,255,255,0.55));
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.food-sort-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.food-sort-btn.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.18), rgba(123, 44, 191, 0.15));
+  border-color: rgba(0, 212, 255, 0.4);
+  color: var(--primary-color, #00d4ff);
+  font-weight: 600;
+}
+
+.food-sort-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ★ 菜系霓虹过滤标签 ★ */
+.food-cuisine-filter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.food-cuisine-chip {
+  padding: 4px 11px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.food-cuisine-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.food-cuisine-chip.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.22), rgba(123, 44, 191, 0.18));
+  border-color: #00d4ff;
+  color: #00d4ff;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2), 0 0 4px rgba(0, 212, 255, 0.1);
+  text-shadow: 0 0 6px rgba(0, 212, 255, 0.35);
+}
+
+.food-cuisine-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* 管道统计 */
+.food-pipeline-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.28);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  padding: 0 2px;
+}
+
+.food-pipeline-stats em {
+  font-style: normal;
+  color: rgba(0, 212, 255, 0.45);
+  font-weight: 600;
+}
+
+.pipeline-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00d4ff;
+  opacity: 0.45;
+}
+
+/* 可滚动列表 */
 .food-list-scrollable {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
 }
 
-.food-list-scrollable::-webkit-scrollbar {
-  width: 4px;
-}
+.food-list-scrollable::-webkit-scrollbar { width: 4px; }
+.food-list-scrollable::-webkit-scrollbar-track { background: transparent; }
+.food-list-scrollable::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 2px; }
 
-.food-list-scrollable::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.food-list-scrollable::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-
-/* 景点容器滚动条 */
-.spots-container::-webkit-scrollbar {
-  width: 4px;
-}
-
-.spots-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.spots-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-}
-
-.food-panel-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.food-panel-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.food-panel-controls {
+/* 空状态 */
+.food-panel-empty {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.food-sort-group,
-.food-cuisine-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.food-sort-btn,
-.food-cuisine-chip {
-  padding: 6px 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.food-sort-btn.active,
-.food-cuisine-chip.active {
-  background: rgba(0, 212, 255, 0.16);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-}
-
-.food-sort-btn:disabled,
-.food-cuisine-chip:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.food-panel-empty {
-  padding: 18px 0;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
   text-align: center;
-  font-size: 13px;
-  color: var(--text-secondary);
+  gap: 8px;
 }
 
+.food-panel-empty p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.food-empty-icon {
+  font-size: 40px;
+  opacity: 0.6;
+}
+
+.food-empty-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.food-error-icon {
+  font-size: 28px;
+}
+
+.food-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: #00d4ff;
+  border-radius: 50%;
+  animation: food-spin 0.8s linear infinite;
+}
+
+@keyframes food-spin { to { transform: rotate(360deg); } }
+
+/* 美食列表 */
 .food-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
+/* 美食卡片 */
 .food-item {
   width: 100%;
   text-align: left;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-primary, #fff);
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.food-item:hover,
-.food-item.active {
-  border-color: var(--primary-color);
-  background: rgba(0, 212, 255, 0.08);
-}
-
-.food-item-main {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 6px;
+  position: relative;
+  overflow: hidden;
 }
 
-.food-item-cuisine,
-.food-item-match,
-.food-item-meta {
+.food-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.04), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.food-item:hover::before,
+.food-item.active::before { opacity: 1; }
+
+.food-item:hover {
+  border-color: rgba(0, 212, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.food-item.active {
+  border-color: rgba(0, 212, 255, 0.35);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(123, 44, 191, 0.05));
+}
+
+.food-item.top-three {
+  border-color: rgba(255, 159, 67, 0.1);
+}
+
+/* 排名徽章 */
+.food-rank {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.food-rank.rank-1 {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.13), rgba(255, 159, 67, 0.1));
+  border-color: rgba(255, 215, 0, 0.25);
+  color: #ffd700;
+}
+
+.food-rank.rank-2 {
+  background: linear-gradient(135deg, rgba(192, 192, 192, 0.12), rgba(169, 169, 169, 0.08));
+  border-color: rgba(192, 192, 192, 0.25);
+  color: #c0c0c0;
+}
+
+.food-rank.rank-3 {
+  background: linear-gradient(135deg, rgba(205, 127, 50, 0.12), rgba(180, 110, 40, 0.08));
+  border-color: rgba(205, 127, 50, 0.25);
+  color: #cd7f32;
+}
+
+/* 卡片主体 */
+.food-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.food-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.food-item-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.food-price-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.1);
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .food-item-meta {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.food-meta-star { color: #ffc107; font-weight: 600; }
+.food-meta-heat { color: #ff6b6b; font-weight: 600; }
+.food-meta-dist { color: rgba(255, 255, 255, 0.45); }
+
+.food-item-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.food-tag-cuisine {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ff9f43;
+  background: rgba(255, 159, 67, 0.1);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.food-tag-feature {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.food-item-addr {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.22);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :global(.food-marker) {

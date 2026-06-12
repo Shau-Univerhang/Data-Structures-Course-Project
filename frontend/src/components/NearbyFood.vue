@@ -7,35 +7,35 @@
         <div class="food-title-text">
           <h3>附近美食</h3>
           <p v-if="activeSpot" class="food-subtitle">
-            {{ activeSpot.name }} · Top 10 推荐
+            {{ activeSpot.name }} · Top {{ displayFoods.length }} 推荐
           </p>
           <p v-else class="food-subtitle">点击景点探索周边美味</p>
         </div>
-        <div v-if="foods.length > 0" class="food-count">{{ foods.length }}</div>
+        <div v-if="displayFoods.length > 0" class="food-count">{{ displayFoods.length }}</div>
       </div>
     </div>
 
     <!-- 搜索栏 -->
-    <div class="food-search-bar" :class="{ disabled: !activeSpot }">
+    <div class="food-search-bar" :class="{ disabled: !hasData }">
       <span class="search-icon">🔍</span>
       <input
         v-model="localKeyword"
         type="text"
         placeholder="搜索美食名称、菜系..."
-        :disabled="!activeSpot"
+        :disabled="!hasData"
         @input="onKeywordInput"
       />
       <button v-if="localKeyword" class="clear-btn" @click="clearKeyword">×</button>
     </div>
 
     <!-- 排序标签 -->
-    <div class="food-sort-bar" :class="{ disabled: !activeSpot }">
+    <div class="food-sort-bar" :class="{ disabled: !hasData }">
       <button
         v-for="opt in sortOptions"
         :key="opt.value"
         class="sort-chip"
         :class="{ active: localSortBy === opt.value }"
-        :disabled="!activeSpot"
+        :disabled="!hasData"
         @click="setSort(opt.value)"
       >
         <span class="sort-icon">{{ opt.icon }}</span>
@@ -43,13 +43,35 @@
       </button>
     </div>
 
+    <!-- 菜系过滤标签（NEW!） -->
+    <div v-if="cuisineTypeOptions.length > 0" class="food-cuisine-filter" :class="{ disabled: !hasData }">
+      <button
+        v-for="ctype in cuisineTypeOptions"
+        :key="ctype"
+        class="cuisine-chip"
+        :class="{ active: activeTypeFilter === ctype }"
+        :disabled="!hasData"
+        @click="toggleTypeFilter(ctype)"
+      >
+        {{ ctype }}
+      </button>
+    </div>
+
+    <!-- 管道统计（调试/展示用，展示算法的中间步骤） -->
+    <div v-if="pipelineStats && displayFoods.length > 0" class="pipeline-stats">
+      <span class="stat-item">
+        <span class="stat-dot"></span>
+        全部 {{ pipelineStats.total }} → 过滤 {{ pipelineStats.filtered }} → 搜索 {{ pipelineStats.searched }} → Top {{ pipelineStats.final }}
+      </span>
+    </div>
+
     <!-- 内容区域 -->
     <div class="food-content">
       <!-- 未选中景点 -->
-      <div v-if="!activeSpot" class="food-empty-state">
+      <div v-if="!hasData" class="food-empty-state">
         <div class="empty-illustration">🗺️</div>
         <p class="empty-title">选中左侧景点后，这里会显示附近美食</p>
-        <p class="empty-desc">我们将为您推荐周边 Top 10 人气餐厅</p>
+        <p class="empty-desc">我们通过堆排序算法为您推荐周边 Top 10 人气餐厅</p>
       </div>
 
       <!-- 加载中 -->
@@ -66,20 +88,20 @@
       </div>
 
       <!-- 无结果 -->
-      <div v-else-if="foods.length === 0" class="food-empty-state">
+      <div v-else-if="displayFoods.length === 0" class="food-empty-state">
         <div class="empty-illustration">🍽️</div>
         <p class="empty-title">暂无匹配的美食商家</p>
-        <p class="empty-desc">尝试切换排序方式或更换关键词</p>
+        <p class="empty-desc">尝试切换排序方式、菜系标签或更换关键词</p>
       </div>
 
       <!-- 美食列表 -->
       <div v-else class="food-list">
         <div
-          v-for="(food, index) in foods"
+          v-for="(food, index) in displayFoods"
           :key="food.id"
           class="food-card"
           :class="{ active: activeFoodId === food.id, 'top-three': index < 3 }"
-          @click="$emit('select-food', food)"
+          @click="onFoodClick(food)"
         >
           <!-- 排名标识 -->
           <div class="rank-badge" :class="`rank-${index + 1}`">
@@ -108,17 +130,23 @@
               </div>
               <span class="distance-badge">
                 <span class="dist-icon">📍</span>
-                {{ formatDistance(food.distance_m) }}
+                {{ formatDistance(food.distance || food.distance_m) }}
               </span>
             </div>
 
             <div class="food-tags-row">
-              <span v-if="food.cuisine_type" class="cuisine-tag">{{ food.cuisine_type }}</span>
-              <span v-if="food.heat_score" class="heat-tag">
-                <span class="fire-icon">🔥</span>
-                {{ food.heat_score }}
+              <span v-if="food.type || food.cuisine_type" class="cuisine-tag">
+                {{ food.type || food.cuisine_type }}
               </span>
-              <span v-for="tag in (food.tags || []).slice(0, 2)" :key="tag" class="feature-tag">
+              <span v-if="food.popularity || food.heat_score" class="heat-tag">
+                <span class="fire-icon">🔥</span>
+                {{ food.popularity || food.heat_score }}
+              </span>
+              <span
+                v-for="tag in (food.tags || []).slice(0, 2)"
+                :key="tag"
+                class="feature-tag"
+              >
                 {{ tag }}
               </span>
             </div>
@@ -130,11 +158,23 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { runFoodPipeline, getCuisineTypeOptions as buildCuisineOptions } from '../utils/foodDataPipeline.js'
+import { getFoodsBySpot } from '../data/xianFoodMock.js'
 
+// ═══════════════════════════════════════════════════════════
+// Props（保持向后兼容）
+// ═══════════════════════════════════════════════════════════
 const props = defineProps({
+  // 景点信息（需包含 belongToSpot 字段以自动加载数据）
   activeSpot: { type: Object, default: null },
+
+  // 管道模式：传入全量数据，组件内部执行过滤→搜索→Top-K
+  allFoods: { type: Array, default: null },
+
+  // 传统模式（向后兼容）：父组件预处理好的数据直接展示
   foods: { type: Array, default: () => [] },
+
   loading: { type: Boolean, default: false },
   error: { type: String, default: '' },
   activeFoodId: { type: [Number, String], default: null },
@@ -149,17 +189,93 @@ const emit = defineEmits([
   'retry',
 ])
 
+// ═══════════════════════════════════════════════════════════
+// 排序选项
+// ═══════════════════════════════════════════════════════════
 const sortOptions = [
   { label: '距离最近', value: 'distance', icon: '📍' },
   { label: '评分最高', value: 'rating', icon: '⭐' },
   { label: '热度最高', value: 'popularity', icon: '🔥' },
 ]
 
+// ═══════════════════════════════════════════════════════════
+// 内部响应式状态
+// ═══════════════════════════════════════════════════════════
 const localSortBy = ref(props.sortBy)
 const localKeyword = ref(props.keyword)
+const activeTypeFilter = ref('') // 空字符串 = 不筛选（「全部」）
 
+// 同步外部 prop → 内部
 watch(() => props.sortBy, (v) => { localSortBy.value = v })
 watch(() => props.keyword, (v) => { localKeyword.value = v })
+
+// ═══════════════════════════════════════════════════════════
+// 数据源：根据 activeSpot.belongToSpot 自动加载
+// ═══════════════════════════════════════════════════════════
+const spotFoods = computed(() => {
+  // 父组件显式传了 allFoods → 优先用
+  if (props.allFoods && props.allFoods.length > 0) {
+    if (props.activeSpot?.belongToSpot) {
+      return props.allFoods.filter((f) => f.belongToSpot === props.activeSpot.belongToSpot)
+    }
+    return props.allFoods
+  }
+
+  // 从 xianFoodMock 自动加载
+  if (props.activeSpot?.belongToSpot) {
+    return getFoodsBySpot(props.activeSpot.belongToSpot)
+  }
+
+  return []
+})
+
+// ═══════════════════════════════════════════════════════════
+// 菜系过滤选项（动态提取）
+// ═══════════════════════════════════════════════════════════
+const cuisineTypeOptions = computed(() => {
+  const source = spotFoods.value.length > 0 ? spotFoods.value : props.foods
+  if (!source || source.length === 0) return []
+  return buildCuisineOptions(source)
+})
+
+// ═══════════════════════════════════════════════════════════
+// ★ 核心计算属性：管道 Pipeline ★
+//
+// 流程：菜系过滤 → KMP 模糊搜索 → 堆选 Top-K 局部排序
+//
+// 关键：
+//   - runFoodPipeline 内部调用 getTopK() 使用 Heap 选 Top-K，
+//     不会对整个数组做 Array.prototype.sort() 全量排序
+//   - KMP 算法进行 O(N+M) 多字段模糊匹配
+// ═══════════════════════════════════════════════════════════
+const pipelineResult = computed(() => {
+  const source = spotFoods.value.length > 0 ? spotFoods.value : props.foods
+  if (!source || source.length === 0) {
+    return { results: [], stats: { total: 0, filtered: 0, searched: 0, final: 0 } }
+  }
+  return runFoodPipeline({
+    foods: source,
+    typeFilter: activeTypeFilter.value,
+    keyword: localKeyword.value,
+    sortBy: localSortBy.value,
+    topK: 10,
+  })
+})
+
+// 最终展示列表
+const displayFoods = computed(() => pipelineResult.value.results)
+
+// 管道统计
+const pipelineStats = computed(() => pipelineResult.value.stats)
+
+// 是否有数据
+const hasData = computed(() => {
+  return !!(props.activeSpot && (spotFoods.value.length > 0 || props.foods.length > 0))
+})
+
+// ═══════════════════════════════════════════════════════════
+// 方法
+// ═══════════════════════════════════════════════════════════
 
 const setSort = (value) => {
   localSortBy.value = value
@@ -179,6 +295,15 @@ const clearKeyword = () => {
   emit('update:keyword', '')
 }
 
+/** 切换菜系过滤：点击已选中 → 取消过滤；点击其他 → 切换 */
+const toggleTypeFilter = (ctype) => {
+  activeTypeFilter.value = activeTypeFilter.value === ctype ? '' : ctype
+}
+
+const onFoodClick = (food) => {
+  emit('select-food', food)
+}
+
 const formatDistance = (m) => {
   if (!m && m !== 0) return '未知'
   if (m < 1000) return `${Math.round(m)}m`
@@ -196,7 +321,7 @@ const formatDistance = (m) => {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* 头部 */
+/* ─── 头部 ─── */
 .food-header {
   padding: 16px 16px 10px;
   flex-shrink: 0;
@@ -255,7 +380,7 @@ const formatDistance = (m) => {
   flex-shrink: 0;
 }
 
-/* 搜索栏 */
+/* ─── 搜索栏 ─── */
 .food-search-bar {
   display: flex;
   align-items: center;
@@ -316,11 +441,11 @@ const formatDistance = (m) => {
   line-height: 1;
 }
 
-/* 排序标签 */
+/* ─── 排序标签 ─── */
 .food-sort-bar {
   display: flex;
   gap: 8px;
-  padding: 0 16px 12px;
+  padding: 0 16px 8px;
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -366,7 +491,76 @@ const formatDistance = (m) => {
   font-size: 11px;
 }
 
-/* 内容区域 */
+/* ─── 菜系过滤标签（NEW!） ─── */
+.food-cuisine-filter {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 10px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  flex-wrap: wrap;
+}
+
+.food-cuisine-filter.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.food-cuisine-filter::-webkit-scrollbar {
+  display: none;
+}
+
+.cuisine-chip {
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, rgba(255,255,255,0.6));
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cuisine-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.2);
+  color: #fff;
+}
+
+.cuisine-chip.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(123, 44, 191, 0.2));
+  border-color: var(--primary-color, #00d4ff);
+  color: var(--primary-color, #00d4ff);
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* ─── 管道统计 ─── */
+.pipeline-stats {
+  padding: 0 16px 8px;
+  flex-shrink: 0;
+}
+
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.stat-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00d4ff;
+  opacity: 0.5;
+}
+
+/* ─── 内容区域 ─── */
 .food-content {
   flex: 1;
   overflow-y: auto;
@@ -386,7 +580,7 @@ const formatDistance = (m) => {
   border-radius: 2px;
 }
 
-/* 空状态 */
+/* ─── 空状态 ─── */
 .food-empty-state {
   display: flex;
   flex-direction: column;
@@ -414,7 +608,7 @@ const formatDistance = (m) => {
   margin: 0;
 }
 
-/* 加载 */
+/* ─── 加载 ─── */
 .food-loading {
   display: flex;
   flex-direction: column;
@@ -443,7 +637,7 @@ const formatDistance = (m) => {
   margin: 0;
 }
 
-/* 错误 */
+/* ─── 错误 ─── */
 .food-error {
   display: flex;
   flex-direction: column;
@@ -480,7 +674,7 @@ const formatDistance = (m) => {
   background: rgba(0, 212, 255, 0.2);
 }
 
-/* 美食列表 */
+/* ─── 美食列表 ─── */
 .food-list {
   display: flex;
   flex-direction: column;
@@ -540,7 +734,7 @@ const formatDistance = (m) => {
   border-color: rgba(255, 159, 67, 0.3);
 }
 
-/* 排名徽章 */
+/* ─── 排名徽章 ─── */
 .rank-badge {
   width: 32px;
   height: 32px;
@@ -575,7 +769,7 @@ const formatDistance = (m) => {
   color: #cd7f32;
 }
 
-/* 卡片主体 */
+/* ─── 卡片主体 ─── */
 .food-card-body {
   flex: 1;
   min-width: 0;

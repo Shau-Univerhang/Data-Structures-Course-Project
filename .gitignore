@@ -49,7 +49,9 @@ node_modules/
 .vite/
 
 # 数据库文件
-backend/data/travel.db
+# backend/data/travel.db  （已取消忽略，数据库会随项目上传）
+backend/data/travel.db-shm
+backend/data/travel.db-wal
 
 # 生成的视频文件
 videos/

@@ -164,10 +164,10 @@
                 </button>
               </div>
 
-              <!-- ★ 8大菜系霓虹过滤标签 ★ -->
+              <!-- ★ V4：多城市动态菜系霓虹过滤标签 ★ -->
               <div class="food-cuisine-filter">
                 <button
-                  v-for="cuisine in ['全部', '陕菜正餐', '快餐小吃', '地方特色', '甜品茶饮', '烧烤', '火锅', '私房菜']"
+                  v-for="cuisine in currentCityTags"
                   :key="cuisine"
                   class="food-cuisine-chip"
                   :class="{ active: selectedCuisine === cuisine }"
@@ -417,9 +417,10 @@ import AMapLoader from "@amap/amap-jsapi-loader";
 import { buildGraphFromSpots, haversineDistance, TransportType } from "@/pathfinder/graph.js";
 import { dijkstra, reconstructPath } from "@/pathfinder/dijkstra.js";
 import { API } from "../api";
-import { getFoodsBySpot, getFoodsBySpotName } from "../data/xianFoodMock.js";
+import { getFoodsBySpot, getFoodsBySpotName, getFoodsForCitySpot } from "../data/xianFoodMock.js";
 import { runFoodPipeline } from "../utils/foodDataPipeline.js";
 import { createDarkFoodInfoWindow } from "../utils/foodMapMarkers.js";
+import { getCityCuisineTags } from "../data/cityCuisineConfig.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -473,6 +474,11 @@ const activeFoodId = ref(null);
 
 // 算法控制状态
 const currentTransport = ref(TransportType.WALK);
+
+// ★ V4：动态城市菜系标签（根据当前城市自动切换）★
+const currentCityTags = computed(() => {
+  return getCityCuisineTags(city.value)
+})
 const congestionLevel = ref(0.2);
 const transportOptions = [
   { label: "🚶 步行", value: TransportType.WALK },
@@ -1178,9 +1184,10 @@ const clearNearbyFoods = ({ clearFilters = false } = {}) => {
 
   if (clearFilters) {
     foodKeyword.value = "";
-    selectedCuisine.value = "全部";
     foodSortBy.value = "distance";
   }
+  // ★ V4：每次切换景点/城市时强制重置菜系为「全部」★
+  selectedCuisine.value = "全部";
 };
 
 const renderFoodMarkers = () => {
@@ -1232,23 +1239,31 @@ const renderFoodMarkers = () => {
 }
 
 /**
- * 将景点名称映射到美食圈（V3 — 直接按名称匹配）
- * 三大美食圈：
- *   lintong    — 华清宫、兵马俑、骊山、秦陵
- *   city_center — 回民街、钟楼、鼓楼、古城墙、永宁门
- *   dayanta    — 大雁塔、大唐不夜城、大唐芙蓉园
+ * 判断当前城市是否有本地 Mock 数据
+ * V4：西安走 xianFoodGenerator，其余城市走 multiCityFoodData
  */
 const resolveSpotDatasetKey = (spot) => {
   if (!spot) return null
-  // 直接用景点全名匹配生成器数据
-  const name = spot.name || ''
-  if (name.includes('华清') || name.includes('兵马俑') || name.includes('骊山') || name.includes('秦陵')) return 'lintong'
-  if (name.includes('回民') || name.includes('钟楼') || name.includes('鼓楼') || name.includes('古城墙') || name.includes('永宁')) return 'city_center'
-  if (name.includes('大雁塔') || name.includes('大唐不夜城') || name.includes('大唐芙蓉园')) return 'dayanta'
-  // 兜底：西安其他景点 → city_center
-  const cityName = (city.value || '').toLowerCase()
-  if (cityName.includes('西安') || cityName.includes('xian')) return 'city_center'
+  const cityName = city.value?.trim() || ''
+  // 西安：走丰富模板数据
+  if (cityName === '西安' || cityName.includes('西安')) {
+    const name = spot.name || ''
+    if (name.includes('华清') || name.includes('兵马俑') || name.includes('骊山') || name.includes('秦陵')) return 'lintong'
+    if (name.includes('回民') || name.includes('钟楼') || name.includes('鼓楼') || name.includes('古城墙') || name.includes('永宁')) return 'city_center'
+    if (name.includes('大雁塔') || name.includes('大唐不夜城') || name.includes('大唐芙蓉园')) return 'dayanta'
+    return 'city_center'
+  }
+  // 其他 20 城：multiCityFoodData 支持任意城市
+  if (cityName && CITY_CENTERS_MAP[cityName]) return 'multi_city'
   return null
+}
+
+// 城市中心坐标映射（与 getCityCenter 同步）
+const CITY_CENTERS_MAP = {
+  北京: true, 上海: true, 广州: true, 深圳: true, 杭州: true,
+  成都: true, 西安: true, 南京: true, 武汉: true, 长沙: true,
+  重庆: true, 厦门: true, 青岛: true, 苏州: true, 桂林: true,
+  丽江: true, 大理: true, 黄山: true, 九寨沟: true, 张家界: true, 三亚: true,
 }
 
 /** 将生成器数据格式归一化为 TripDetail 期望的字段名 */
@@ -1294,9 +1309,39 @@ const fetchNearbyFoods = async (spot = activeFoodSpot.value) => {
   foodLoading.value = true
   foodError.value = ''
 
-  // 检查是否可以使用本地 Mock 数据集
-  const datasetKey = resolveSpotDatasetKey(spot)
-  let usedMockFallback = false
+  const currentCity = city.value?.trim() || ''
+  const spotLocation = getValidLngLat(spot)
+
+  // ★ V4：加载多城市 Mock 数据的统一入口 ★
+  const _loadMockFoods = () => {
+    let mockFoods = []
+
+    if (currentCity === '西安' || currentCity.includes('西安')) {
+      // 西安 → 丰富模板数据
+      mockFoods = getFoodsBySpotName(spot.name)
+    } else if (currentCity) {
+      // 其他 20 城 → 多城市程序化生成器
+      mockFoods = getFoodsForCitySpot(currentCity, spot.name, spotLocation)
+    }
+
+    if (mockFoods.length === 0) {
+      nearbyFoods.value = []
+      foodCuisineOptions.value = []
+      foodPipelineStats.value = null
+      return
+    }
+
+    const { results, stats } = runFoodPipeline({
+      foods: mockFoods,
+      typeFilter: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
+      keyword: foodKeyword.value.trim(),
+      sortBy: foodSortBy.value,
+      topK: 10,
+    })
+    nearbyFoods.value = normalizeFoodFields(results)
+    foodCuisineOptions.value = currentCityTags.value.filter((t) => t !== '全部')
+    foodPipelineStats.value = stats
+  }
 
   try {
     // 优先尝试后端 API
@@ -1314,58 +1359,16 @@ const fetchNearbyFoods = async (spot = activeFoodSpot.value) => {
     if (data.restaurants?.length > 0) {
       nearbyFoods.value = data.restaurants || []
       foodCuisineOptions.value = data.cuisine_options || []
-    } else if (datasetKey) {
-      // ★ API 无数据，降级到本地 Mock 数据集 ★
-      usedMockFallback = true
-      // V3: 使用 getFoodsBySpotName 直接获取该景点全量数据（100+ 条）
-      const mockFoods = getFoodsBySpotName(spot.name)
-      const { results, stats } = runFoodPipeline({
-        foods: mockFoods,
-        typeFilter: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
-        keyword: foodKeyword.value.trim(),
-        sortBy: foodSortBy.value,
-        topK: 10,
-      })
-      nearbyFoods.value = normalizeFoodFields(results)
-      foodCuisineOptions.value = [...new Set(mockFoods.map((f) => f.type || f.cuisine_type))]
-      foodPipelineStats.value = stats
     } else {
-      nearbyFoods.value = []
-      foodCuisineOptions.value = []
-      foodPipelineStats.value = null
+      // ★ API 无数据，降级到本地 Mock 数据集 ★
+      _loadMockFoods()
     }
   } catch (error) {
     if (activeFoodSpot.value?.id !== requestSpotId) return
     console.error('获取附近美食失败:', error)
 
     // ★ API 异常，降级到本地 Mock 数据集 ★
-    if (datasetKey) {
-      usedMockFallback = true
-      try {
-        const mockFoods = getFoodsBySpotName(spot.name)
-        const { results, stats } = runFoodPipeline({
-          foods: mockFoods,
-          typeFilter: selectedCuisine.value === '全部' ? '' : selectedCuisine.value,
-          keyword: foodKeyword.value.trim(),
-          sortBy: foodSortBy.value,
-          topK: 10,
-        })
-        nearbyFoods.value = normalizeFoodFields(results)
-        foodCuisineOptions.value = [...new Set(mockFoods.map((f) => f.type || f.cuisine_type))]
-        foodPipelineStats.value = stats
-      } catch (mockErr) {
-        console.error('Mock 数据加载也失败:', mockErr)
-        nearbyFoods.value = []
-        foodCuisineOptions.value = []
-        foodPipelineStats.value = null
-        foodError.value = '附近美食加载失败，请重试'
-      }
-    } else {
-      nearbyFoods.value = []
-      foodCuisineOptions.value = []
-      foodPipelineStats.value = null
-      foodError.value = '附近美食加载失败，请重试'
-    }
+    _loadMockFoods()
   } finally {
     if (activeFoodSpot.value?.id === requestSpotId) {
       foodLoading.value = false
@@ -1838,6 +1841,12 @@ watch(selectedDay, () => {
   nextTick(() => {
     updateMapRoute();
   });
+});
+
+// ★ V4：城市切换时强制重置菜系为「全部」★
+watch(city, () => {
+  selectedCuisine.value = '全部';
+  clearNearbyFoods();
 });
 
 watch([foodKeyword, selectedCuisine, foodSortBy], () => {

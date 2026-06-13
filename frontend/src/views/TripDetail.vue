@@ -35,70 +35,84 @@
 
         <!-- 行程与美食可滚动区域 -->
         <div class="scrollable-sections">
-          <!-- 当前天的景点列表（可拖拽） -->
-          <div class="spots-container">
+          <!-- 当前天的景点列表（可拖拽，方案B：可折叠） -->
+          <div class="spots-container" :class="{ collapsed: isItineraryCollapsed }">
             <div class="spots-header">
               <h3>第{{ selectedDay }}天行程</h3>
-              <button class="add-spot-btn" @click="showAddSpotModal">
-                <span>+</span> 添加景点
-              </button>
-            </div>
-
-            <draggable
-              v-model="currentDaySpots"
-              item-key="id"
-              class="spots-list"
-              ghost-class="spot-ghost"
-              drag-class="spot-dragging"
-              :animation="200"
-              :delay="0"
-              :delay-on-touch-only="true"
-              @end="onDragEnd"
-            >
-              <template #item="{ element: spot, index }">
-                <div
-                  class="spot-card"
-                  title="按住拖动可调整顺序"
-                  @click="focusSpot(spot)"
+              <div class="spots-header-actions">
+                <button
+                  class="collapse-toggle-btn"
+                  :title="isItineraryCollapsed ? '展开行程' : '收起行程'"
+                  @click="isItineraryCollapsed = !isItineraryCollapsed"
                 >
-                  <div class="drag-handle">
-                    <span class="drag-icon">⋮⋮</span>
-                  </div>
-                  <div class="spot-order">{{ index + 1 }}</div>
-                  <div class="spot-image">
-                    <img :src="getFullImageUrl(spot.image)" :alt="spot.name" />
-                  </div>
-                  <div class="spot-info">
-                    <h4 class="spot-name">{{ spot.name }}</h4>
-                    <div class="spot-meta">
-                      <span class="spot-rating"
-                        >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
-                      >
-                      <span class="spot-duration"
-                        >⏱️ {{ spot.duration || "2 小时" }}</span
-                      >
-                    </div>
-                    <div class="spot-tags" v-if="spot.tags?.length">
-                      <span
-                        v-for="tag in spot.tags.slice(0, 2)"
-                        :key="tag"
-                        class="tag"
-                        >{{ tag }}</span
-                      >
-                    </div>
-                  </div>
-                  <button class="delete-btn" @click="removeSpot(index)">
-                    <span>×</span>
-                  </button>
-                </div>
-              </template>
-            </draggable>
-
-            <!-- 空状态 -->
-            <div v-if="currentDaySpots.length === 0" class="empty-state">
-              <div class="empty-icon">🗺️</div>
-              <p>暂无景点，点击上方按钮添加</p>
+                  <span class="collapse-icon" :class="{ rotated: isItineraryCollapsed }">▼</span>
+                </button>
+                <button class="add-spot-btn" @click="showAddSpotModal">
+                  <span>+</span> 添加景点
+                </button>
+              </div>
             </div>
+
+            <!-- 行程卡片区（折叠过渡） -->
+            <Transition name="itinerary-collapse">
+              <div v-show="!isItineraryCollapsed" class="spots-body">
+                <draggable
+                  v-model="currentDaySpots"
+                  item-key="id"
+                  class="spots-list"
+                  ghost-class="spot-ghost"
+                  drag-class="spot-dragging"
+                  :animation="200"
+                  :delay="0"
+                  :delay-on-touch-only="true"
+                  @end="onDragEnd"
+                >
+                  <template #item="{ element: spot, index }">
+                    <div
+                      class="spot-card"
+                      title="按住拖动可调整顺序"
+                      @click="focusSpot(spot)"
+                    >
+                      <div class="drag-handle">
+                        <span class="drag-icon">⋮⋮</span>
+                      </div>
+                      <div class="spot-order">{{ index + 1 }}</div>
+                      <div class="spot-image">
+                        <img :src="getFullImageUrl(spot.image)" :alt="spot.name" />
+                      </div>
+                      <div class="spot-info">
+                        <h4 class="spot-name">{{ spot.name }}</h4>
+                        <div class="spot-meta">
+                          <span class="spot-rating"
+                            >⭐ {{ spot.rating?.toFixed(1) || "4.5" }}</span
+                          >
+                          <span class="spot-duration"
+                            >⏱️ {{ spot.duration || "2 小时" }}</span
+                          >
+                        </div>
+                        <div class="spot-tags" v-if="spot.tags?.length">
+                          <span
+                            v-for="tag in spot.tags.slice(0, 2)"
+                            :key="tag"
+                            class="tag"
+                            >{{ tag }}</span
+                          >
+                        </div>
+                      </div>
+                      <button class="delete-btn" @click="removeSpot(index)">
+                        <span>×</span>
+                      </button>
+                    </div>
+                  </template>
+                </draggable>
+
+                <!-- 空状态 -->
+                <div v-if="currentDaySpots.length === 0" class="empty-state">
+                  <div class="empty-icon">🗺️</div>
+                  <p>暂无景点，点击上方按钮添加</p>
+                </div>
+              </div>
+            </Transition>
           </div>
 
           <!-- 附近美食（V3 — 7大菜系 + 霓虹标签 + 暗黑卡片） -->
@@ -150,18 +164,10 @@
                 </button>
               </div>
 
-              <!-- ★ 7大菜系霓虹过滤标签 ★ -->
+              <!-- ★ 8大菜系霓虹过滤标签 ★ -->
               <div class="food-cuisine-filter">
                 <button
-                  class="food-cuisine-chip"
-                  :class="{ active: selectedCuisine === '全部' }"
-                  :disabled="!activeFoodSpot"
-                  @click="selectedCuisine = '全部'"
-                >
-                  全部
-                </button>
-                <button
-                  v-for="cuisine in foodCuisineOptions"
+                  v-for="cuisine in ['全部', '陕菜正餐', '快餐小吃', '地方特色', '甜品茶饮', '烧烤', '火锅', '私房菜']"
                   :key="cuisine"
                   class="food-cuisine-chip"
                   :class="{ active: selectedCuisine === cuisine }"
@@ -451,6 +457,9 @@ let routePolylines = [];
 let foodMarkers = [];
 let trafficLayer = null;
 let drivingPlugin = null;
+
+// 方案B：行程卡片折叠/展开
+const isItineraryCollapsed = ref(false);
 
 const activeFoodSpot = ref(null);
 const foodKeyword = ref("");
@@ -2089,13 +2098,20 @@ const pollVlogStatus = async () => {
   margin-top: 2px;
 }
 
-/* 景点容器 */
+/* 景点容器（方案B：支持折叠） */
 .spots-container {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 15px;
   border-bottom: 1px solid var(--border-color);
+  transition: flex 0.35s cubic-bezier(0.4, 0, 0.2, 1), padding 0.35s ease;
+}
+
+.spots-container.collapsed {
+  flex: 0 0 auto;
+  overflow-y: visible;
+  padding-bottom: 6px;
 }
 
 .spots-header {
@@ -2103,12 +2119,82 @@ const pollVlogStatus = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  flex-shrink: 0;
+  transition: margin 0.35s ease;
+}
+
+.spots-container.collapsed .spots-header {
+  margin-bottom: 0;
 }
 
 .spots-header h3 {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.spots-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 折叠切换按钮 */
+.collapse-toggle-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, rgba(255,255,255,0.5));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.collapse-toggle-btn:hover {
+  background: rgba(0, 212, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.3);
+  color: var(--primary-color, #00d4ff);
+}
+
+.collapse-icon {
+  font-size: 12px;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.collapse-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* 折叠过渡内容 */
+.spots-body {
+  overflow: hidden;
+}
+
+/* Vue Transition: itinerary-collapse */
+.itinerary-collapse-enter-active,
+.itinerary-collapse-leave-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.itinerary-collapse-enter-from,
+.itinerary-collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+}
+
+.itinerary-collapse-enter-to,
+.itinerary-collapse-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+  transform: translateY(0);
 }
 
 .add-spot-btn {

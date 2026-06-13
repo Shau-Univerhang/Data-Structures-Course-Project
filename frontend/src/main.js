@@ -28,7 +28,7 @@ import Photos from './views/Photos.vue'
 import Collection from './views/Collection.vue'
 import Explore from './views/Explore.vue'
 import AmapExample from './components/AmapExample.vue'
-import DesignPresentation from './views/DesignPresentation.vue'
+import FinalPresentation from './views/FinalPresentation.vue'
 import InternalNav from './views/InternalNav.vue'
 import IndoorNavigation from './views/IndoorNavigation.vue'
 import PersonalityTest from './views/PersonalityTest.vue'
@@ -57,7 +57,8 @@ const routes = [
   { path: '/profile', name: 'Profile', component: Profile },
   { path: '/food', name: 'Food', component: Food },
   { path: '/explore', name: 'Explore', component: Explore },
-  { path: '/presentation', name: 'DesignPresentation', component: DesignPresentation },
+  { path: '/presentation', name: 'FinalPresentation', component: FinalPresentation },
+  { path: '/final', name: 'FinalPresentationAlt', component: FinalPresentation },
   { path: '/setting', name: 'Setting', component: Setting },
   { path: '/photos', name: 'Photos', component: Photos },
   { path: '/collection', name: 'Collection', component: Collection },
@@ -71,7 +72,7 @@ const router = createRouter({
 })
 
 // 路由守卫 - 检查是否需要登录
-const publicRoutes = ['/', '/login', '/register', '/city', '/spot', '/internal-nav', '/indoor', '/presentation']
+const publicRoutes = ['/', '/login', '/register', '/city', '/spot', '/internal-nav', '/indoor', '/presentation', '/final']
 
 router.beforeEach((to, from, next) => {
   const userId = localStorage.getItem('userId')

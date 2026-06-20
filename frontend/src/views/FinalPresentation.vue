@@ -507,7 +507,7 @@ const innovations = [
     tech: ['SVG动画', '人格算法', '推荐联动', '16型形象']
   },
   {
-    icon: '�', tag: '核心创新',
+    icon: '\uD83C\uDF0D', tag: '核心创新',
     title: '3D数字地球旅行足迹',
     desc: '基于 Three.js 自研数字化赛博地球——自定义 WebGL Shader 实现赛博陆地着色、电子网格、夜景灯光、海洋镜面高光。城市星芒标记 + 真实边界线 + 全息信息面板，一键点击飞向城市，以沉浸式3D体验回望旅行足迹。',
     tech: ['Three.js', 'WebGL Shader', 'GeoJSON', '3D边界线']

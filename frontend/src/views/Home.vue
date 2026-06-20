@@ -21,10 +21,7 @@
           智能规划你的专属旅行路线<br />
           探索未知的美食与风景
         </p>
-        <div class="hero-actions">
-          <button class="hero-btn primary" @click="goToCity('北京')">探索北京</button>
-          <button class="hero-btn secondary" @click="goToBUPTSpot">北邮详情入口</button>
-        </div>
+
       </div>
     </div>
 
@@ -192,10 +189,6 @@ onUnmounted(() => {
 const goToCity = (city) => {
   router.push({ path: "/city", query: { name: city } });
 };
-
-const goToBUPTSpot = () => {
-  router.push({ path: '/spot', query: { id: 287, city: '北京' } })
-}
 </script>
 
 <style scoped>
